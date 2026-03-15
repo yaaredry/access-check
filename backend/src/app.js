@@ -11,6 +11,10 @@ const verifyRoutes = require('./routes/verify');
 
 const app = express();
 
+// Trust the nginx reverse proxy so express-rate-limit uses the real client IP
+// from X-Forwarded-For rather than the proxy's IP.
+app.set('trust proxy', 1);
+
 app.use(helmet());
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));
