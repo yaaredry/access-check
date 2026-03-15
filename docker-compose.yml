@@ -1,6 +1,19 @@
 version: '3.9'
 
 services:
+  nginx-proxy:
+    image: nginx:alpine
+    container_name: access-check-proxy
+    ports:
+      - '80:80'
+    volumes:
+      - ./docker/nginx-proxy.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - backend
+      - admin-console
+      - gate-client
+    restart: unless-stopped
+
   postgres:
     image: postgres:15-alpine
     container_name: access-check-db
@@ -28,8 +41,6 @@ services:
     environment:
       DB_HOST: postgres
       NODE_ENV: production
-    ports:
-      - '3001:3001'
     depends_on:
       postgres:
         condition: service_healthy
@@ -40,10 +51,8 @@ services:
       context: ./admin-console
       dockerfile: Dockerfile
       args:
-        VITE_API_URL: http://localhost:3001
+        VITE_API_URL: /api
     container_name: access-check-admin
-    ports:
-      - '3002:80'
     depends_on:
       - backend
     restart: unless-stopped
@@ -53,10 +62,8 @@ services:
       context: ./gate-client
       dockerfile: Dockerfile
       args:
-        VITE_API_URL: http://localhost:3001
+        VITE_API_URL: /api
     container_name: access-check-gate
-    ports:
-      - '3003:80'
     depends_on:
       - backend
     restart: unless-stopped
