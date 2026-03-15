@@ -1,0 +1,125 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main]
+
+jobs:
+  backend:
+    name: Backend — lint & test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: access_check_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Run migrations
+        working-directory: backend
+        env:
+          DATABASE_URL: postgres://postgres:password@localhost:5432/access_check_test
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: access_check_test
+          DB_USER: postgres
+          DB_PASSWORD: password
+        run: node scripts/migrate.js
+
+      - name: Lint
+        working-directory: backend
+        run: npm run lint
+
+      - name: Test
+        working-directory: backend
+        env:
+          DATABASE_URL: postgres://postgres:password@localhost:5432/access_check_test
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: access_check_test
+          DB_USER: postgres
+          DB_PASSWORD: password
+          JWT_SECRET: ci-test-secret
+          NODE_ENV: test
+        run: npm test -- --coverage
+
+  admin-console:
+    name: Admin Console — lint & build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: admin-console/package-lock.json
+
+      - name: Install dependencies
+        working-directory: admin-console
+        run: npm ci
+
+      - name: Lint
+        working-directory: admin-console
+        run: npm run lint
+
+      - name: Build
+        working-directory: admin-console
+        env:
+          VITE_API_URL: http://localhost:3001
+        run: npm run build
+
+  gate-client:
+    name: Gate Client — lint & build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: gate-client/package-lock.json
+
+      - name: Install dependencies
+        working-directory: gate-client
+        run: npm ci
+
+      - name: Lint
+        working-directory: gate-client
+        run: npm run lint
+
+      - name: Build
+        working-directory: gate-client
+        env:
+          VITE_API_URL: http://localhost:3001
+        run: npm run build

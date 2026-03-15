@@ -1,0 +1,128 @@
+'use strict';
+
+const { parse } = require('csv-parse/sync');
+const peopleRepo = require('../repositories/peopleRepository');
+const auditRepo = require('../repositories/auditRepository');
+
+const VALID_TYPES = ['IL_ID', 'IDF_ID'];
+const VALID_VERDICTS = ['APPROVED', 'NOT_APPROVED'];
+
+function validateIdentifierValue(type, value) {
+  if (type === 'IL_ID') {
+    // Israeli ID: 9 digits, with Luhn-like check digit
+    if (!/^\d{9}$/.test(value)) return false;
+    const digits = value.split('').map(Number);
+    let sum = 0;
+    for (let i = 0; i < 9; i++) {
+      let d = digits[i] * (i % 2 === 0 ? 1 : 2);
+      if (d > 9) d -= 9;
+      sum += d;
+    }
+    return sum % 10 === 0;
+  }
+  if (type === 'IDF_ID') {
+    // IDF personal number: 7–8 digits
+    return /^\d{7,8}$/.test(value);
+  }
+  return false;
+}
+
+async function listPeople(query) {
+  return peopleRepo.findAll(query);
+}
+
+async function getPerson(id) {
+  return peopleRepo.findById(id);
+}
+
+async function createPerson(data) {
+  const { identifierType, identifierValue, verdict, approvalExpiration } = data;
+  const person = await peopleRepo.create({ identifierType, identifierValue, verdict, approvalExpiration });
+  await auditRepo.log({
+    action: 'CREATE',
+    identifierType,
+    identifierValue,
+    verdict,
+    source: 'admin',
+  });
+  return person;
+}
+
+async function updatePerson(id, data) {
+  const person = await peopleRepo.update(id, data);
+  if (person) {
+    await auditRepo.log({
+      action: 'UPDATE',
+      identifierType: person.identifier_type,
+      identifierValue: person.identifier_value,
+      verdict: person.verdict,
+      source: 'admin',
+    });
+  }
+  return person;
+}
+
+async function deletePerson(id) {
+  const person = await peopleRepo.findById(id);
+  if (!person) return false;
+  const deleted = await peopleRepo.remove(id);
+  if (deleted) {
+    await auditRepo.log({
+      action: 'DELETE',
+      identifierType: person.identifier_type,
+      identifierValue: person.identifier_value,
+      source: 'admin',
+    });
+  }
+  return deleted;
+}
+
+async function bulkUploadCSV(csvBuffer) {
+  const records = parse(csvBuffer, {
+    columns: true,
+    skip_empty_lines: true,
+    trim: true,
+  });
+
+  const errors = [];
+  const valid = [];
+
+  for (let i = 0; i < records.length; i++) {
+    const row = records[i];
+    const lineNum = i + 2; // +2 for header row + 1-based index
+
+    const identifierType = (row.identifier_type || '').toUpperCase();
+    const identifierValue = (row.identifier_value || '').trim();
+    const verdict = (row.verdict || '').toUpperCase();
+    const approvalExpiration = row.expiration_date || null;
+
+    if (!VALID_TYPES.includes(identifierType)) {
+      errors.push({ line: lineNum, error: `Invalid identifier_type: ${row.identifier_type}` });
+      continue;
+    }
+    if (!VALID_VERDICTS.includes(verdict)) {
+      errors.push({ line: lineNum, error: `Invalid verdict: ${row.verdict}` });
+      continue;
+    }
+    if (!validateIdentifierValue(identifierType, identifierValue)) {
+      errors.push({ line: lineNum, error: `Invalid identifier_value for type ${identifierType}: ${identifierValue}` });
+      continue;
+    }
+
+    valid.push({ identifierType, identifierValue, verdict, approvalExpiration });
+  }
+
+  let result = { inserted: 0, updated: 0 };
+  if (valid.length > 0) {
+    result = await peopleRepo.upsertMany(valid);
+    await auditRepo.log({
+      action: 'BULK_UPLOAD',
+      source: 'admin',
+      metadata: { inserted: result.inserted, updated: result.updated, errors: errors.length },
+    });
+  }
+
+  return { ...result, errors, totalRows: records.length };
+}
+
+module.exports = { listPeople, getPerson, createPerson, updatePerson, deletePerson, bulkUploadCSV, validateIdentifierValue };

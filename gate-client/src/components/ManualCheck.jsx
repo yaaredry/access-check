@@ -1,0 +1,83 @@
+import React, { useState } from 'react';
+import { api } from '../api/client';
+import VerdictDisplay from './VerdictDisplay';
+
+export default function ManualCheck({ onBack }) {
+  const [type, setType] = useState('IL_ID');
+  const [value, setValue] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState('');
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!value.trim()) return;
+    setError('');
+    setLoading(true);
+    try {
+      const res = await api.verifyId(type, value.trim());
+      setResult(res);
+    } catch (err) {
+      setError(err.message || 'Verification failed');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function reset() {
+    setResult(null);
+    setValue('');
+    setError('');
+  }
+
+  if (result) {
+    return (
+      <VerdictDisplay
+        verdict={result.verdict}
+        identifierValue={value.trim()}
+        onBack={reset}
+      />
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, padding: 24, flex: 1 }}>
+      <h2 style={{ fontSize: 22, fontWeight: 700, textAlign: 'center', marginBottom: 8 }}>
+        Manual ID Check
+      </h2>
+
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <select value={type} onChange={(e) => setType(e.target.value)}>
+          <option value="IL_ID">Israeli ID (9 digits)</option>
+          <option value="IDF_ID">IDF ID (7-8 digits)</option>
+        </select>
+
+        <input
+          type="tel"
+          inputMode="numeric"
+          pattern="[0-9]*"
+          placeholder="Enter ID number"
+          value={value}
+          onChange={(e) => setValue(e.target.value.replace(/\D/g, ''))}
+          autoFocus
+          maxLength={9}
+        />
+
+        {error && (
+          <div style={{ color: 'var(--not-approved)', textAlign: 'center', fontWeight: 600 }}>{error}</div>
+        )}
+
+        <button
+          type="submit"
+          className="scan"
+          disabled={loading || !value.trim()}
+          style={{ marginTop: 8, fontSize: 22 }}
+        >
+          {loading ? 'Checking…' : 'Check'}
+        </button>
+      </form>
+
+      <button className="back" onClick={onBack}>← Back</button>
+    </div>
+  );
+}
