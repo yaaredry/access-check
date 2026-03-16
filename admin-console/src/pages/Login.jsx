@@ -19,8 +19,8 @@ export default function Login() {
       const { token } = await api.login(username, password);
       signIn(token, username);
       navigate('/people');
-    } catch {
-      setError('Invalid username or password');
+    } catch (err) {
+      setError(err.status === 401 ? 'Invalid username or password' : (err.message || 'Login failed, please try again'));
     } finally {
       setLoading(false);
     }
