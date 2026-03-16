@@ -5,6 +5,6 @@
 INSERT INTO users (username, password)
 VALUES (
     'admin',
-    '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj/o.k7TZkxC'
+    '$2a$12$2pl1sY1DHViwWm/j1OOnR.TUc72GOgcXE2NlHFFryRm2iLBk4w.QS'
 )
 ON CONFLICT (username) DO NOTHING;
