@@ -19,7 +19,15 @@ async function request(method, path, body, isFormData = false) {
   if (res.status === 204) return null;
 
   const data = await res.json();
-  if (!res.ok) throw Object.assign(new Error(data.error || 'Request failed'), { status: res.status, data });
+  if (!res.ok) {
+    if (res.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('username');
+      window.location.replace('/admin/login');
+      return;
+    }
+    throw Object.assign(new Error(data.error || 'Request failed'), { status: res.status, data });
+  }
   return data;
 }
 
