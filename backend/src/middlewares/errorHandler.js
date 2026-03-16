@@ -2,7 +2,6 @@
 
 const logger = require('../config/logger');
 
-// eslint-disable-next-line no-unused-vars
 function errorHandler(err, req, res, _next) {
   logger.error({
     message: err.message,

@@ -146,7 +146,7 @@ function extractIds(text) {
   const idfIds = new Set();
 
   // Strategy 1: dashed IL-ID format  X-XXXXXX-XX  (Teudat Zehut / driver's license)
-  const dashedPattern = /\b(\d{1})[\-\s](\d{6})[\-\s](\d{2})\b/g;
+  const dashedPattern = /\b(\d{1})[-\s](\d{6})[-\s](\d{2})\b/g;
   let m;
   while ((m = dashedPattern.exec(text)) !== null) {
     const c = m[1] + m[2] + m[3];
@@ -163,7 +163,7 @@ function extractIds(text) {
   }
 
   // Strategy 3: plain 9-digit runs after stripping spaces/dashes
-  const stripped = text.replace(/[\s\-]/g, '');
+  const stripped = text.replace(/[\s-]/g, '');
   for (const c of (stripped.match(/\d{9}/g) || [])) {
     if (isValidIlId(c)) ilIds.add(c);
   }
