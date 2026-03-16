@@ -48,6 +48,7 @@ export default function PersonForm({ initial, onSubmit, onCancel, loading }) {
         <label style={{ display: 'block', marginBottom: 6, fontWeight: 500 }}>Verdict</label>
         <select value={form.verdict} onChange={(e) => set('verdict', e.target.value)}>
           <option value="APPROVED">Approved</option>
+          <option value="ADMIN_APPROVED">Admin Approved</option>
           <option value="NOT_APPROVED">Not Approved</option>
         </select>
       </div>

@@ -5,6 +5,7 @@ function verdictBadge(verdict, expiration) {
     return <span className="badge expired">Expired</span>;
   }
   if (verdict === 'APPROVED') return <span className="badge approved">Approved</span>;
+  if (verdict === 'ADMIN_APPROVED') return <span className="badge approved">Admin Approved</span>;
   return <span className="badge not-approved">Not Approved</span>;
 }
 

@@ -19,6 +19,12 @@ const CONFIG = {
     label: 'EXPIRED',
     bg: 'rgba(245,158,11,.15)',
   },
+  ADMIN_APPROVED: {
+    color: 'var(--approved)',
+    icon: '✓',
+    label: 'ADMIN APPROVED',
+    bg: 'rgba(34,197,94,.15)',
+  },
   NOT_FOUND: {
     color: 'var(--not-found)',
     icon: '?',

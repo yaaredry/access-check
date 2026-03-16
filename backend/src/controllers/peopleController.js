@@ -5,7 +5,7 @@ const { validate } = require('../middlewares/validate');
 const peopleService = require('../services/peopleService');
 
 const IDENTIFIER_TYPES = ['IL_ID', 'IDF_ID'];
-const VERDICTS = ['APPROVED', 'NOT_APPROVED'];
+const VERDICTS = ['APPROVED', 'ADMIN_APPROVED', 'NOT_APPROVED'];
 
 const personBodyValidation = [
   body('identifierType').isIn(IDENTIFIER_TYPES).withMessage(`identifierType must be one of ${IDENTIFIER_TYPES.join(', ')}`),
@@ -78,6 +78,19 @@ async function remove(req, res, next) {
   }
 }
 
+async function importGSheet(req, res, next) {
+  try {
+    const { url } = req.body;
+    if (!url || typeof url !== 'string') {
+      return res.status(400).json({ error: 'url is required' });
+    }
+    const result = await peopleService.importFromGSheet(url);
+    return res.json(result);
+  } catch (err) {
+    return next(err);
+  }
+}
+
 async function uploadCSV(req, res, next) {
   try {
     if (!req.file) {
@@ -108,6 +121,7 @@ module.exports = {
   update,
   remove,
   uploadCSV,
+  importGSheet,
   personBodyValidation,
   idParamValidation,
   listQueryValidation,

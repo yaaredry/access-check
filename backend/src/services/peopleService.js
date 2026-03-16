@@ -3,9 +3,10 @@
 const { parse } = require('csv-parse/sync');
 const peopleRepo = require('../repositories/peopleRepository');
 const auditRepo = require('../repositories/auditRepository');
+const gsheetService = require('./gsheetService');
 
 const VALID_TYPES = ['IL_ID', 'IDF_ID'];
-const VALID_VERDICTS = ['APPROVED', 'NOT_APPROVED'];
+const VALID_VERDICTS = ['APPROVED', 'ADMIN_APPROVED', 'NOT_APPROVED'];
 
 function validateIdentifierValue(type, value) {
   if (type === 'IL_ID') {
@@ -125,4 +126,41 @@ async function bulkUploadCSV(csvBuffer) {
   return { ...result, errors, totalRows: records.length };
 }
 
-module.exports = { listPeople, getPerson, createPerson, updatePerson, deletePerson, bulkUploadCSV, validateIdentifierValue };
+async function importFromGSheet(url) {
+  const rows = await gsheetService.fetchAndParse(url);
+
+  const errors = [];
+  const valid = [];
+  let skipped = 0;
+
+  for (const { rowNum, identifierValue: rawId, verdict } of rows) {
+    if (verdict === null) {
+      skipped++;
+      continue;
+    }
+
+    // Pad to 9 digits to handle IDs stored without leading zeros
+    const identifierValue = rawId.replace(/\D/g, '').padStart(9, '0');
+
+    if (!validateIdentifierValue('IL_ID', identifierValue)) {
+      errors.push({ line: rowNum, error: `Invalid IL_ID: "${rawId}"` });
+      continue;
+    }
+
+    valid.push({ identifierType: 'IL_ID', identifierValue, verdict });
+  }
+
+  let result = { inserted: 0, updated: 0 };
+  if (valid.length > 0) {
+    result = await peopleRepo.upsertMany(valid);
+    await auditRepo.log({
+      action: 'BULK_UPLOAD',
+      source: 'admin',
+      metadata: { inserted: result.inserted, updated: result.updated, errors: errors.length, skipped, source: 'gsheet' },
+    });
+  }
+
+  return { ...result, errors, skipped, totalRows: rows.length };
+}
+
+module.exports = { listPeople, getPerson, createPerson, updatePerson, deletePerson, bulkUploadCSV, importFromGSheet, validateIdentifierValue };

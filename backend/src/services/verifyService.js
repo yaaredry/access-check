@@ -7,6 +7,7 @@ const logger = require('../config/logger');
 
 const VERDICTS = {
   APPROVED: 'APPROVED',
+  ADMIN_APPROVED: 'ADMIN_APPROVED',
   NOT_APPROVED: 'NOT_APPROVED',
   EXPIRED: 'EXPIRED',
   NOT_FOUND: 'NOT_FOUND',
@@ -23,7 +24,9 @@ function resolveVerdict(person) {
     }
   }
 
-  return person.verdict === 'APPROVED' ? VERDICTS.APPROVED : VERDICTS.NOT_APPROVED;
+  if (person.verdict === 'APPROVED') return VERDICTS.APPROVED;
+  if (person.verdict === 'ADMIN_APPROVED') return VERDICTS.ADMIN_APPROVED;
+  return VERDICTS.NOT_APPROVED;
 }
 
 async function verifyById(identifierType, identifierValue) {

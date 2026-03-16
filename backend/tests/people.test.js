@@ -8,8 +8,9 @@ const jwt = require('jsonwebtoken');
 const authToken = jwt.sign({ sub: 1, username: 'admin' }, process.env.JWT_SECRET || 'dev-secret');
 
 beforeAll(async () => {
+  await db.query('DROP TABLE IF EXISTS people CASCADE');
   await db.query(`
-    CREATE TABLE IF NOT EXISTS people (
+    CREATE TABLE people (
       id SERIAL PRIMARY KEY,
       identifier_type VARCHAR(20) NOT NULL,
       identifier_value VARCHAR(50) NOT NULL,
@@ -112,6 +113,20 @@ describe('POST /people', () => {
       .send({ identifierType: 'IL_ID', identifierValue: '000000018' });
 
     expect(res.status).toBe(400);
+  });
+
+  it('creates a person with ADMIN_APPROVED verdict', async () => {
+    const res = await request(app)
+      .post('/people')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({
+        identifierType: 'IL_ID',
+        identifierValue: '000000018',
+        verdict: 'ADMIN_APPROVED',
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.verdict).toBe('ADMIN_APPROVED');
   });
 
   it('returns 401 without token', async () => {
