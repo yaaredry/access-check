@@ -1,6 +1,6 @@
 .PHONY: dev test build run migrate stop clean logs lint lint-fix seed db-shell
 
-PROD = docker-compose -f docker-compose.prod.yml -p access-check-prod
+PROD = docker-compose -f docker-compose.prod.yml
 DEV  = docker-compose -f docker-compose.dev.yml -p access-check-dev
 
 # ── Development ──────────────────────────────────────────────────────────────
