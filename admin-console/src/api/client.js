@@ -47,4 +47,6 @@ export const api = {
     form.append('file', file);
     return request('POST', '/people/upload-csv', form, true);
   },
+
+  importGSheet: (url) => request('POST', '/people/import-gsheet', { url }),
 };

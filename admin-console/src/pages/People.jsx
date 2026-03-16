@@ -1,13 +1,15 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { api } from '../api/client';
 import PersonTable from '../components/PersonTable';
 import PersonForm from '../components/PersonForm';
 import BulkUpload from '../components/BulkUpload';
+import GSheetImport from '../components/GSheetImport';
 
 const MODAL_NONE = null;
 const MODAL_CREATE = 'create';
 const MODAL_EDIT = 'edit';
 const MODAL_BULK = 'bulk';
+const MODAL_GSHEET = 'gsheet';
 
 export default function People() {
   const [data, setData] = useState({ rows: [], total: 0 });
@@ -92,6 +94,7 @@ export default function People() {
           <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>{data.total} total records</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
+          <button className="secondary" onClick={() => setModal(MODAL_GSHEET)}>Load from Google Sheet</button>
           <button className="secondary" onClick={() => setModal(MODAL_BULK)}>Bulk Upload CSV</button>
           <button className="primary" onClick={() => setModal(MODAL_CREATE)}>+ Add Person</button>
         </div>
@@ -149,6 +152,18 @@ export default function People() {
           <div className="card" style={{ width: 600, maxWidth: '95vw' }}>
             <h3 style={{ fontWeight: 700, marginBottom: 20 }}>Bulk Upload CSV</h3>
             <BulkUpload onDone={() => { load(); }} />
+            <div style={{ marginTop: 16, textAlign: 'right' }}>
+              <button className="secondary" onClick={() => setModal(MODAL_NONE)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {modal === MODAL_GSHEET && (
+        <div style={overlayStyle}>
+          <div className="card" style={{ width: 640, maxWidth: '95vw' }}>
+            <h3 style={{ fontWeight: 700, marginBottom: 20 }}>Load from Google Sheet</h3>
+            <GSheetImport onDone={() => { load(); }} />
             <div style={{ marginTop: 16, textAlign: 'right' }}>
               <button className="secondary" onClick={() => setModal(MODAL_NONE)}>Close</button>
             </div>

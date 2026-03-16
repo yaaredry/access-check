@@ -27,6 +27,7 @@ router.post('/', ctrl.personBodyValidation, ctrl.create);
 
 // bulk upload must be declared before /:id to avoid route collision
 router.post('/upload-csv', csvUpload.single('file'), ctrl.uploadCSV);
+router.post('/import-gsheet', ctrl.importGSheet);
 
 router.get('/:id', ctrl.idParamValidation, ctrl.getOne);
 router.put('/:id', ctrl.idParamValidation, ctrl.personBodyValidation, ctrl.update);
