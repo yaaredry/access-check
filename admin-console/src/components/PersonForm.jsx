@@ -26,16 +26,17 @@ export default function PersonForm({ initial, onSubmit, onCancel, loading }) {
   return (
     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div>
-        <label style={{ display: 'block', marginBottom: 6, fontWeight: 500 }}>Identifier Type</label>
-        <select value={form.identifierType} onChange={(e) => set('identifierType', e.target.value)}>
+        <label htmlFor="pf-identifierType" style={{ display: 'block', marginBottom: 6, fontWeight: 500 }}>Identifier Type</label>
+        <select id="pf-identifierType" value={form.identifierType} onChange={(e) => set('identifierType', e.target.value)}>
           <option value="IL_ID">IL ID (Israeli ID)</option>
           <option value="IDF_ID">IDF ID (Military ID)</option>
         </select>
       </div>
 
       <div>
-        <label style={{ display: 'block', marginBottom: 6, fontWeight: 500 }}>Identifier Value</label>
+        <label htmlFor="pf-identifierValue" style={{ display: 'block', marginBottom: 6, fontWeight: 500 }}>Identifier Value</label>
         <input
+          id="pf-identifierValue"
           type="text"
           value={form.identifierValue}
           onChange={(e) => set('identifierValue', e.target.value)}
@@ -45,8 +46,8 @@ export default function PersonForm({ initial, onSubmit, onCancel, loading }) {
       </div>
 
       <div>
-        <label style={{ display: 'block', marginBottom: 6, fontWeight: 500 }}>Verdict</label>
-        <select value={form.verdict} onChange={(e) => set('verdict', e.target.value)}>
+        <label htmlFor="pf-verdict" style={{ display: 'block', marginBottom: 6, fontWeight: 500 }}>Verdict</label>
+        <select id="pf-verdict" value={form.verdict} onChange={(e) => set('verdict', e.target.value)}>
           <option value="APPROVED">Approved</option>
           <option value="ADMIN_APPROVED">Admin Approved</option>
           <option value="NOT_APPROVED">Not Approved</option>
@@ -54,8 +55,9 @@ export default function PersonForm({ initial, onSubmit, onCancel, loading }) {
       </div>
 
       <div>
-        <label style={{ display: 'block', marginBottom: 6, fontWeight: 500 }}>Approval Expiration (optional)</label>
+        <label htmlFor="pf-approvalExpiration" style={{ display: 'block', marginBottom: 6, fontWeight: 500 }}>Approval Expiration (optional)</label>
         <input
+          id="pf-approvalExpiration"
           type="date"
           value={form.approvalExpiration || ''}
           onChange={(e) => set('approvalExpiration', e.target.value)}
