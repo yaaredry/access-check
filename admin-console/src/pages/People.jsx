@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { api } from '../api/client';
 import PersonTable from '../components/PersonTable';
 import PersonForm from '../components/PersonForm';

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 
 const CONFIG = {
   APPROVED: {
@@ -20,10 +20,10 @@ const CONFIG = {
     bg: 'rgba(245,158,11,.15)',
   },
   ADMIN_APPROVED: {
-    color: 'var(--approved)',
+    color: '#ca8a04',
     icon: '✓',
     label: 'ADMIN APPROVED',
-    bg: 'rgba(34,197,94,.15)',
+    bg: 'rgba(234,179,8,.15)',
   },
   NOT_FOUND: {
     color: 'var(--not-found)',

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { api } from '../api/client';
 import VerdictDisplay from './VerdictDisplay';
 

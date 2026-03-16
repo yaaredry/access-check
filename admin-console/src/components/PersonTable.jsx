@@ -1,11 +1,10 @@
-import React from 'react';
 
 function verdictBadge(verdict, expiration) {
   if (expiration && new Date(expiration) < new Date()) {
     return <span className="badge expired">Expired</span>;
   }
   if (verdict === 'APPROVED') return <span className="badge approved">Approved</span>;
-  if (verdict === 'ADMIN_APPROVED') return <span className="badge approved">Admin Approved</span>;
+  if (verdict === 'ADMIN_APPROVED') return <span className="badge admin-approved">Admin Approved</span>;
   return <span className="badge not-approved">Not Approved</span>;
 }
 
