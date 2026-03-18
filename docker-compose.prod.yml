@@ -1,11 +1,17 @@
 services:
-  nginx-proxy:
-    image: nginx:alpine
+  caddy:
+    image: caddy:2-alpine
     container_name: access-check-proxy
     ports:
       - '80:80'
+      - '443:443'
+      - '443:443/udp'   # HTTP/3
     volumes:
-      - ./docker/nginx-proxy.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data        # stores certs (persisted across restarts)
+      - caddy_config:/config
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
     depends_on:
       - backend
       - admin-console
@@ -68,3 +74,5 @@ services:
 
 volumes:
   postgres_data:
+  caddy_data:
+  caddy_config:
