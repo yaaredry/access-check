@@ -1,0 +1,33 @@
+{$DOMAIN} {
+
+    # ── Backend API ───────────────────────────────────────────────────────────
+    handle /api/auth/* {
+        uri strip_prefix /api
+        reverse_proxy backend:3001
+    }
+
+    handle /api/verify/* {
+        uri strip_prefix /api
+        reverse_proxy backend:3001
+    }
+
+    handle /api/* {
+        uri strip_prefix /api
+        reverse_proxy backend:3001
+    }
+
+    # ── Admin console (SPA) ───────────────────────────────────────────────────
+    handle /admin {
+        redir /admin/ permanent
+    }
+
+    handle /admin/* {
+        uri strip_prefix /admin
+        reverse_proxy admin-console:80
+    }
+
+    # ── Gate client (default) ─────────────────────────────────────────────────
+    handle {
+        reverse_proxy gate-client:80
+    }
+}

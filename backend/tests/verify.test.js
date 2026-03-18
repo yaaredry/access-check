@@ -1,9 +1,12 @@
 'use strict';
 
 const request = require('supertest');
+const jwt = require('jsonwebtoken');
 const app = require('../src/app');
 const db = require('../src/config/database');
 const ocrService = require('../src/services/ocrService');
+
+const gateToken = jwt.sign({ sub: 2, username: 'megido', role: 'gate' }, process.env.JWT_SECRET || 'dev-secret');
 
 beforeAll(async () => {
   await db.query('DROP TABLE IF EXISTS people CASCADE');
@@ -51,6 +54,7 @@ describe('POST /verify/id', () => {
 
     const res = await request(app)
       .post('/verify/id')
+      .set('Authorization', `Bearer ${gateToken}`)
       .send({ identifierType: 'IL_ID', identifierValue: '000000018' });
 
     expect(res.status).toBe(200);
@@ -64,6 +68,7 @@ describe('POST /verify/id', () => {
 
     const res = await request(app)
       .post('/verify/id')
+      .set('Authorization', `Bearer ${gateToken}`)
       .send({ identifierType: 'IL_ID', identifierValue: '000000018' });
 
     expect(res.status).toBe(200);
@@ -73,6 +78,7 @@ describe('POST /verify/id', () => {
   it('returns NOT_FOUND for unknown person', async () => {
     const res = await request(app)
       .post('/verify/id')
+      .set('Authorization', `Bearer ${gateToken}`)
       .send({ identifierType: 'IL_ID', identifierValue: '000000018' });
 
     expect(res.status).toBe(200);
@@ -86,6 +92,7 @@ describe('POST /verify/id', () => {
 
     const res = await request(app)
       .post('/verify/id')
+      .set('Authorization', `Bearer ${gateToken}`)
       .send({ identifierType: 'IL_ID', identifierValue: '000000018' });
 
     expect(res.status).toBe(200);
@@ -99,6 +106,7 @@ describe('POST /verify/id', () => {
 
     const res = await request(app)
       .post('/verify/id')
+      .set('Authorization', `Bearer ${gateToken}`)
       .send({ identifierType: 'IL_ID', identifierValue: '000000018' });
 
     expect(res.status).toBe(200);
@@ -112,6 +120,7 @@ describe('POST /verify/id', () => {
 
     const res = await request(app)
       .post('/verify/id')
+      .set('Authorization', `Bearer ${gateToken}`)
       .send({ identifierType: 'IL_ID', identifierValue: '000000018' });
 
     expect(res.status).toBe(200);
@@ -125,6 +134,7 @@ describe('POST /verify/id', () => {
 
     const res = await request(app)
       .post('/verify/id')
+      .set('Authorization', `Bearer ${gateToken}`)
       .send({ identifierType: 'IL_ID', identifierValue: '000000018' });
 
     expect(res.status).toBe(200);
@@ -134,6 +144,7 @@ describe('POST /verify/id', () => {
   it('returns 400 for invalid identifierType', async () => {
     const res = await request(app)
       .post('/verify/id')
+      .set('Authorization', `Bearer ${gateToken}`)
       .send({ identifierType: 'PASSPORT', identifierValue: '12345' });
 
     expect(res.status).toBe(400);
@@ -147,7 +158,9 @@ describe('POST /verify/image', () => {
   });
 
   it('returns 400 when no image is attached', async () => {
-    const res = await request(app).post('/verify/image');
+    const res = await request(app)
+      .post('/verify/image')
+      .set('Authorization', `Bearer ${gateToken}`);
     expect(res.status).toBe(400);
   });
 
@@ -156,6 +169,7 @@ describe('POST /verify/image', () => {
 
     const res = await request(app)
       .post('/verify/image')
+      .set('Authorization', `Bearer ${gateToken}`)
       .attach('image', Buffer.from('fake-image-data'), { filename: 'id.jpg', contentType: 'image/jpeg' });
 
     expect(res.status).toBe(200);
@@ -172,6 +186,7 @@ describe('POST /verify/image', () => {
 
     const res = await request(app)
       .post('/verify/image')
+      .set('Authorization', `Bearer ${gateToken}`)
       .attach('image', Buffer.from('fake-image-data'), { filename: 'id.jpg', contentType: 'image/jpeg' });
 
     expect(res.status).toBe(200);
@@ -189,6 +204,7 @@ describe('POST /verify/image', () => {
 
     const res = await request(app)
       .post('/verify/image')
+      .set('Authorization', `Bearer ${gateToken}`)
       .attach('image', Buffer.from('fake-image-data'), { filename: 'id.jpg', contentType: 'image/jpeg' });
 
     expect(res.status).toBe(200);
@@ -205,6 +221,7 @@ describe('POST /verify/image', () => {
 
     const res = await request(app)
       .post('/verify/image')
+      .set('Authorization', `Bearer ${gateToken}`)
       .attach('image', Buffer.from('fake-image-data'), { filename: 'id.jpg', contentType: 'image/jpeg' });
 
     expect(res.status).toBe(200);
@@ -221,6 +238,7 @@ describe('POST /verify/image', () => {
 
     const res = await request(app)
       .post('/verify/image')
+      .set('Authorization', `Bearer ${gateToken}`)
       .attach('image', Buffer.from('fake-image-data'), { filename: 'id.jpg', contentType: 'image/jpeg' });
 
     expect(res.status).toBe(200);

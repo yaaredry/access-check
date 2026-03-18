@@ -11,10 +11,12 @@ beforeAll(async () => {
       id SERIAL PRIMARY KEY,
       username VARCHAR(100) UNIQUE NOT NULL,
       password VARCHAR(255) NOT NULL,
+      role VARCHAR(20) NOT NULL DEFAULT 'admin',
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
+  await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) NOT NULL DEFAULT 'admin'`);
   await db.query(`
     CREATE TABLE IF NOT EXISTS audit_logs (
       id SERIAL PRIMARY KEY,

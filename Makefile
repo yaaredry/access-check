@@ -1,10 +1,11 @@
 .PHONY: dev test build run migrate stop clean logs lint lint-fix seed db-shell deploy-remote
 
-# ── Remote server config (override on CLI: make deploy-remote SERVER=1.2.3.4) ──
-SERVER ?= YOUR_EC2_IP
+# ── Remote server config (override on CLI or export in shell) ────────────────
+SERVER  ?= YOUR_EC2_IP
 SSH_KEY ?= ~/.ssh/access-check.pem
 SSH_USER ?= ec2-user
-APP_DIR ?= /opt/access-check
+APP_DIR  ?= /opt/access-check
+DOMAIN   ?= your-domain.com
 
 PROD = docker-compose -f docker-compose.prod.yml
 DEV  = docker-compose -f docker-compose.dev.yml -p access-check-dev
@@ -26,7 +27,7 @@ deploy: build test run
 # Push current branch to origin, then pull and redeploy on the remote server
 deploy-remote:
 	git push
-	ssh -i $(SSH_KEY) $(SSH_USER)@$(SERVER) 'cd $(APP_DIR) && git pull && make deploy'
+	ssh -i $(SSH_KEY) $(SSH_USER)@$(SERVER) 'cd $(APP_DIR) && git pull && make deploy DOMAIN=$(DOMAIN)'
 
 # ── Production ───────────────────────────────────────────────────────────────
 
@@ -34,11 +35,9 @@ deploy-remote:
 build:
 	$(PROD) build
 
-# Start all production containers, then restart nginx so it re-resolves
-# upstream hostnames after all containers have their final IPs assigned.
+# Start all production containers
 run:
-	$(PROD) up -d
-	docker restart access-check-proxy
+	DOMAIN=$(DOMAIN) $(PROD) up -d
 
 # Stop production containers
 stop:

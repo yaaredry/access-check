@@ -7,7 +7,7 @@ const jwt = require('jsonwebtoken');
 const gsheetService = require('../src/services/gsheetService');
 const auditRepo = require('../src/repositories/auditRepository');
 
-const authToken = jwt.sign({ sub: 1, username: 'admin' }, process.env.JWT_SECRET || 'dev-secret');
+const authToken = jwt.sign({ sub: 1, username: 'admin', role: 'admin' }, process.env.JWT_SECRET || 'dev-secret');
 
 beforeAll(async () => {
   await db.query('DROP TABLE IF EXISTS people CASCADE');
