@@ -33,6 +33,8 @@ async function verifyById(identifierType, identifierValue) {
   const person = await peopleRepo.findByIdentifier(identifierType, identifierValue);
   const verdict = resolveVerdict(person);
 
+  if (person) await peopleRepo.touchLastSeen(person.id);
+
   await auditRepo.log({
     action: 'VERIFY',
     identifierType,
@@ -61,6 +63,7 @@ async function verifyByImage(imageBuffer) {
     if (person) {
       const verdict = resolveVerdict(person);
       logger.info({ message: 'OCR match found', identifierType: 'IL_ID', identifierValue: val, verdict });
+      await peopleRepo.touchLastSeen(person.id);
       await auditRepo.log({
         action: 'VERIFY',
         identifierType: 'IL_ID',
@@ -80,6 +83,7 @@ async function verifyByImage(imageBuffer) {
     if (person) {
       const verdict = resolveVerdict(person);
       logger.info({ message: 'OCR match found', identifierType: 'IDF_ID', identifierValue: val, verdict });
+      await peopleRepo.touchLastSeen(person.id);
       await auditRepo.log({
         action: 'VERIFY',
         identifierType: 'IDF_ID',

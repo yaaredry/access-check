@@ -5,7 +5,7 @@ const db = require('../config/database');
 async function findAll({ search, limit = 50, offset = 0 }) {
   let query = `
     SELECT id, identifier_type, identifier_value, verdict,
-           approval_expiration, created_at, updated_at
+           approval_expiration, created_at, updated_at, last_seen_at
     FROM people
   `;
   const params = [];
@@ -77,6 +77,10 @@ async function update(id, { identifierType, identifierValue, verdict, approvalEx
   return rows[0] || null;
 }
 
+async function touchLastSeen(id) {
+  await db.query('UPDATE people SET last_seen_at = NOW() WHERE id = $1', [id]);
+}
+
 async function remove(id) {
   const { rowCount } = await db.query('DELETE FROM people WHERE id = $1', [id]);
   return rowCount > 0;
@@ -123,4 +127,5 @@ module.exports = {
   update,
   remove,
   upsertMany,
+  touchLastSeen,
 };

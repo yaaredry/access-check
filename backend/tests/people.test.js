@@ -18,6 +18,7 @@ beforeAll(async () => {
       identifier_value VARCHAR(50) NOT NULL,
       verdict VARCHAR(20) NOT NULL DEFAULT 'NOT_APPROVED',
       approval_expiration DATE,
+      last_seen_at TIMESTAMPTZ DEFAULT NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       CONSTRAINT uq_test_identifier UNIQUE (identifier_type, identifier_value)
