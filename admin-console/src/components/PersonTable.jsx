@@ -23,6 +23,7 @@ export default function PersonTable({ rows, onEdit, onDelete }) {
             <th>Identifier</th>
             <th>Verdict</th>
             <th>Expires</th>
+            <th>Last Seen</th>
             <th>Created</th>
             <th>Actions</th>
           </tr>
@@ -35,6 +36,11 @@ export default function PersonTable({ rows, onEdit, onDelete }) {
               <td><strong>{p.identifier_value}</strong></td>
               <td>{verdictBadge(p.verdict, p.approval_expiration)}</td>
               <td>{p.approval_expiration ? new Date(p.approval_expiration).toLocaleDateString() : '—'}</td>
+              <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>
+                {p.last_seen_at
+                  ? new Date(p.last_seen_at).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })
+                  : '—'}
+              </td>
               <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>
                 {new Date(p.created_at).toLocaleDateString()}
               </td>

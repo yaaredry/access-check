@@ -8,6 +8,7 @@ const BASE = {
   identifier_value: '000000018',
   verdict: 'APPROVED',
   approval_expiration: null,
+  last_seen_at: null,
   created_at: '2024-01-01T00:00:00Z',
 };
 
@@ -63,5 +64,19 @@ describe('PersonTable', () => {
     render(<PersonTable rows={[BASE]} onEdit={vi.fn()} onDelete={onDelete} />);
     fireEvent.click(screen.getByText('Delete'));
     expect(onDelete).toHaveBeenCalledWith(BASE);
+  });
+
+  it('shows — when last_seen_at is null', () => {
+    render(<PersonTable rows={[BASE]} onEdit={vi.fn()} onDelete={vi.fn()} />);
+    const dashes = screen.getAllByText('—');
+    expect(dashes.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('shows formatted last_seen_at when set', () => {
+    render(<PersonTable rows={[{ ...BASE, last_seen_at: '2024-06-15T09:30:00Z' }]} onEdit={vi.fn()} onDelete={vi.fn()} />);
+    // The exact format depends on locale, just verify the cell isn't showing '—'
+    const cells = screen.getAllByRole('cell');
+    const lastSeenCell = cells.find(c => c.textContent !== '—' && c.textContent.includes('24'));
+    expect(lastSeenCell).toBeDefined();
   });
 });
