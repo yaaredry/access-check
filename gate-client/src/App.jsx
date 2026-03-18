@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import Login from './components/Login';
 import ManualCheck from './components/ManualCheck';
 import CameraCheck from './components/CameraCheck';
 
@@ -7,7 +8,12 @@ const VIEW_MANUAL = 'manual';
 const VIEW_CAMERA = 'camera';
 
 export default function App() {
+  const [authed, setAuthed] = useState(() => !!localStorage.getItem('gate_token'));
   const [view, setView] = useState(VIEW_HOME);
+
+  if (!authed) {
+    return <Login onLogin={() => setAuthed(true)} />;
+  }
 
   return (
     <div style={{

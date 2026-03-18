@@ -2,7 +2,7 @@
 
 const { Router } = require('express');
 const multer = require('multer');
-const { authenticate } = require('../middlewares/auth');
+const { authenticate, requireRole } = require('../middlewares/auth');
 const ctrl = require('../controllers/peopleController');
 
 const router = Router();
@@ -20,7 +20,7 @@ const csvUpload = multer({
   },
 });
 
-router.use(authenticate);
+router.use(authenticate, requireRole('admin'));
 
 router.get('/', ctrl.listQueryValidation, ctrl.list);
 router.post('/', ctrl.personBodyValidation, ctrl.create);

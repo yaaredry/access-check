@@ -3,9 +3,12 @@
 const { Router } = require('express');
 const multer = require('multer');
 const { verifyLimiter } = require('../middlewares/rateLimiter');
+const { authenticate } = require('../middlewares/auth');
 const ctrl = require('../controllers/verifyController');
 
 const router = Router();
+
+router.use(authenticate);
 
 // Image upload — memory only, never persisted
 const imageUpload = multer({
