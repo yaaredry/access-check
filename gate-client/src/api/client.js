@@ -4,7 +4,7 @@ function getToken() {
   return localStorage.getItem('gate_token');
 }
 
-async function request(method, path, body, isFormData = false) {
+async function request(method, path, body, isFormData = false, signal = null) {
   const headers = {};
   const token = getToken();
   if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -14,6 +14,7 @@ async function request(method, path, body, isFormData = false) {
     method,
     headers,
     body: isFormData ? body : body ? JSON.stringify(body) : undefined,
+    signal,
   });
 
   if (res.status === 401) {
@@ -33,9 +34,9 @@ export const api = {
   verifyId: (identifierType, identifierValue) =>
     request('POST', '/verify/id', { identifierType, identifierValue }),
 
-  verifyImage: (imageFile) => {
+  verifyImage: (imageFile, signal) => {
     const form = new FormData();
     form.append('image', imageFile);
-    return request('POST', '/verify/image', form, true);
+    return request('POST', '/verify/image', form, true, signal);
   },
 };
