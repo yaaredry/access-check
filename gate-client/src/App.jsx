@@ -11,6 +11,11 @@ export default function App() {
   const [authed, setAuthed] = useState(() => !!localStorage.getItem('gate_token'));
   const [view, setView] = useState(VIEW_HOME);
 
+  function handleLogout() {
+    localStorage.removeItem('gate_token');
+    setAuthed(false);
+  }
+
   if (!authed) {
     return <Login onLogin={() => setAuthed(true)} />;
   }
@@ -23,14 +28,14 @@ export default function App() {
       maxWidth: 480,
       margin: '0 auto',
     }}>
-      {view === VIEW_HOME && <Home onManual={() => setView(VIEW_MANUAL)} onCamera={() => setView(VIEW_CAMERA)} />}
+      {view === VIEW_HOME && <Home onManual={() => setView(VIEW_MANUAL)} onCamera={() => setView(VIEW_CAMERA)} onLogout={handleLogout} />}
       {view === VIEW_MANUAL && <ManualCheck onBack={() => setView(VIEW_HOME)} />}
       {view === VIEW_CAMERA && <CameraCheck onBack={() => setView(VIEW_HOME)} />}
     </div>
   );
 }
 
-function Home({ onManual, onCamera }) {
+function Home({ onManual, onCamera, onLogout }) {
   return (
     <div style={{
       display: 'flex',
@@ -54,6 +59,9 @@ function Home({ onManual, onCamera }) {
         </button>
         <button className="manual" onClick={onManual} style={{ padding: '28px 20px', fontSize: 22 }}>
           ✏️  Enter ID Manually
+        </button>
+        <button className="secondary" onClick={onLogout} style={{ marginTop: 8 }}>
+          Logout
         </button>
       </div>
     </div>
