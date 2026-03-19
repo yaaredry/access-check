@@ -2,11 +2,14 @@ import { useState, useRef } from 'react';
 import { api } from '../api/client';
 import VerdictDisplay from './VerdictDisplay';
 
+const TIMEOUT_MS = 30_000;
+
 export default function CameraCheck({ onBack }) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
   const inputRef = useRef(null);
+  const abortRef = useRef(null);
 
   function handleCapture(e) {
     const file = e.target.files?.[0];
@@ -14,15 +17,29 @@ export default function CameraCheck({ onBack }) {
     submitImage(file);
   }
 
+  function handleAbort() {
+    abortRef.current?.abort();
+  }
+
   async function submitImage(file) {
     setError('');
     setLoading(true);
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
     try {
-      const res = await api.verifyImage(file);
+      const res = await api.verifyImage(file, controller.signal);
       setResult(res);
     } catch (err) {
+      if (err.name === 'AbortError') {
+        onBack();
+        return;
+      }
       setError(err.message || 'Image verification failed');
     } finally {
+      clearTimeout(timeoutId);
       setLoading(false);
       // Reset input so same file can be reselected
       if (inputRef.current) inputRef.current.value = '';
@@ -75,7 +92,10 @@ export default function CameraCheck({ onBack }) {
       {loading ? (
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>⏳</div>
-          <div style={{ color: 'var(--text-muted)', fontSize: 18 }}>Processing image…</div>
+          <div style={{ color: 'var(--text-muted)', fontSize: 18, marginBottom: 24 }}>Processing image…</div>
+          <button className="back" style={{ maxWidth: 320, width: '100%' }} onClick={handleAbort}>
+            ✕ Abort
+          </button>
         </div>
       ) : (
         <label
@@ -107,9 +127,11 @@ export default function CameraCheck({ onBack }) {
         <div style={{ color: 'var(--not-approved)', textAlign: 'center', fontWeight: 600 }}>{error}</div>
       )}
 
-      <button className="back" style={{ maxWidth: 320, width: '100%' }} onClick={onBack} disabled={loading}>
-        ← Back
-      </button>
+      {!loading && (
+        <button className="back" style={{ maxWidth: 320, width: '100%' }} onClick={onBack}>
+          ← Back
+        </button>
+      )}
     </div>
   );
 }

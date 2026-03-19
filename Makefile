@@ -37,7 +37,7 @@ build:
 
 # Start all production containers
 run:
-	DOMAIN=$(DOMAIN) $(PROD) up -d
+	$(PROD) up -d
 
 # Stop production containers
 stop:
