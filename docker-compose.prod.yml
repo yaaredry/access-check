@@ -10,7 +10,6 @@ services:
       - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data        # stores certs (persisted across restarts)
       - caddy_config:/config
-    env_file: .env
     environment:
       DOMAIN: ${DOMAIN:-localhost}
     depends_on:
