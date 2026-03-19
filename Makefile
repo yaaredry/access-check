@@ -27,7 +27,7 @@ deploy: build test run
 # Push current branch to origin, then pull and redeploy on the remote server
 deploy-remote:
 	git push
-	ssh -i $(SSH_KEY) $(SSH_USER)@$(SERVER) 'cd $(APP_DIR) && git pull && make deploy DOMAIN=$(DOMAIN)'
+	ssh -i $(SSH_KEY) $(SSH_USER)@$(SERVER) 'cd $(APP_DIR) && git pull && make deploy'
 
 # ── Production ───────────────────────────────────────────────────────────────
 
