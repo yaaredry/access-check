@@ -1,9 +1,9 @@
 .PHONY: dev test build run migrate stop clean logs lint lint-fix seed db-shell deploy-remote
 
 # ── Remote server config (override on CLI or export in shell) ────────────────
-SERVER  ?= YOUR_EC2_IP
-SSH_KEY ?= ~/.ssh/access-check.pem
-SSH_USER ?= ec2-user
+SERVER  ?= YOUR_GCP_EXTERNAL_IP
+SSH_KEY ?= ~/.ssh/access-check
+SSH_USER ?= YOUR_GCP_USERNAME
 APP_DIR  ?= /opt/access-check
 DOMAIN   ?= your-domain.com
 

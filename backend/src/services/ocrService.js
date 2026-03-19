@@ -20,14 +20,12 @@ function isValidIlId(s) {
 }
 
 // ── Image preprocessing ───────────────────────────────────────────────────────
+// Dimensions are computed once by the caller and passed in (no metadata reads here).
 
-async function prepareFullImage(buffer) {
-  const meta = await sharp(buffer).metadata();
-  const scale = meta.width < 1500 ? 2 : 1;
-
+async function prepareFullImage(buffer, width, height) {
   return sharp(buffer)
     .grayscale()
-    .resize(meta.width * scale, meta.height * scale, { fit: 'fill', kernel: 'lanczos3' })
+    .resize(width, height, { fit: 'fill', kernel: 'lanczos3' })
     .normalize()
     .sharpen({ sigma: 1.5 })
     .linear(1.4, -20)       // boost contrast
@@ -35,28 +33,12 @@ async function prepareFullImage(buffer) {
 }
 
 // High-contrast black/white version — better for colored card backgrounds
-async function prepareBinaryImage(buffer) {
-  const meta = await sharp(buffer).metadata();
-  const scale = meta.width < 1500 ? 2 : 1;
-
+async function prepareBinaryImage(buffer, width, height) {
   return sharp(buffer)
     .grayscale()
-    .resize(meta.width * scale, meta.height * scale, { fit: 'fill', kernel: 'lanczos3' })
+    .resize(width, height, { fit: 'fill', kernel: 'lanczos3' })
     .normalize()
     .threshold(140)         // force pure black/white — strips colored backgrounds
-    .toBuffer();
-}
-
-// Crop a relative region of the image (values 0–1)
-async function cropRegion(buffer, { left, top, width, height }) {
-  const meta = await sharp(buffer).metadata();
-  return sharp(buffer)
-    .extract({
-      left:   Math.floor(meta.width  * left),
-      top:    Math.floor(meta.height * top),
-      width:  Math.floor(meta.width  * width),
-      height: Math.floor(meta.height * height),
-    })
     .toBuffer();
 }
 
@@ -86,57 +68,43 @@ async function ocr(imageBuffer, { psm, lang = 'eng+heb', whitelist = null }) {
   }
 }
 
-// ── Multi-pass OCR ────────────────────────────────────────────────────────────
+// ── Multi-pass OCR with cascading tiers and early exit ────────────────────────
 //
-// Israeli driver's license layout (approximate):
-//   ┌──────────────────────────────┐
-//   │  [PHOTO]  │  name / fields   │
-//   │           │                  │
-//   │  ID num   │  license fields  │
-//   │  under    │                  │
-//   └──────────────────────────────┘
+// Passes run in three cascading tiers ordered cheapest→most-expensive.
+// Each tier checks for a valid IL ID before proceeding to the next.
 //
-// We crop several regions and run independent passes so a bad result in one
-// area doesn't pollute results from a region where the number is clear.
+// Tier 1 — full binary, digits only, sparse text  (no language model overhead)
+// Tier 2 — full binary, digits only, block mode   (different PSM, same low cost)
+// Tier 3 — full image with Hebrew                 (most expensive, last resort)
 
 async function extractTextFromBuffer(imageBuffer) {
+  // Read metadata once; derive capped target dimensions (max 2000px wide)
+  const meta = await sharp(imageBuffer).metadata();
+  const rawScale     = meta.width < 1500 ? 2 : 1;
+  const scaledWidth  = Math.min(meta.width * rawScale, 2000);
+  const scaledHeight = Math.round(meta.height * scaledWidth / meta.width);
+
+  // Preprocess both variants once upfront — used across all tiers
   const [full, binary] = await Promise.all([
-    prepareFullImage(imageBuffer),
-    prepareBinaryImage(imageBuffer),
+    prepareFullImage(imageBuffer, scaledWidth, scaledHeight),
+    prepareBinaryImage(imageBuffer, scaledWidth, scaledHeight),
   ]);
 
-  // Crop regions (relative coordinates):
-  //  - bottomLeft:  under the photo — where IL ID lives on driver's license
-  //  - topLeft:     the photo area itself (sometimes number is next to photo)
-  //  - leftHalf:    entire left side of card
-  //  - bottomStrip: bottom 40% full width
-  const [bottomLeft, topLeft, leftHalf, bottomStrip] = await Promise.all([
-    cropRegion(binary, { left: 0,    top: 0.45, width: 0.50, height: 0.55 }),
-    cropRegion(binary, { left: 0,    top: 0,    width: 0.50, height: 0.50 }),
-    cropRegion(binary, { left: 0,    top: 0,    width: 0.50, height: 1.00 }),
-    cropRegion(binary, { left: 0,    top: 0.55, width: 1.00, height: 0.45 }),
-  ]);
+  // ── Tier 1: full binary, sparse text, digits only ────────────────────────
+  const tier1Text = await ocr(binary, { psm: 11, lang: 'eng', whitelist: DIGITS_ONLY });
+  if (extractIds(tier1Text).ilIds.length > 0) return tier1Text;
 
-  const passes = await Promise.all([
-    // Full image — general text, two PSM modes
-    ocr(full,        { psm: 11, lang: 'eng+heb' }),
-    ocr(full,        { psm: 6,  lang: 'eng+heb' }),
+  // ── Tier 2: full binary, block mode, digits only ─────────────────────────
+  const tier2Text = [tier1Text, await ocr(binary, { psm: 6, lang: 'eng', whitelist: DIGITS_ONLY })].join('\n');
+  if (extractIds(tier2Text).ilIds.length > 0) return tier2Text;
 
-    // Full image — digits only (eng, no Hebrew noise)
-    ocr(binary,      { psm: 11, lang: 'eng', whitelist: DIGITS_ONLY }),
-    ocr(binary,      { psm: 6,  lang: 'eng', whitelist: DIGITS_ONLY }),
+  // ── Tier 3: full image with Hebrew models (last resort) ──────────────────
+  const tier3Text = (await Promise.all([
+    ocr(full, { psm: 11, lang: 'eng+heb' }),
+    ocr(full, { psm: 6,  lang: 'eng+heb' }),
+  ])).join('\n');
 
-    // Targeted crops — digits only, multiple PSM modes
-    // PSM 7 = single text line, PSM 8 = single word, PSM 13 = raw line
-    ocr(bottomLeft,  { psm: 7,  lang: 'eng', whitelist: DIGITS_ONLY }),
-    ocr(bottomLeft,  { psm: 11, lang: 'eng', whitelist: DIGITS_ONLY }),
-    ocr(topLeft,     { psm: 7,  lang: 'eng', whitelist: DIGITS_ONLY }),
-    ocr(leftHalf,    { psm: 11, lang: 'eng', whitelist: DIGITS_ONLY }),
-    ocr(bottomStrip, { psm: 7,  lang: 'eng', whitelist: DIGITS_ONLY }),
-    ocr(bottomStrip, { psm: 11, lang: 'eng', whitelist: DIGITS_ONLY }),
-  ]);
-
-  return passes.join('\n');
+  return [tier2Text, tier3Text].join('\n');
 }
 
 // ── ID extraction ─────────────────────────────────────────────────────────────

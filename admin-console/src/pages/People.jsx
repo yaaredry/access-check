@@ -35,7 +35,11 @@ export default function People() {
     }
   }, [search, offset]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+    const interval = setInterval(load, 30_000);
+    return () => clearInterval(interval);
+  }, [load]);
 
   function handleSearch(e) {
     e.preventDefault();
