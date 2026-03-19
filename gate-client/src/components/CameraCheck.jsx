@@ -33,7 +33,7 @@ export default function CameraCheck({ onBack }) {
       const res = await api.verifyImage(file, controller.signal);
       setResult(res);
     } catch (err) {
-      if (err.name === 'AbortError') {
+      if (err.name === 'AbortError' || controller.signal.aborted) {
         onBack();
         return;
       }
