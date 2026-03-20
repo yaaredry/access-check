@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
-function verdictBadge(verdict, expiration) {
+function verdictBadge(verdict, expiration, status) {
+  if (status === 'PENDING') return <span className="badge pending">Pending</span>;
   if (expiration && new Date(expiration) < new Date()) {
     return <span className="badge expired">Expired</span>;
   }
@@ -13,7 +14,8 @@ const COLUMNS = [
   { key: 'id',                  label: 'ID' },
   { key: 'identifier_type',     label: 'Type' },
   { key: 'identifier_value',    label: 'Identifier' },
-  { key: 'verdict',             label: 'Verdict' },
+  { key: 'population',          label: 'Population' },
+  { key: 'verdict',             label: 'Status' },
   { key: 'approval_expiration', label: 'Expires' },
   { key: 'last_seen_at',        label: 'Last Seen' },
   { key: 'created_at',          label: 'Created' },
@@ -22,18 +24,14 @@ const COLUMNS = [
 function sortRows(rows, key, dir) {
   return [...rows].sort((a, b) => {
     let av = a[key], bv = b[key];
-    // Nulls always last
     if (av == null && bv == null) return 0;
     if (av == null) return 1;
     if (bv == null) return -1;
-    // Numeric
     if (key === 'id') return dir === 'asc' ? av - bv : bv - av;
-    // Dates
     if (['approval_expiration', 'last_seen_at', 'created_at'].includes(key)) {
       const d = new Date(av) - new Date(bv);
       return dir === 'asc' ? d : -d;
     }
-    // Strings
     const cmp = String(av).localeCompare(String(bv));
     return dir === 'asc' ? cmp : -cmp;
   });
@@ -44,7 +42,7 @@ function SortIcon({ active, dir }) {
   return <span style={{ marginLeft: 4, fontSize: 11 }}>{dir === 'asc' ? '↑' : '↓'}</span>;
 }
 
-export default function PersonTable({ rows, onEdit, onDelete }) {
+export default function PersonTable({ rows, onEdit, onDelete, onApprove, onReject }) {
   const [sortKey, setSortKey] = useState('id');
   const [sortDir, setSortDir] = useState('asc');
 
@@ -88,11 +86,12 @@ export default function PersonTable({ rows, onEdit, onDelete }) {
         </thead>
         <tbody>
           {sorted.map((p) => (
-            <tr key={p.id}>
+            <tr key={p.id} style={p.status === 'PENDING' ? { background: 'rgba(234,179,8,.07)' } : undefined}>
               <td style={{ color: 'var(--text-muted)' }}>{p.id}</td>
               <td><code>{p.identifier_type}</code></td>
               <td><strong>{p.identifier_value}</strong></td>
-              <td>{verdictBadge(p.verdict, p.approval_expiration)}</td>
+              <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{p.population || '—'}</td>
+              <td>{verdictBadge(p.verdict, p.approval_expiration, p.status)}</td>
               <td>{p.approval_expiration ? new Date(p.approval_expiration).toLocaleDateString() : '—'}</td>
               <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>
                 {p.last_seen_at
@@ -103,7 +102,13 @@ export default function PersonTable({ rows, onEdit, onDelete }) {
                 {new Date(p.created_at).toLocaleDateString()}
               </td>
               <td>
-                <div style={{ display: 'flex', gap: 6 }}>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {p.status === 'PENDING' && (
+                    <>
+                      <button className="primary" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => onApprove(p)}>Approve</button>
+                      <button className="danger" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => onReject(p)}>Reject</button>
+                    </>
+                  )}
                   <button className="secondary" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => onEdit(p)}>Edit</button>
                   <button className="danger" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => onDelete(p)}>Delete</button>
                 </div>

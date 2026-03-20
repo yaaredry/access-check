@@ -8,6 +8,7 @@ const { errorHandler } = require('./middlewares/errorHandler');
 const authRoutes = require('./routes/auth');
 const peopleRoutes = require('./routes/people');
 const verifyRoutes = require('./routes/verify');
+const accessRequestRoutes = require('./routes/accessRequests');
 
 const app = express();
 
@@ -25,6 +26,7 @@ app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 app.use('/auth', authRoutes);
 app.use('/people', peopleRoutes);
 app.use('/verify', verifyRoutes);
+app.use('/access-requests', accessRequestRoutes);
 
 app.use(errorHandler);
 

@@ -26,7 +26,11 @@ async function request(method, path, body, isFormData = false) {
       window.location.replace('/admin/login');
       return;
     }
-    throw Object.assign(new Error(data.error || 'Request failed'), { status: res.status, data });
+    const message = data.error
+      || (Array.isArray(data.errors) ? data.errors.map(e => e.msg).join(', ') : null)
+      || 'Request failed';
+    console.error('[api]', method, path, res.status, data);
+    throw Object.assign(new Error(message), { status: res.status, data });
   }
   return data;
 }
@@ -49,4 +53,5 @@ export const api = {
   },
 
   importGSheet: (url) => request('POST', '/people/import-gsheet', { url }),
+  updatePersonStatus: (id, status) => request('PATCH', `/people/${id}/status`, { status }),
 };

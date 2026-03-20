@@ -31,6 +31,7 @@ router.post('/import-gsheet', ctrl.importGSheet);
 
 router.get('/:id', ctrl.idParamValidation, ctrl.getOne);
 router.put('/:id', ctrl.idParamValidation, ctrl.personBodyValidation, ctrl.update);
+router.patch('/:id/status', ctrl.idParamValidation, ctrl.updateStatus);
 router.delete('/:id', ctrl.idParamValidation, ctrl.remove);
 
 module.exports = router;

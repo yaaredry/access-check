@@ -2,6 +2,18 @@ import { useState } from 'react';
 import { api } from '../api/client';
 import VerdictDisplay from './VerdictDisplay';
 
+function validateIlId(value) {
+  if (!/^\d{9}$/.test(value)) return false;
+  const digits = value.split('').map(Number);
+  let sum = 0;
+  for (let i = 0; i < 9; i++) {
+    let d = digits[i] * (i % 2 === 0 ? 1 : 2);
+    if (d > 9) d -= 9;
+    sum += d;
+  }
+  return sum % 10 === 0;
+}
+
 export default function ManualCheck({ onBack }) {
   const [type, setType] = useState('IL_ID');
   const [value, setValue] = useState('');
@@ -13,6 +25,10 @@ export default function ManualCheck({ onBack }) {
     e.preventDefault();
     if (!value.trim()) return;
     setError('');
+    if (type === 'IL_ID' && !validateIlId(value.trim())) {
+      setError('Invalid Israeli ID');
+      return;
+    }
     setLoading(true);
     try {
       const res = await api.verifyId(type, value.trim());

@@ -24,7 +24,13 @@ async function request(method, path, body, isFormData = false, signal = null) {
   }
 
   const data = await res.json();
-  if (!res.ok) throw Object.assign(new Error(data.error || 'Request failed'), { status: res.status });
+  if (!res.ok) {
+    const message = data.error
+      || (Array.isArray(data.errors) ? data.errors.map(e => e.msg).join(', ') : null)
+      || 'Request failed';
+    console.error('[api]', method, path, res.status, data);
+    throw Object.assign(new Error(message), { status: res.status, data });
+  }
   return data;
 }
 
@@ -39,4 +45,6 @@ export const api = {
     form.append('image', imageFile);
     return request('POST', '/verify/image', form, true, signal);
   },
+
+  submitAccessRequest: (data) => request('POST', '/access-requests', data),
 };

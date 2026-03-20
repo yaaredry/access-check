@@ -2,6 +2,7 @@ import { useState } from 'react';
 import Login from './components/Login';
 import ManualCheck from './components/ManualCheck';
 import CameraCheck from './components/CameraCheck';
+import AccessRequestForm from './components/AccessRequestForm';
 
 const VIEW_HOME = 'home';
 const VIEW_MANUAL = 'manual';
@@ -9,15 +10,27 @@ const VIEW_CAMERA = 'camera';
 
 export default function App() {
   const [authed, setAuthed] = useState(() => !!localStorage.getItem('gate_token'));
+  const [role, setRole] = useState(() => localStorage.getItem('gate_role') || '');
   const [view, setView] = useState(VIEW_HOME);
 
   function handleLogout() {
     localStorage.removeItem('gate_token');
+    localStorage.removeItem('gate_role');
     setAuthed(false);
+    setRole('');
+  }
+
+  function handleLogin(userRole) {
+    setRole(userRole);
+    setAuthed(true);
   }
 
   if (!authed) {
-    return <Login onLogin={() => setAuthed(true)} />;
+    return <Login onLogin={handleLogin} />;
+  }
+
+  if (role === 'access_requestor') {
+    return <AccessRequestForm onLogout={handleLogout} />;
   }
 
   return (

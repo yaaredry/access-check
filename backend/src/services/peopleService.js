@@ -5,26 +5,14 @@ const peopleRepo = require('../repositories/peopleRepository');
 const auditRepo = require('../repositories/auditRepository');
 const gsheetService = require('./gsheetService');
 
+const { validateIlId } = require('../utils/validateIlId');
+
 const VALID_TYPES = ['IL_ID', 'IDF_ID'];
 const VALID_VERDICTS = ['APPROVED', 'ADMIN_APPROVED', 'NOT_APPROVED'];
 
 function validateIdentifierValue(type, value) {
-  if (type === 'IL_ID') {
-    // Israeli ID: 9 digits, with Luhn-like check digit
-    if (!/^\d{9}$/.test(value)) return false;
-    const digits = value.split('').map(Number);
-    let sum = 0;
-    for (let i = 0; i < 9; i++) {
-      let d = digits[i] * (i % 2 === 0 ? 1 : 2);
-      if (d > 9) d -= 9;
-      sum += d;
-    }
-    return sum % 10 === 0;
-  }
-  if (type === 'IDF_ID') {
-    // IDF personal number: 7–8 digits
-    return /^\d{7,8}$/.test(value);
-  }
+  if (type === 'IL_ID') return validateIlId(value);
+  if (type === 'IDF_ID') return /^\d{7,8}$/.test(value);
   return false;
 }
 
@@ -37,13 +25,13 @@ async function getPerson(id) {
 }
 
 async function createPerson(data) {
-  const { identifierType, identifierValue, verdict, approvalExpiration } = data;
-  const person = await peopleRepo.create({ identifierType, identifierValue, verdict, approvalExpiration });
+  const { identifierType, identifierValue, verdict, approvalExpiration, population, division, escortFullName, escortPhone, reason, status } = data;
+  const person = await peopleRepo.create({ identifierType, identifierValue, verdict, approvalExpiration, population, division, escortFullName, escortPhone, reason, status });
   await auditRepo.log({
     action: 'CREATE',
     identifierType,
     identifierValue,
-    verdict,
+    verdict: status === 'PENDING' ? 'PENDING' : verdict,
     source: 'admin',
   });
   return person;
@@ -133,7 +121,7 @@ async function importFromGSheet(url) {
   const valid = [];
   let skipped = 0;
 
-  for (const { rowNum, identifierValue: rawId, verdict } of rows) {
+  for (const { rowNum, identifierValue: rawId, verdict, population, reason } of rows) {
     if (verdict === null) {
       skipped++;
       continue;
@@ -147,7 +135,7 @@ async function importFromGSheet(url) {
       continue;
     }
 
-    valid.push({ identifierType: 'IL_ID', identifierValue, verdict });
+    valid.push({ identifierType: 'IL_ID', identifierValue, verdict, population: population || null, reason: reason || null });
   }
 
   let result = { inserted: 0, updated: 0 };

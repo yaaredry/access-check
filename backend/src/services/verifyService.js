@@ -9,12 +9,15 @@ const VERDICTS = {
   APPROVED: 'APPROVED',
   ADMIN_APPROVED: 'ADMIN_APPROVED',
   NOT_APPROVED: 'NOT_APPROVED',
+  PENDING: 'PENDING',
   EXPIRED: 'EXPIRED',
   NOT_FOUND: 'NOT_FOUND',
 };
 
 function resolveVerdict(person) {
   if (!person) return VERDICTS.NOT_FOUND;
+
+  if (person.status === 'PENDING') return VERDICTS.PENDING;
 
   if (person.approval_expiration) {
     const expiry = new Date(person.approval_expiration);
