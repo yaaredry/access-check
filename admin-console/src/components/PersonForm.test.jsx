@@ -10,7 +10,7 @@ describe('PersonForm', () => {
     render(<PersonForm onSubmit={noop} onCancel={noop} />);
     expect(screen.getByLabelText(/Identifier Type/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Identifier Value/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Verdict/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Status/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Approval Expiration/i)).toBeInTheDocument();
   });
 
@@ -21,21 +21,22 @@ describe('PersonForm', () => {
 
   it('has APPROVED selected by default', () => {
     render(<PersonForm onSubmit={noop} onCancel={noop} />);
-    expect(screen.getByLabelText(/Verdict/i)).toHaveValue('APPROVED');
+    expect(screen.getByLabelText(/Status/i)).toHaveValue('APPROVED');
   });
 
-  it('includes ADMIN_APPROVED as a verdict option', () => {
+  it('includes ADMIN_APPROVED and PENDING as status options', () => {
     render(<PersonForm onSubmit={noop} onCancel={noop} />);
-    const select = screen.getByLabelText(/Verdict/i);
+    const select = screen.getByLabelText(/Status/i);
     const options = Array.from(select.options).map((o) => o.value);
     expect(options).toContain('ADMIN_APPROVED');
+    expect(options).toContain('PENDING');
   });
 
   it('populates fields from initial prop', () => {
     render(<PersonForm initial={{ identifierType: 'IDF_ID', identifierValue: '1234567', verdict: 'NOT_APPROVED', approvalExpiration: '' }} onSubmit={noop} onCancel={noop} />);
     expect(screen.getByLabelText(/Identifier Type/i)).toHaveValue('IDF_ID');
     expect(screen.getByLabelText(/Identifier Value/i)).toHaveValue('1234567');
-    expect(screen.getByLabelText(/Verdict/i)).toHaveValue('NOT_APPROVED');
+    expect(screen.getByLabelText(/Status/i)).toHaveValue('NOT_APPROVED');
   });
 
   it('calls onSubmit with form data when Save is clicked', async () => {
@@ -55,16 +56,32 @@ describe('PersonForm', () => {
     });
   });
 
-  it('calls onSubmit with ADMIN_APPROVED when that verdict is selected', async () => {
+  it('calls onSubmit with ADMIN_APPROVED when that status is selected', async () => {
     const onSubmit = vi.fn().mockResolvedValue();
     render(<PersonForm onSubmit={onSubmit} onCancel={noop} />);
 
-    await userEvent.selectOptions(screen.getByLabelText(/Verdict/i), 'ADMIN_APPROVED');
+    await userEvent.selectOptions(screen.getByLabelText(/Status/i), 'ADMIN_APPROVED');
     await userEvent.type(screen.getByLabelText(/Identifier Value/i), '000000018');
     fireEvent.click(screen.getByText('Save'));
 
     await waitFor(() => {
       expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ verdict: 'ADMIN_APPROVED' }));
+    });
+  });
+
+  it('calls onSubmit with verdict NOT_APPROVED and status PENDING when Pending Review is selected', async () => {
+    const onSubmit = vi.fn().mockResolvedValue();
+    render(<PersonForm onSubmit={onSubmit} onCancel={noop} />);
+
+    await userEvent.selectOptions(screen.getByLabelText(/Status/i), 'PENDING');
+    await userEvent.type(screen.getByLabelText(/Identifier Value/i), '000000018');
+    fireEvent.click(screen.getByText('Save'));
+
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+        verdict: 'NOT_APPROVED',
+        status: 'PENDING',
+      }));
     });
   });
 
