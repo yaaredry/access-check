@@ -68,6 +68,21 @@ async function update(req, res, next) {
   }
 }
 
+async function updateStatus(req, res, next) {
+  try {
+    const { status } = req.body;
+    if (!['APPROVED', 'NOT_APPROVED'].includes(status)) {
+      return res.status(400).json({ error: 'status must be APPROVED or NOT_APPROVED' });
+    }
+    const verdict = status === 'APPROVED' ? 'ADMIN_APPROVED' : 'NOT_APPROVED';
+    const person = await peopleService.updatePerson(parseInt(req.params.id, 10), { verdict, status });
+    if (!person) return res.status(404).json({ error: 'Person not found' });
+    return res.json(person);
+  } catch (err) {
+    return next(err);
+  }
+}
+
 async function remove(req, res, next) {
   try {
     const deleted = await peopleService.deletePerson(parseInt(req.params.id, 10));
@@ -119,6 +134,7 @@ module.exports = {
   getOne,
   create,
   update,
+  updateStatus,
   remove,
   uploadCSV,
   importGSheet,

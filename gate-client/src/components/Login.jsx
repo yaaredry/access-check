@@ -13,12 +13,13 @@ export default function Login({ onLogin }) {
     setLoading(true);
     try {
       const res = await api.login(username, password);
-      if (res.role !== 'gate' && res.role !== 'admin') {
+      if (!['gate', 'admin', 'access_requestor'].includes(res.role)) {
         setError('Access denied');
         return;
       }
       localStorage.setItem('gate_token', res.token);
-      onLogin();
+      localStorage.setItem('gate_role', res.role);
+      onLogin(res.role);
     } catch (err) {
       setError(err.message || 'Login failed');
     } finally {

@@ -10,6 +10,7 @@ const MODAL_CREATE = 'create';
 const MODAL_EDIT = 'edit';
 const MODAL_BULK = 'bulk';
 const MODAL_GSHEET = 'gsheet';
+const MODAL_CONFIRM = 'confirm';
 
 export default function People() {
   const [data, setData] = useState({ rows: [], total: 0 });
@@ -19,6 +20,7 @@ export default function People() {
   const [modal, setModal] = useState(MODAL_NONE);
   const [editTarget, setEditTarget] = useState(null);
   const [formLoading, setFormLoading] = useState(false);
+  const [confirm, setConfirm] = useState(null); // { title, message, onConfirm, variant }
   const LIMIT = 20;
 
   const load = useCallback(async () => {
@@ -71,10 +73,48 @@ export default function People() {
     }
   }
 
-  async function handleDelete(person) {
-    if (!window.confirm(`Delete record for ${person.identifier_value}?`)) return;
-    await api.deletePerson(person.id);
-    load();
+  function handleDelete(person) {
+    setConfirm({
+      title: 'Delete Record',
+      message: `Are you sure you want to delete the record for ID ${person.identifier_value}? This cannot be undone.`,
+      variant: 'danger',
+      onConfirm: async () => {
+        await api.deletePerson(person.id);
+        load();
+      },
+    });
+    setModal(MODAL_CONFIRM);
+  }
+
+  function handleApprove(person) {
+    setConfirm({
+      title: 'Approve Access',
+      message: `Approve access for ID ${person.identifier_value}?`,
+      variant: 'primary',
+      onConfirm: async () => {
+        await api.updatePersonStatus(person.id, 'APPROVED');
+        load();
+      },
+    });
+    setModal(MODAL_CONFIRM);
+  }
+
+  function handleReject(person) {
+    setConfirm({
+      title: 'Reject Access',
+      message: `Reject access for ID ${person.identifier_value}? The request will be marked as not approved.`,
+      variant: 'danger',
+      onConfirm: async () => {
+        await api.updatePersonStatus(person.id, 'NOT_APPROVED');
+        load();
+      },
+    });
+    setModal(MODAL_CONFIRM);
+  }
+
+  function closeConfirm() {
+    setModal(MODAL_NONE);
+    setConfirm(null);
   }
 
   function openEdit(person) {
@@ -124,7 +164,7 @@ export default function People() {
         {loading ? (
           <p style={{ color: 'var(--text-muted)', padding: '24px 0' }}>Loading…</p>
         ) : (
-          <PersonTable rows={data.rows} onEdit={openEdit} onDelete={handleDelete} />
+          <PersonTable rows={data.rows} onEdit={openEdit} onDelete={handleDelete} onApprove={handleApprove} onReject={handleReject} />
         )}
 
         {totalPages > 1 && (
@@ -139,7 +179,7 @@ export default function People() {
       {/* Modals */}
       {(modal === MODAL_CREATE || modal === MODAL_EDIT) && (
         <div style={overlayStyle}>
-          <div className="card" style={{ width: 480, maxWidth: '95vw' }}>
+          <div className="card" style={{ width: 480, maxWidth: '95vw', maxHeight: '90vh', overflowY: 'auto' }}>
             <h3 style={{ fontWeight: 700, marginBottom: 20 }}>{modal === MODAL_CREATE ? 'Add Person' : 'Edit Person'}</h3>
             <PersonForm
               initial={modal === MODAL_EDIT ? editTarget : null}
@@ -163,6 +203,24 @@ export default function People() {
         </div>
       )}
 
+      {modal === MODAL_CONFIRM && confirm && (
+        <div style={overlayStyle}>
+          <div className="card" style={{ width: 420, maxWidth: '95vw' }}>
+            <h3 style={{ fontWeight: 700, marginBottom: 12 }}>{confirm.title}</h3>
+            <p style={{ color: 'var(--text-muted)', marginBottom: 24, lineHeight: 1.5 }}>{confirm.message}</p>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button className="secondary" onClick={closeConfirm}>Cancel</button>
+              <button
+                className={confirm.variant === 'danger' ? 'danger' : 'primary'}
+                onClick={async () => { await confirm.onConfirm(); closeConfirm(); }}
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {modal === MODAL_GSHEET && (
         <div style={overlayStyle}>
           <div className="card" style={{ width: 640, maxWidth: '95vw' }}>
@@ -181,7 +239,8 @@ export default function People() {
 const overlayStyle = {
   position: 'fixed', inset: 0,
   background: 'rgba(0,0,0,.4)',
-  display: 'flex', alignItems: 'center', justifyContent: 'center',
+  display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
   zIndex: 1000,
-  padding: 16,
+  padding: '40px 16px',
+  overflowY: 'auto',
 };

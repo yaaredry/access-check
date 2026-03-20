@@ -4,6 +4,8 @@ const { parse } = require('csv-parse/sync');
 
 const ID_COL = 'תעודת זהות';
 const STATUS_COL = 'סטטוס';
+const POPULATION_COL = 'אוכלוסיה';
+const REASON_COL = 'סיבת כניסה (נא לפרט)';
 
 function extractSheetInfo(url) {
   const idMatch = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
@@ -71,6 +73,8 @@ async function fetchAndParse(sheetUrl) {
     rowNum: i + 2,
     identifierValue: (row[ID_COL] || '').trim(),
     verdict: mapStatus(row[STATUS_COL]),
+    population: (row[POPULATION_COL] || '').trim() || null,
+    reason: (row[REASON_COL] || '').trim() || null,
   }));
 }
 

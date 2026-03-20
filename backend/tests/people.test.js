@@ -21,6 +21,12 @@ beforeAll(async () => {
       last_seen_at TIMESTAMPTZ DEFAULT NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      population VARCHAR(20),
+      division VARCHAR(100),
+      escort_full_name VARCHAR(150),
+      escort_phone VARCHAR(30),
+      reason VARCHAR(500),
+      status VARCHAR(20),
       CONSTRAINT uq_test_identifier UNIQUE (identifier_type, identifier_value)
     )
   `);
