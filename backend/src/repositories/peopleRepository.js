@@ -16,7 +16,7 @@ async function findAll({ search, limit = 50, offset = 0 }) {
     query += ` WHERE identifier_value ILIKE $${params.length}`;
   }
 
-  query += ` ORDER BY (status = 'PENDING') DESC, created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+  query += ` ORDER BY (status = 'PENDING') DESC NULLS LAST, created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
   params.push(limit, offset);
 
   const { rows } = await db.query(query, params);
