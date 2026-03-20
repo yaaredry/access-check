@@ -22,7 +22,9 @@ const COLUMNS = [
 ];
 
 function sortRows(rows, key, dir) {
-  return [...rows].sort((a, b) => {
+  const pending = rows.filter(r => r.status === 'PENDING');
+  const rest = rows.filter(r => r.status !== 'PENDING');
+  const sorted = [...rest].sort((a, b) => {
     let av = a[key], bv = b[key];
     if (av == null && bv == null) return 0;
     if (av == null) return 1;
@@ -35,6 +37,7 @@ function sortRows(rows, key, dir) {
     const cmp = String(av).localeCompare(String(bv));
     return dir === 'asc' ? cmp : -cmp;
   });
+  return [...pending, ...sorted];
 }
 
 function SortIcon({ active, dir }) {
