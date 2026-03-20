@@ -21,7 +21,7 @@ export default function People() {
   const [editTarget, setEditTarget] = useState(null);
   const [formLoading, setFormLoading] = useState(false);
   const [confirm, setConfirm] = useState(null); // { title, message, onConfirm, variant }
-  const LIMIT = 20;
+  const LIMIT = 50;
 
   const load = useCallback(async () => {
     setLoading(true);
