@@ -33,6 +33,7 @@ beforeAll(async () => {
       escort_phone VARCHAR(30),
       reason VARCHAR(500),
       status VARCHAR(20),
+      rejection_reason VARCHAR(500),
       CONSTRAINT uq_test_ar_identifier UNIQUE (identifier_type, identifier_value)
     )
   `);
@@ -196,7 +197,7 @@ describe('PATCH /people/:id/status (admin approve/reject)', () => {
     const res = await request(app)
       .patch(`/people/${id}/status`)
       .set('Authorization', `Bearer ${adminToken}`)
-      .send({ status: 'NOT_APPROVED' });
+      .send({ status: 'NOT_APPROVED', rejectionReason: 'Does not meet requirements' });
 
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('NOT_APPROVED');
