@@ -25,25 +25,48 @@ function resolveUiStatus(initial) {
   return initial?.verdict || 'APPROVED';
 }
 
-const EMPTY = { identifierType: 'IL_ID', identifierValue: '', uiStatus: 'APPROVED', approvalExpiration: '' };
+const EMPTY = {
+  identifierType: 'IL_ID',
+  identifierValue: '',
+  uiStatus: 'APPROVED',
+  approvalExpiration: '',
+  population: 'IL_MILITARY',
+  division: '',
+  escortFullName: '',
+  escortPhone: '',
+  reason: '',
+};
 
 export default function PersonForm({ initial, onSubmit, onCancel, loading }) {
   const [form, setForm] = useState(
-    initial ? { ...initial, uiStatus: resolveUiStatus(initial) } : EMPTY
+    initial ? { ...EMPTY, ...initial, uiStatus: resolveUiStatus(initial) } : EMPTY
   );
+  const [fieldErrors, setFieldErrors] = useState({});
   const [error, setError] = useState('');
 
   function set(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }));
+    if (fieldErrors[field]) setFieldErrors((prev) => ({ ...prev, [field]: '' }));
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
+
+    const errors = {};
     if (form.identifierType === 'IL_ID' && !validateIlId(form.identifierValue)) {
-      setError('Invalid Israeli ID');
+      errors.identifierValue = 'Invalid Israeli ID';
+    }
+    if (form.population === 'CIVILIAN') {
+      if (!form.escortFullName.trim()) errors.escortFullName = 'Escort full name is required for civilian visitors.';
+      if (!form.escortPhone.trim()) errors.escortPhone = 'Escort phone is required for civilian visitors.';
+      else if (!/^\+?[\d]+$/.test(form.escortPhone)) errors.escortPhone = 'Phone number can only contain digits and an optional "+" at the start.';
+    }
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
       return;
     }
+
     try {
       const { verdict, status } = STATUS_OPTIONS.find(o => o.value === form.uiStatus);
       await onSubmit({
@@ -51,18 +74,20 @@ export default function PersonForm({ initial, onSubmit, onCancel, loading }) {
         verdict,
         status,
         approvalExpiration: form.approvalExpiration || null,
+        escortFullName: form.escortFullName || null,
+        escortPhone: form.escortPhone || null,
+        division: form.division || null,
+        reason: form.reason || null,
       });
     } catch (err) {
       setError(err.message);
     }
   }
 
-  const isAccessRequest = !!initial?.status;
-
   return (
     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div>
-        <label htmlFor="pf-identifierType" style={{ display: 'block', marginBottom: 6, fontWeight: 500 }}>Identifier Type</label>
+        <label htmlFor="pf-identifierType" style={labelStyle}>Identifier Type</label>
         <select id="pf-identifierType" value={form.identifierType} onChange={(e) => set('identifierType', e.target.value)}>
           <option value="IL_ID">IL ID (Israeli ID)</option>
           <option value="IDF_ID">IDF ID (Military ID)</option>
@@ -70,7 +95,7 @@ export default function PersonForm({ initial, onSubmit, onCancel, loading }) {
       </div>
 
       <div>
-        <label htmlFor="pf-identifierValue" style={{ display: 'block', marginBottom: 6, fontWeight: 500 }}>Identifier Value</label>
+        <label htmlFor="pf-identifierValue" style={labelStyle}>Identifier Value</label>
         <input
           id="pf-identifierValue"
           type="text"
@@ -78,11 +103,13 @@ export default function PersonForm({ initial, onSubmit, onCancel, loading }) {
           onChange={(e) => set('identifierValue', e.target.value)}
           placeholder={form.identifierType === 'IL_ID' ? '9-digit ID number' : '7-8 digit service number'}
           required
+          style={fieldErrors.identifierValue ? errorInputStyle : undefined}
         />
+        {fieldErrors.identifierValue && <p style={fieldErrorStyle}>⚠ {fieldErrors.identifierValue}</p>}
       </div>
 
       <div>
-        <label htmlFor="pf-status" style={{ display: 'block', marginBottom: 6, fontWeight: 500 }}>Status</label>
+        <label htmlFor="pf-status" style={labelStyle}>Status</label>
         <select id="pf-status" value={form.uiStatus} onChange={(e) => set('uiStatus', e.target.value)}>
           {STATUS_OPTIONS.map(o => (
             <option key={o.value} value={o.value}>{o.label}</option>
@@ -91,7 +118,7 @@ export default function PersonForm({ initial, onSubmit, onCancel, loading }) {
       </div>
 
       <div>
-        <label htmlFor="pf-approvalExpiration" style={{ display: 'block', marginBottom: 6, fontWeight: 500 }}>Approval Expiration (optional)</label>
+        <label htmlFor="pf-approvalExpiration" style={labelStyle}>Approval Expiration (optional)</label>
         <input
           id="pf-approvalExpiration"
           type="date"
@@ -100,47 +127,68 @@ export default function PersonForm({ initial, onSubmit, onCancel, loading }) {
         />
       </div>
 
-      {isAccessRequest && (
+      <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '4px 0' }} />
+
+      <div>
+        <label htmlFor="pf-population" style={labelStyle}>Population</label>
+        <select id="pf-population" value={form.population} onChange={(e) => set('population', e.target.value)}>
+          <option value="IL_MILITARY">IL Military</option>
+          <option value="CIVILIAN">Civilian</option>
+        </select>
+      </div>
+
+      <div>
+        <label htmlFor="pf-division" style={labelStyle}>Division (optional)</label>
+        <input
+          id="pf-division"
+          type="text"
+          placeholder="Unit or division"
+          value={form.division || ''}
+          onChange={(e) => set('division', e.target.value)}
+        />
+      </div>
+
+      {form.population === 'CIVILIAN' && (
         <>
-          <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '4px 0' }} />
-          <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>Access Request Details</p>
+          <div>
+            <label htmlFor="pf-escortFullName" style={labelStyle}>Escort Full Name</label>
+            <input
+              id="pf-escortFullName"
+              type="text"
+              placeholder="Escort's full name"
+              value={form.escortFullName || ''}
+              onChange={(e) => set('escortFullName', e.target.value)}
+              style={fieldErrors.escortFullName ? errorInputStyle : undefined}
+            />
+            {fieldErrors.escortFullName && <p style={fieldErrorStyle}>⚠ {fieldErrors.escortFullName}</p>}
+          </div>
 
-          {form.population && (
-            <div>
-              <label style={{ display: 'block', marginBottom: 6, fontWeight: 500 }}>Population</label>
-              <input type="text" value={form.population} readOnly style={{ background: 'var(--surface)' }} />
-            </div>
-          )}
-
-          {form.division && (
-            <div>
-              <label style={{ display: 'block', marginBottom: 6, fontWeight: 500 }}>Division</label>
-              <input type="text" value={form.division} readOnly style={{ background: 'var(--surface)' }} />
-            </div>
-          )}
-
-          {form.escort_full_name && (
-            <div>
-              <label style={{ display: 'block', marginBottom: 6, fontWeight: 500 }}>Escort Full Name</label>
-              <input type="text" value={form.escort_full_name} readOnly style={{ background: 'var(--surface)' }} />
-            </div>
-          )}
-
-          {form.escort_phone && (
-            <div>
-              <label style={{ display: 'block', marginBottom: 6, fontWeight: 500 }}>Escort Phone</label>
-              <input type="text" value={form.escort_phone} readOnly style={{ background: 'var(--surface)' }} />
-            </div>
-          )}
-
-          {form.reason && (
-            <div>
-              <label style={{ display: 'block', marginBottom: 6, fontWeight: 500 }}>Reason</label>
-              <textarea value={form.reason} readOnly rows={3} style={{ background: 'var(--surface)', resize: 'none' }} />
-            </div>
-          )}
+          <div>
+            <label htmlFor="pf-escortPhone" style={labelStyle}>Escort Phone</label>
+            <input
+              id="pf-escortPhone"
+              type="tel"
+              placeholder="+972501234567"
+              value={form.escortPhone || ''}
+              onChange={(e) => set('escortPhone', e.target.value)}
+              style={fieldErrors.escortPhone ? errorInputStyle : undefined}
+            />
+            {fieldErrors.escortPhone && <p style={fieldErrorStyle}>⚠ {fieldErrors.escortPhone}</p>}
+          </div>
         </>
       )}
+
+      <div>
+        <label htmlFor="pf-reason" style={labelStyle}>Reason for Visit (optional)</label>
+        <textarea
+          id="pf-reason"
+          placeholder="Describe the reason for this visit…"
+          value={form.reason || ''}
+          onChange={(e) => set('reason', e.target.value)}
+          rows={3}
+          style={{ resize: 'vertical' }}
+        />
+      </div>
 
       {error && <p className="error-msg">{error}</p>}
 
@@ -153,3 +201,7 @@ export default function PersonForm({ initial, onSubmit, onCancel, loading }) {
     </form>
   );
 }
+
+const labelStyle = { display: 'block', marginBottom: 6, fontWeight: 500 };
+const fieldErrorStyle = { color: 'var(--not-approved)', fontSize: 13, margin: '6px 0 0', fontWeight: 500 };
+const errorInputStyle = { borderColor: 'var(--not-approved)', outline: 'none' };

@@ -56,6 +56,7 @@ export default function People() {
     try {
       await api.createPerson(formData);
       setModal(MODAL_NONE);
+      setEditTarget(null);
       setOffset(0);
       load();
     } finally {
@@ -124,6 +125,8 @@ export default function People() {
       identifierType: person.identifier_type,
       identifierValue: person.identifier_value,
       approvalExpiration: person.approval_expiration ? person.approval_expiration.slice(0, 10) : '',
+      escortFullName: person.escort_full_name || '',
+      escortPhone: person.escort_phone || '',
     });
     setModal(MODAL_EDIT);
   }
@@ -164,6 +167,21 @@ export default function People() {
       <div className="card">
         {loading ? (
           <p style={{ color: 'var(--text-muted)', padding: '24px 0' }}>Loading…</p>
+        ) : data.rows.length === 0 && search ? (
+          <div style={{ padding: '32px 0', textAlign: 'center' }}>
+            <p style={{ color: 'var(--text-muted)', marginBottom: 16 }}>
+              No records found for <strong>{search}</strong>.
+            </p>
+            <button
+              className="primary"
+              onClick={() => {
+                setEditTarget({ identifierType: 'IL_ID', identifierValue: search });
+                setModal(MODAL_CREATE);
+              }}
+            >
+              + Add "{search}" as new person
+            </button>
+          </div>
         ) : (
           <PersonTable rows={data.rows} onEdit={openEdit} onDelete={handleDelete} onApprove={handleApprove} onReject={handleReject} />
         )}
@@ -183,7 +201,7 @@ export default function People() {
           <div className="card" style={{ width: 480, maxWidth: '95vw', maxHeight: '90vh', overflowY: 'auto' }}>
             <h3 style={{ fontWeight: 700, marginBottom: 20 }}>{modal === MODAL_CREATE ? 'Add Person' : 'Edit Person'}</h3>
             <PersonForm
-              initial={modal === MODAL_EDIT ? editTarget : null}
+              initial={editTarget}
               onSubmit={modal === MODAL_CREATE ? handleCreate : handleUpdate}
               onCancel={() => { setModal(MODAL_NONE); setEditTarget(null); }}
               loading={formLoading}
