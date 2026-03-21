@@ -4,7 +4,7 @@ import VerdictDisplay from './VerdictDisplay';
 
 const TIMEOUT_MS = 30_000;
 
-export default function CameraCheck({ onBack }) {
+export default function CameraCheck({ onBack, onSwitch }) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
@@ -128,9 +128,10 @@ export default function CameraCheck({ onBack }) {
       )}
 
       {!loading && (
-        <button className="back" style={{ maxWidth: 320, width: '100%' }} onClick={onBack}>
-          ← Back
-        </button>
+        <>
+          <button className="manual" style={{ maxWidth: 320, width: '100%', fontSize: 18 }} onClick={onSwitch}>✏️ Switch to Enter ID Manually</button>
+          <button className="back" style={{ maxWidth: 320, width: '100%' }} onClick={onBack}>← Back</button>
+        </>
       )}
     </div>
   );

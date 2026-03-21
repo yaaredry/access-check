@@ -66,6 +66,37 @@ describe('PersonTable', () => {
     expect(onDelete).toHaveBeenCalledWith(BASE);
   });
 
+  it('shows escort name and phone when present', () => {
+    render(<PersonTable rows={[{ ...BASE, escort_full_name: 'Jane Doe', escort_phone: '+972501234567' }]} onEdit={vi.fn()} onDelete={vi.fn()} onReject={vi.fn()} />);
+    expect(screen.getByText('Jane Doe')).toBeInTheDocument();
+    expect(screen.getByText('+972501234567')).toBeInTheDocument();
+  });
+
+  it('shows — for escort columns when not set', () => {
+    render(<PersonTable rows={[BASE]} onEdit={vi.fn()} onDelete={vi.fn()} onReject={vi.fn()} />);
+    const dashes = screen.getAllByText('—');
+    expect(dashes.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('Reject button is enabled for non-rejected rows', () => {
+    render(<PersonTable rows={[BASE]} onEdit={vi.fn()} onDelete={vi.fn()} onReject={vi.fn()} />);
+    expect(screen.getByText('Reject')).not.toBeDisabled();
+  });
+
+  it('Reject button is disabled and has tooltip for already-rejected rows', () => {
+    const rejected = { ...BASE, verdict: 'NOT_APPROVED', status: 'NOT_APPROVED' };
+    render(<PersonTable rows={[rejected]} onEdit={vi.fn()} onDelete={vi.fn()} onReject={vi.fn()} />);
+    const btn = screen.getByText('Reject');
+    expect(btn).toBeDisabled();
+    expect(btn).toHaveAttribute('title', 'Already rejected');
+  });
+
+  it('shows rejection reason beneath the Not Approved badge', () => {
+    const rejected = { ...BASE, verdict: 'NOT_APPROVED', status: 'NOT_APPROVED', rejection_reason: 'No valid clearance' };
+    render(<PersonTable rows={[rejected]} onEdit={vi.fn()} onDelete={vi.fn()} onReject={vi.fn()} />);
+    expect(screen.getByText('No valid clearance')).toBeInTheDocument();
+  });
+
   it('shows — when last_seen_at is null', () => {
     render(<PersonTable rows={[BASE]} onEdit={vi.fn()} onDelete={vi.fn()} />);
     const dashes = screen.getAllByText('—');

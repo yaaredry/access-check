@@ -14,7 +14,13 @@ function validateIlId(value) {
   return sum % 10 === 0;
 }
 
-export default function ManualCheck({ onBack }) {
+function isValidId(type, value) {
+  if (type === 'IL_ID') return validateIlId(value);
+  if (type === 'IDF_ID') return /^\d{7,8}$/.test(value);
+  return false;
+}
+
+export default function ManualCheck({ onBack, onSwitch }) {
   const [type, setType] = useState('IL_ID');
   const [value, setValue] = useState('');
   const [loading, setLoading] = useState(false);
@@ -86,13 +92,14 @@ export default function ManualCheck({ onBack }) {
         <button
           type="submit"
           className="scan"
-          disabled={loading || !value.trim()}
+          disabled={loading || !isValidId(type, value)}
           style={{ marginTop: 8, fontSize: 22 }}
         >
           {loading ? 'Checking…' : 'Check'}
         </button>
       </form>
 
+      <button className="scan" onClick={onSwitch} style={{ fontSize: 18 }}>📷 Switch to Scan ID Card</button>
       <button className="back" onClick={onBack}>← Back</button>
     </div>
   );

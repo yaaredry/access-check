@@ -29,6 +29,7 @@ function resolveVerdict(person) {
 
   if (person.verdict === 'APPROVED') return VERDICTS.APPROVED;
   if (person.verdict === 'ADMIN_APPROVED') return VERDICTS.ADMIN_APPROVED;
+  if (person.status === 'APPROVED') return VERDICTS.APPROVED;
   return VERDICTS.NOT_APPROVED;
 }
 
