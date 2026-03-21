@@ -22,10 +22,6 @@ function renderLogin() {
   return render(<MemoryRouter><Login /></MemoryRouter>);
 }
 
-function getPasswordInput() {
-  return document.querySelector('input[type="password"], input[type="text"][autocomplete="current-password"]');
-}
-
 describe('Admin Login', () => {
   beforeEach(() => vi.clearAllMocks());
 
