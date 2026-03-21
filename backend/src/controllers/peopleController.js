@@ -71,14 +71,17 @@ async function update(req, res, next) {
 
 async function updateStatus(req, res, next) {
   try {
-    const { status, rejectionReason } = req.body;
+    const { status, rejectionReason, verdict: requestedVerdict } = req.body;
     if (!['APPROVED', 'NOT_APPROVED'].includes(status)) {
       return res.status(400).json({ error: 'status must be APPROVED or NOT_APPROVED' });
     }
     if (status === 'NOT_APPROVED' && !rejectionReason?.trim()) {
       return res.status(400).json({ error: 'rejectionReason is required when rejecting' });
     }
-    const verdict = status === 'APPROVED' ? 'ADMIN_APPROVED' : 'NOT_APPROVED';
+    const allowedApprovalVerdicts = ['APPROVED', 'ADMIN_APPROVED'];
+    const verdict = status === 'APPROVED'
+      ? (allowedApprovalVerdicts.includes(requestedVerdict) ? requestedVerdict : 'ADMIN_APPROVED')
+      : 'NOT_APPROVED';
     const person = await peopleService.updatePerson(parseInt(req.params.id, 10), {
       verdict,
       status,
