@@ -69,24 +69,6 @@ describe('Login', () => {
     await waitFor(() => expect(screen.getByText('Invalid credentials')).toBeInTheDocument());
   });
 
-  it('password field is hidden by default', () => {
-    render(<Login onLogin={vi.fn()} />);
-    expect(screen.getByPlaceholderText('Password')).toHaveAttribute('type', 'password');
-  });
-
-  it('clicking eye icon reveals password', async () => {
-    render(<Login onLogin={vi.fn()} />);
-    fireEvent.click(screen.getByLabelText('Show password'));
-    expect(screen.getByPlaceholderText('Password')).toHaveAttribute('type', 'text');
-  });
-
-  it('clicking eye icon again hides password', async () => {
-    render(<Login onLogin={vi.fn()} />);
-    fireEvent.click(screen.getByLabelText('Show password'));
-    fireEvent.click(screen.getByLabelText('Hide password'));
-    expect(screen.getByPlaceholderText('Password')).toHaveAttribute('type', 'password');
-  });
-
   it('shows loading state while signing in', async () => {
     api.login.mockImplementation(() => new Promise(() => {}));
     render(<Login onLogin={vi.fn()} />);

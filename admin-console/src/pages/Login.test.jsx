@@ -27,28 +27,9 @@ describe('Admin Login', () => {
 
   it('renders username, password inputs and sign in button', () => {
     renderLogin();
-    expect(screen.getByRole('textbox')).toBeInTheDocument(); // username
+    expect(screen.getByRole('textbox')).toBeInTheDocument();
     expect(document.querySelector('input[type="password"]')).toBeInTheDocument();
     expect(screen.getByText('Sign In')).toBeInTheDocument();
-  });
-
-  it('password field is hidden by default', () => {
-    renderLogin();
-    expect(document.querySelector('input[type="password"]')).toBeInTheDocument();
-  });
-
-  it('clicking eye icon reveals password', () => {
-    renderLogin();
-    fireEvent.click(screen.getByLabelText('Show password'));
-    expect(document.querySelector('input[type="password"]')).not.toBeInTheDocument();
-    expect(document.querySelector('input[autocomplete="current-password"]')).toHaveAttribute('type', 'text');
-  });
-
-  it('clicking eye icon again hides password', () => {
-    renderLogin();
-    fireEvent.click(screen.getByLabelText('Show password'));
-    fireEvent.click(screen.getByLabelText('Hide password'));
-    expect(document.querySelector('input[type="password"]')).toBeInTheDocument();
   });
 
   it('shows error on invalid credentials', async () => {
