@@ -11,6 +11,7 @@ const MODAL_EDIT = 'edit';
 const MODAL_BULK = 'bulk';
 const MODAL_GSHEET = 'gsheet';
 const MODAL_CONFIRM = 'confirm';
+const MODAL_APPROVE = 'approve';
 const MODAL_REJECT = 'reject';
 
 export default function People() {
@@ -23,6 +24,7 @@ export default function People() {
   const [formLoading, setFormLoading] = useState(false);
   const [confirm, setConfirm] = useState(null); // { title, message, onConfirm, variant }
   const [rejectTarget, setRejectTarget] = useState(null);
+  const [approveTarget, setApproveTarget] = useState(null);
   const LIMIT = 50;
 
   const load = useCallback(async () => {
@@ -90,16 +92,15 @@ export default function People() {
   }
 
   function handleApprove(person) {
-    setConfirm({
-      title: 'Approve Access',
-      message: `Approve access for ID ${person.identifier_value}?`,
-      variant: 'primary',
-      onConfirm: async () => {
-        await api.updatePersonStatus(person.id, 'APPROVED');
-        load();
-      },
-    });
-    setModal(MODAL_CONFIRM);
+    setApproveTarget(person);
+    setModal(MODAL_APPROVE);
+  }
+
+  async function handleApproveConfirm(verdict) {
+    await api.updatePersonStatus(approveTarget.id, 'APPROVED', undefined, verdict);
+    setModal(MODAL_NONE);
+    setApproveTarget(null);
+    load();
   }
 
   function handleReject(person) {
@@ -241,6 +242,14 @@ export default function People() {
         </div>
       )}
 
+      {modal === MODAL_APPROVE && approveTarget && (
+        <ApproveModal
+          person={approveTarget}
+          onConfirm={handleApproveConfirm}
+          onCancel={() => { setModal(MODAL_NONE); setApproveTarget(null); }}
+        />
+      )}
+
       {modal === MODAL_REJECT && rejectTarget && (
         <RejectModal
           person={rejectTarget}
@@ -260,6 +269,53 @@ export default function People() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function ApproveModal({ person, onConfirm, onCancel }) {
+  const [loading, setLoading] = useState(false);
+
+  async function approve(verdict) {
+    setLoading(true);
+    try {
+      await onConfirm(verdict);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div style={overlayStyle}>
+      <div className="card" style={{ width: 420, maxWidth: '95vw' }}>
+        <h3 style={{ fontWeight: 700, marginBottom: 8 }}>Approve Access</h3>
+        <p style={{ color: 'var(--text-muted)', marginBottom: 24, lineHeight: 1.5 }}>
+          Select approval type for ID <strong>{person.identifier_value}</strong>.
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
+          <button
+            className="primary"
+            disabled={loading}
+            onClick={() => approve('APPROVED')}
+            style={{ textAlign: 'left', padding: '12px 16px' }}
+          >
+            <div style={{ fontWeight: 600 }}>Approve</div>
+            <div style={{ fontSize: 12, opacity: 0.8, marginTop: 2 }}>Standard approval</div>
+          </button>
+          <button
+            className="primary"
+            disabled={loading}
+            onClick={() => approve('ADMIN_APPROVED')}
+            style={{ textAlign: 'left', padding: '12px 16px' }}
+          >
+            <div style={{ fontWeight: 600 }}>Administrative Approval</div>
+            <div style={{ fontSize: 12, opacity: 0.8, marginTop: 2 }}>The person can be only in the administrative areas</div>
+          </button>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <button className="secondary" onClick={onCancel} disabled={loading}>Cancel</button>
+        </div>
+      </div>
     </div>
   );
 }
