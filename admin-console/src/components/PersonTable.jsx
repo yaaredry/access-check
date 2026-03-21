@@ -114,11 +114,9 @@ export default function PersonTable({ rows, onEdit, onDelete, onApprove, onRejec
               <td>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                   {p.status === 'PENDING' && (
-                    <>
-                      <button className="primary" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => onApprove(p)}>Approve</button>
-                      <button className="danger" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => onReject(p)}>Reject</button>
-                    </>
+                    <button className="primary" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => onApprove(p)}>Approve</button>
                   )}
+                  <button className="danger" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => onReject(p)}>Reject</button>
                   <button className="secondary" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => onEdit(p)}>Edit</button>
                   <button className="danger" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => onDelete(p)}>Delete</button>
                 </div>
