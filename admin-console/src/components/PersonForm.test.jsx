@@ -14,6 +14,7 @@ describe('PersonForm', () => {
     expect(screen.getByLabelText(/Approval Expiration/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Population/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Division/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Requester Name/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Reason for Visit/i)).toBeInTheDocument();
   });
 
@@ -106,7 +107,7 @@ describe('PersonForm', () => {
       initial={{
         identifierType: 'IL_ID', identifierValue: '000000018', verdict: 'APPROVED',
         population: 'CIVILIAN', division: 'Alpha', escortFullName: 'Jane Doe',
-        escortPhone: '+972501234567', reason: 'Visit',
+        escortPhone: '+972501234567', reason: 'Visit', requesterName: 'Bob',
       }}
       onSubmit={noop} onCancel={noop}
     />);
@@ -115,6 +116,7 @@ describe('PersonForm', () => {
     expect(screen.getByLabelText(/Escort Full Name/i)).toHaveValue('Jane Doe');
     expect(screen.getByLabelText(/Escort Phone/i)).toHaveValue('+972501234567');
     expect(screen.getByLabelText(/Reason for Visit/i)).toHaveValue('Visit');
+    expect(screen.getByLabelText(/Requester Name/i)).toHaveValue('Bob');
   });
 
   it('calls onSubmit with all new fields', async () => {
@@ -123,6 +125,7 @@ describe('PersonForm', () => {
 
     await userEvent.type(screen.getByLabelText(/Identifier Value/i), '000000018');
     await userEvent.type(screen.getByLabelText(/Division/i), 'Bravo');
+    await userEvent.type(screen.getByLabelText(/Requester Name/i), 'Bob');
     await userEvent.type(screen.getByLabelText(/Reason for Visit/i), 'Supply delivery');
     fireEvent.click(screen.getByText('Save'));
 
@@ -134,6 +137,7 @@ describe('PersonForm', () => {
         approvalExpiration: null,
         population: 'IL_MILITARY',
         division: 'Bravo',
+        requesterName: 'Bob',
         reason: 'Supply delivery',
       }));
     });

@@ -38,12 +38,15 @@ const requestBodyValidation = [
   body('reason')
     .trim()
     .notEmpty().withMessage('reason is required'),
+  body('requesterName')
+    .trim()
+    .notEmpty().withMessage('requesterName is required'),
   validate,
 ];
 
 async function create(req, res, next) {
   try {
-    const { ilId, population, division, escortFullName, escortPhone, approvalExpiration, reason } = req.body;
+    const { ilId, population, division, escortFullName, escortPhone, approvalExpiration, reason, requesterName } = req.body;
 
     const person = await peopleRepo.create({
       identifierType: 'IL_ID',
@@ -56,6 +59,7 @@ async function create(req, res, next) {
       escortPhone: population === 'CIVILIAN' ? escortPhone : null,
       reason,
       status: 'PENDING',
+      requesterName,
     });
 
     await auditRepo.log({

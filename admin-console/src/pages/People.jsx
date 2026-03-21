@@ -127,6 +127,7 @@ export default function People() {
       approvalExpiration: person.approval_expiration ? person.approval_expiration.slice(0, 10) : '',
       escortFullName: person.escort_full_name || '',
       escortPhone: person.escort_phone || '',
+      requesterName: person.requester_name || '',
     });
     setModal(MODAL_EDIT);
   }

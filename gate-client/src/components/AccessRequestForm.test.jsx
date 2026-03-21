@@ -16,6 +16,7 @@ function submitForm() {
 }
 
 async function fillRequiredFields() {
+  await userEvent.type(screen.getByPlaceholderText('Your full name'), 'Jane Smith');
   await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), VALID_ID);
   fireEvent.change(document.querySelector('input[type="date"]'), { target: { value: FUTURE_DATE } });
   await userEvent.type(screen.getByPlaceholderText('Describe the reason for entry…'), 'Supply run');
@@ -26,6 +27,7 @@ describe('AccessRequestForm', () => {
 
   it('renders all base fields', () => {
     render(<AccessRequestForm onLogout={vi.fn()} />);
+    expect(screen.getByPlaceholderText('Your full name')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('9-digit Israeli ID')).toBeInTheDocument();
     expect(screen.getByText('Population')).toBeInTheDocument();
     expect(screen.getByText('Division (optional)')).toBeInTheDocument();
@@ -45,6 +47,15 @@ describe('AccessRequestForm', () => {
     await userEvent.selectOptions(screen.getByDisplayValue('IL Military'), 'CIVILIAN');
     expect(screen.getByPlaceholderText("Escort's full name")).toBeInTheDocument();
     expect(screen.getByPlaceholderText('+972501234567')).toBeInTheDocument();
+  });
+
+  it('shows validation error when Your Name is missing', async () => {
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), VALID_ID);
+    fireEvent.change(document.querySelector('input[type="date"]'), { target: { value: FUTURE_DATE } });
+    await userEvent.type(screen.getByPlaceholderText('Describe the reason for entry…'), 'Supply run');
+    submitForm();
+    await waitFor(() => expect(screen.getByText(/Please enter your name/i)).toBeInTheDocument());
   });
 
   it('shows validation error for invalid IL ID', async () => {

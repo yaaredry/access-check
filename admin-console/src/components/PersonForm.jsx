@@ -35,6 +35,7 @@ const EMPTY = {
   escortFullName: '',
   escortPhone: '',
   reason: '',
+  requesterName: '',
 };
 
 export default function PersonForm({ initial, onSubmit, onCancel, loading }) {
@@ -78,6 +79,7 @@ export default function PersonForm({ initial, onSubmit, onCancel, loading }) {
         escortPhone: form.escortPhone || null,
         division: form.division || null,
         reason: form.reason || null,
+        requesterName: form.requesterName || null,
       });
     } catch (err) {
       setError(err.message);
@@ -177,6 +179,17 @@ export default function PersonForm({ initial, onSubmit, onCancel, loading }) {
           </div>
         </>
       )}
+
+      <div>
+        <label htmlFor="pf-requesterName" style={labelStyle}>Requester Name (optional)</label>
+        <input
+          id="pf-requesterName"
+          type="text"
+          placeholder="Name of person who filed this request"
+          value={form.requesterName || ''}
+          onChange={(e) => set('requesterName', e.target.value)}
+        />
+      </div>
 
       <div>
         <label htmlFor="pf-reason" style={labelStyle}>Reason for Visit (optional)</label>

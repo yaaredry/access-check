@@ -72,6 +72,11 @@ describe('PersonTable', () => {
     expect(screen.getByText('+972501234567')).toBeInTheDocument();
   });
 
+  it('shows requester_name when present', () => {
+    render(<PersonTable rows={[{ ...BASE, requester_name: 'Bob Cohen' }]} onEdit={vi.fn()} onDelete={vi.fn()} onReject={vi.fn()} />);
+    expect(screen.getByText('Bob Cohen')).toBeInTheDocument();
+  });
+
   it('shows — for escort columns when not set', () => {
     render(<PersonTable rows={[BASE]} onEdit={vi.fn()} onDelete={vi.fn()} onReject={vi.fn()} />);
     const dashes = screen.getAllByText('—');

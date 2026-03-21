@@ -22,6 +22,7 @@ const personBodyValidation = [
     }),
   body('verdict').isIn(VERDICTS).withMessage(`verdict must be one of ${VERDICTS.join(', ')}`),
   body('approvalExpiration').optional({ nullable: true }).isISO8601().withMessage('approvalExpiration must be a valid date'),
+  body('requesterName').optional({ nullable: true }).trim(),
   validate,
 ];
 

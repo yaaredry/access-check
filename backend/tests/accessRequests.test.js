@@ -13,6 +13,7 @@ const VALID_PAYLOAD = {
   population: 'IL_MILITARY',
   approvalExpiration: '2099-12-31',
   reason: 'Delivery',
+  requesterName: 'Jane Smith',
 };
 
 beforeAll(async () => {
@@ -34,6 +35,7 @@ beforeAll(async () => {
       reason VARCHAR(500),
       status VARCHAR(20),
       rejection_reason VARCHAR(500),
+      requester_name VARCHAR(150),
       CONSTRAINT uq_test_ar_identifier UNIQUE (identifier_type, identifier_value)
     )
   `);
@@ -88,6 +90,7 @@ describe('POST /access-requests', () => {
         escortPhone: '+972501234567',
         approvalExpiration: '2099-12-31',
         reason: 'Contractor visit',
+        requesterName: 'Jane Smith',
       });
 
     expect(res.status).toBe(201);
@@ -140,6 +143,26 @@ describe('POST /access-requests', () => {
         approvalExpiration: '2099-12-31',
         reason: 'Visit',
       });
+
+    expect(res.status).toBe(400);
+  });
+
+  it('saves requesterName to the record', async () => {
+    await request(app)
+      .post('/access-requests')
+      .set('Authorization', `Bearer ${requestorToken}`)
+      .send(VALID_PAYLOAD);
+
+    const { rows } = await db.query('SELECT * FROM people WHERE identifier_value = $1', ['000000018']);
+    expect(rows[0].requester_name).toBe('Jane Smith');
+  });
+
+  it('returns 400 when requesterName is missing', async () => {
+    const { requesterName, ...withoutRequester } = VALID_PAYLOAD;
+    const res = await request(app)
+      .post('/access-requests')
+      .set('Authorization', `Bearer ${requestorToken}`)
+      .send(withoutRequester);
 
     expect(res.status).toBe(400);
   });
