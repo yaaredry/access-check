@@ -94,7 +94,14 @@ export default function PersonTable({ rows, onEdit, onDelete, onApprove, onRejec
               <td><code>{p.identifier_type}</code></td>
               <td><strong>{p.identifier_value}</strong></td>
               <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{p.population || '—'}</td>
-              <td>{verdictBadge(p.verdict, p.approval_expiration, p.status)}</td>
+              <td>
+                {verdictBadge(p.verdict, p.approval_expiration, p.status)}
+                {p.rejection_reason && (
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, maxWidth: 180 }}>
+                    {p.rejection_reason}
+                  </div>
+                )}
+              </td>
               <td>{p.approval_expiration ? new Date(p.approval_expiration).toLocaleDateString() : '—'}</td>
               <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>
                 {p.last_seen_at
@@ -107,11 +114,9 @@ export default function PersonTable({ rows, onEdit, onDelete, onApprove, onRejec
               <td>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                   {p.status === 'PENDING' && (
-                    <>
-                      <button className="primary" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => onApprove(p)}>Approve</button>
-                      <button className="danger" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => onReject(p)}>Reject</button>
-                    </>
+                    <button className="primary" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => onApprove(p)}>Approve</button>
                   )}
+                  <button className="danger" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => onReject(p)}>Reject</button>
                   <button className="secondary" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => onEdit(p)}>Edit</button>
                   <button className="danger" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => onDelete(p)}>Delete</button>
                 </div>

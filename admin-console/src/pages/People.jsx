@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '../api/client';
 import PersonTable from '../components/PersonTable';
 import PersonForm from '../components/PersonForm';
@@ -11,6 +11,7 @@ const MODAL_EDIT = 'edit';
 const MODAL_BULK = 'bulk';
 const MODAL_GSHEET = 'gsheet';
 const MODAL_CONFIRM = 'confirm';
+const MODAL_REJECT = 'reject';
 
 export default function People() {
   const [data, setData] = useState({ rows: [], total: 0 });
@@ -21,7 +22,8 @@ export default function People() {
   const [editTarget, setEditTarget] = useState(null);
   const [formLoading, setFormLoading] = useState(false);
   const [confirm, setConfirm] = useState(null); // { title, message, onConfirm, variant }
-  const LIMIT = 20;
+  const [rejectTarget, setRejectTarget] = useState(null);
+  const LIMIT = 50;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -100,16 +102,15 @@ export default function People() {
   }
 
   function handleReject(person) {
-    setConfirm({
-      title: 'Reject Access',
-      message: `Reject access for ID ${person.identifier_value}? The request will be marked as not approved.`,
-      variant: 'danger',
-      onConfirm: async () => {
-        await api.updatePersonStatus(person.id, 'NOT_APPROVED');
-        load();
-      },
-    });
-    setModal(MODAL_CONFIRM);
+    setRejectTarget(person);
+    setModal(MODAL_REJECT);
+  }
+
+  async function handleRejectConfirm(reason) {
+    await api.updatePersonStatus(rejectTarget.id, 'NOT_APPROVED', reason);
+    setModal(MODAL_NONE);
+    setRejectTarget(null);
+    load();
   }
 
   function closeConfirm() {
@@ -221,6 +222,14 @@ export default function People() {
         </div>
       )}
 
+      {modal === MODAL_REJECT && rejectTarget && (
+        <RejectModal
+          person={rejectTarget}
+          onConfirm={handleRejectConfirm}
+          onCancel={() => { setModal(MODAL_NONE); setRejectTarget(null); }}
+        />
+      )}
+
       {modal === MODAL_GSHEET && (
         <div style={overlayStyle}>
           <div className="card" style={{ width: 640, maxWidth: '95vw' }}>
@@ -232,6 +241,53 @@ export default function People() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function RejectModal({ person, onConfirm, onCancel }) {
+  const [reason, setReason] = useState('');
+  const [loading, setLoading] = useState(false);
+  const textareaRef = useRef(null);
+
+  useEffect(() => { textareaRef.current?.focus(); }, []);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!reason.trim()) return;
+    setLoading(true);
+    try {
+      await onConfirm(reason.trim());
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div style={overlayStyle}>
+      <div className="card" style={{ width: 440, maxWidth: '95vw' }}>
+        <h3 style={{ fontWeight: 700, marginBottom: 8 }}>Reject Access</h3>
+        <p style={{ color: 'var(--text-muted)', marginBottom: 20, fontSize: 14 }}>
+          Rejecting request for ID <strong>{person.identifier_value}</strong>. Please provide a reason.
+        </p>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <textarea
+            ref={textareaRef}
+            value={reason}
+            onChange={e => setReason(e.target.value)}
+            placeholder="Reason for rejection…"
+            rows={3}
+            required
+            style={{ resize: 'vertical', fontSize: 14, padding: '10px 12px', width: '100%', boxSizing: 'border-box' }}
+          />
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <button type="button" className="secondary" onClick={onCancel}>Cancel</button>
+            <button type="submit" className="danger" disabled={loading || !reason.trim()}>
+              {loading ? 'Rejecting…' : 'Reject'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
