@@ -6,7 +6,8 @@ async function findAll({ search, limit = 50, offset = 0 }) {
   let query = `
     SELECT id, identifier_type, identifier_value, verdict,
            approval_expiration, created_at, updated_at, last_seen_at,
-           population, division, escort_full_name, escort_phone, reason, status
+           population, division, escort_full_name, escort_phone, reason, status,
+           rejection_reason
     FROM people
   `;
   const params = [];
@@ -66,7 +67,7 @@ async function create({ identifierType, identifierValue, verdict, approvalExpira
   return rows[0];
 }
 
-async function update(id, { identifierType, identifierValue, verdict, approvalExpiration, population, division, escortFullName, escortPhone, reason, status }) {
+async function update(id, { identifierType, identifierValue, verdict, approvalExpiration, population, division, escortFullName, escortPhone, reason, status, rejectionReason }) {
   const { rows } = await db.query(
     `UPDATE people
      SET identifier_type    = COALESCE($2, identifier_type),
@@ -78,11 +79,12 @@ async function update(id, { identifierType, identifierValue, verdict, approvalEx
          escort_full_name   = COALESCE($8, escort_full_name),
          escort_phone       = COALESCE($9, escort_phone),
          reason             = COALESCE($10, reason),
-         status             = $11
+         status             = $11,
+         rejection_reason   = $12
      WHERE id = $1
      RETURNING *`,
     [id, identifierType, identifierValue, verdict, approvalExpiration ?? null,
-     population ?? null, division ?? null, escortFullName ?? null, escortPhone ?? null, reason ?? null, status ?? null]
+     population ?? null, division ?? null, escortFullName ?? null, escortPhone ?? null, reason ?? null, status ?? null, rejectionReason ?? null]
   );
   return rows[0] || null;
 }

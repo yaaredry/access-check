@@ -94,7 +94,14 @@ export default function PersonTable({ rows, onEdit, onDelete, onApprove, onRejec
               <td><code>{p.identifier_type}</code></td>
               <td><strong>{p.identifier_value}</strong></td>
               <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{p.population || '—'}</td>
-              <td>{verdictBadge(p.verdict, p.approval_expiration, p.status)}</td>
+              <td>
+                {verdictBadge(p.verdict, p.approval_expiration, p.status)}
+                {p.rejection_reason && (
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, maxWidth: 180 }}>
+                    {p.rejection_reason}
+                  </div>
+                )}
+              </td>
               <td>{p.approval_expiration ? new Date(p.approval_expiration).toLocaleDateString() : '—'}</td>
               <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>
                 {p.last_seen_at

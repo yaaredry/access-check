@@ -27,6 +27,7 @@ beforeAll(async () => {
       escort_phone VARCHAR(30),
       reason VARCHAR(500),
       status VARCHAR(20),
+      rejection_reason VARCHAR(500),
       CONSTRAINT uq_test_identifier UNIQUE (identifier_type, identifier_value)
     )
   `);
@@ -373,6 +374,56 @@ describe('Error handler', () => {
 
     expect(res.status).toBe(409);
     expect(res.body.error).toMatch(/already exists/);
+  });
+});
+
+describe('PATCH /people/:id/status', () => {
+  it('rejects a person with a reason and saves it', async () => {
+    const create = await request(app)
+      .post('/people')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({ identifierType: 'IL_ID', identifierValue: '000000018', verdict: 'NOT_APPROVED', status: 'PENDING' });
+    const id = create.body.id;
+
+    const res = await request(app)
+      .patch(`/people/${id}/status`)
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({ status: 'NOT_APPROVED', rejectionReason: 'No valid clearance on file' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('NOT_APPROVED');
+    expect(res.body.rejection_reason).toBe('No valid clearance on file');
+  });
+
+  it('returns 400 when rejecting without a reason', async () => {
+    const create = await request(app)
+      .post('/people')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({ identifierType: 'IL_ID', identifierValue: '000000018', verdict: 'NOT_APPROVED', status: 'PENDING' });
+    const id = create.body.id;
+
+    const res = await request(app)
+      .patch(`/people/${id}/status`)
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({ status: 'NOT_APPROVED' });
+
+    expect(res.status).toBe(400);
+  });
+
+  it('clears rejection_reason when approving', async () => {
+    const { rows } = await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict, status, rejection_reason) VALUES ('IL_ID', '000000018', 'NOT_APPROVED', 'NOT_APPROVED', 'Previous rejection') RETURNING id"
+    );
+    const id = rows[0].id;
+
+    const res = await request(app)
+      .patch(`/people/${id}/status`)
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({ status: 'APPROVED' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('APPROVED');
+    expect(res.body.rejection_reason).toBeNull();
   });
 });
 
