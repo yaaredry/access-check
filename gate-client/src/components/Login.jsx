@@ -4,6 +4,7 @@ import { api } from '../api/client';
 export default function Login({ onLogin }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -53,15 +54,29 @@ export default function Login({ onLogin }) {
           required
           style={{ letterSpacing: 'normal', fontSize: 18, textAlign: 'left', padding: '16px 20px' }}
         />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-          autoComplete="current-password"
-          required
-          style={{ letterSpacing: 'normal', fontSize: 18, textAlign: 'left', padding: '16px 20px' }}
-        />
+        <div style={{ position: 'relative' }}>
+          <input
+            type={showPassword ? 'text' : 'password'}
+            placeholder="Password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            autoComplete="current-password"
+            required
+            style={{ letterSpacing: 'normal', fontSize: 18, textAlign: 'left', padding: '16px 52px 16px 20px', width: '100%' }}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(v => !v)}
+            style={{
+              position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)',
+              background: 'none', border: 'none', cursor: 'pointer', padding: 4,
+              color: 'var(--text-muted)', fontSize: 18, lineHeight: 1,
+            }}
+            aria-label={showPassword ? 'Hide password' : 'Show password'}
+          >
+            {showPassword ? '🙈' : '👁️'}
+          </button>
+        </div>
 
         {error && (
           <p style={{ color: 'var(--not-approved)', fontSize: 14, textAlign: 'center', margin: 0 }}>

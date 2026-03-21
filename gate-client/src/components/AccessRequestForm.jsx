@@ -14,6 +14,7 @@ function validateIlId(value) {
 }
 
 const EMPTY = {
+  requesterName: '',
   ilId: '',
   population: 'IL_MILITARY',
   division: '',
@@ -25,6 +26,7 @@ const EMPTY = {
 
 // Maps backend field paths to friendly labels used in error messages
 const FIELD_LABELS = {
+  requesterName:    'your name',
   ilId:             'ID number',
   population:       'population',
   escortFullName:   'escort full name',
@@ -58,6 +60,9 @@ export default function AccessRequestForm({ onLogout }) {
 
   function clientValidate() {
     const errors = {};
+    if (!form.requesterName.trim()) {
+      errors.requesterName = 'Please enter your name.';
+    }
     if (!validateIlId(form.ilId)) {
       errors.ilId = 'This ID number is not valid. Please double-check and try again.';
     }
@@ -134,12 +139,14 @@ export default function AccessRequestForm({ onLogout }) {
       </div>
 
       <form onSubmit={handleSubmit} style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
-        <Field label="Full Name">
+        <Field label="Your Name" error={fieldErrors.requesterName}>
           <input
             type="text"
-            placeholder="Full name of the person"
+            placeholder="Your full name"
+            value={form.requesterName}
+            onChange={e => set('requesterName', e.target.value)}
             required
-            style={inputStyle}
+            style={{ ...inputStyle, ...(fieldErrors.requesterName ? errorInputStyle : {}) }}
           />
         </Field>
 

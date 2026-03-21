@@ -2,10 +2,14 @@
 
 const { parse } = require('csv-parse/sync');
 
-const ID_COL = 'תעודת זהות';
-const STATUS_COL = 'סטטוס';
-const POPULATION_COL = 'אוכלוסיה';
-const REASON_COL = 'סיבת כניסה (נא לפרט)';
+const ID_COL_SUBSTR        = 'תעודת זהות';
+const STATUS_COL_SUBSTR    = 'סטטוס';
+const POPULATION_COL_SUBSTR = 'אוכלוסיה';
+const REASON_COL_SUBSTR    = 'סיבת כניסה';
+
+function findCol(headers, substring) {
+  return headers.find((h) => h.includes(substring)) || null;
+}
 
 function extractSheetInfo(url) {
   const idMatch = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
@@ -62,19 +66,24 @@ async function fetchAndParse(sheetUrl) {
 
   if (!records.length) return [];
 
-  const firstRow = records[0];
-  if (!(ID_COL in firstRow) || !(STATUS_COL in firstRow)) {
+  const headers = Object.keys(records[0]);
+  const idCol         = findCol(headers, ID_COL_SUBSTR);
+  const statusCol     = findCol(headers, STATUS_COL_SUBSTR);
+  const populationCol = findCol(headers, POPULATION_COL_SUBSTR);
+  const reasonCol     = findCol(headers, REASON_COL_SUBSTR);
+
+  if (!idCol || !statusCol) {
     throw new Error(
-      `Sheet is missing required columns. Expected "${ID_COL}" and "${STATUS_COL}". Found: ${Object.keys(firstRow).join(', ')}`
+      `Sheet is missing required columns. Expected a column containing "${ID_COL_SUBSTR}" and one containing "${STATUS_COL_SUBSTR}". Found: ${headers.join(', ')}`
     );
   }
 
   return records.map((row, i) => ({
     rowNum: i + 2,
-    identifierValue: (row[ID_COL] || '').trim(),
-    verdict: mapStatus(row[STATUS_COL]),
-    population: (row[POPULATION_COL] || '').trim() || null,
-    reason: (row[REASON_COL] || '').trim() || null,
+    identifierValue: (row[idCol] || '').trim(),
+    verdict: mapStatus(row[statusCol]),
+    population: populationCol ? (row[populationCol] || '').trim() || null : null,
+    reason: reasonCol ? (row[reasonCol] || '').trim() || null : null,
   }));
 }
 

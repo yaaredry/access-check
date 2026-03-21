@@ -17,6 +17,8 @@ const COLUMNS = [
   { key: 'population',          label: 'Population' },
   { key: 'escort_full_name',    label: 'Escort Name' },
   { key: 'escort_phone',        label: 'Escort Phone' },
+  { key: 'reason',              label: 'Reason' },
+  { key: 'requester_name',      label: 'Requester' },
   { key: 'verdict',             label: 'Status' },
   { key: 'approval_expiration', label: 'Expires' },
   { key: 'last_seen_at',        label: 'Last Seen' },
@@ -98,6 +100,8 @@ export default function PersonTable({ rows, onEdit, onDelete, onApprove, onRejec
               <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{p.population || '—'}</td>
               <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{p.escort_full_name || '—'}</td>
               <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{p.escort_phone || '—'}</td>
+              <td style={{ color: 'var(--text-muted)', fontSize: 12, maxWidth: 200 }}>{p.reason || '—'}</td>
+              <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{p.requester_name || '—'}</td>
               <td>
                 {verdictBadge(p.verdict, p.approval_expiration, p.status)}
                 {p.rejection_reason && (
