@@ -158,7 +158,7 @@ describe('POST /access-requests', () => {
   });
 
   it('returns 400 when requesterName is missing', async () => {
-    const { requesterName, ...withoutRequester } = VALID_PAYLOAD;
+    const { requesterName: _requesterName, ...withoutRequester } = VALID_PAYLOAD; // eslint-disable-line no-unused-vars
     const res = await request(app)
       .post('/access-requests')
       .set('Authorization', `Bearer ${requestorToken}`)
