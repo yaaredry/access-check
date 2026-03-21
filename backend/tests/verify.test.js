@@ -20,6 +20,7 @@ beforeAll(async () => {
       last_seen_at TIMESTAMPTZ DEFAULT NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      status VARCHAR(20),
       CONSTRAINT uq_verify_identifier UNIQUE (identifier_type, identifier_value)
     )
   `);
@@ -130,6 +131,34 @@ describe('POST /verify/id', () => {
   it('returns EXPIRED for an admin-approved person with a past expiration', async () => {
     await db.query(
       "INSERT INTO people (identifier_type, identifier_value, verdict, approval_expiration) VALUES ('IL_ID', '000000018', 'ADMIN_APPROVED', '2020-01-01')"
+    );
+
+    const res = await request(app)
+      .post('/verify/id')
+      .set('Authorization', `Bearer ${gateToken}`)
+      .send({ identifierType: 'IL_ID', identifierValue: '000000018' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.verdict).toBe('EXPIRED');
+  });
+
+  it('returns APPROVED for a requestor-flow person approved via status (verdict stays NOT_APPROVED)', async () => {
+    await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict, status, approval_expiration) VALUES ('IL_ID', '000000018', 'NOT_APPROVED', 'APPROVED', '2099-12-31')"
+    );
+
+    const res = await request(app)
+      .post('/verify/id')
+      .set('Authorization', `Bearer ${gateToken}`)
+      .send({ identifierType: 'IL_ID', identifierValue: '000000018' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.verdict).toBe('APPROVED');
+  });
+
+  it('returns EXPIRED for a requestor-flow person approved via status with a past expiration', async () => {
+    await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict, status, approval_expiration) VALUES ('IL_ID', '000000018', 'NOT_APPROVED', 'APPROVED', '2020-01-01')"
     );
 
     const res = await request(app)

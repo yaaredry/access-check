@@ -42,8 +42,8 @@ export default function App() {
       margin: '0 auto',
     }}>
       {view === VIEW_HOME && <Home onManual={() => setView(VIEW_MANUAL)} onCamera={() => setView(VIEW_CAMERA)} onLogout={handleLogout} />}
-      {view === VIEW_MANUAL && <ManualCheck onBack={() => setView(VIEW_HOME)} />}
-      {view === VIEW_CAMERA && <CameraCheck onBack={() => setView(VIEW_HOME)} />}
+      {view === VIEW_MANUAL && <ManualCheck onBack={() => setView(VIEW_HOME)} onSwitch={() => setView(VIEW_CAMERA)} />}
+      {view === VIEW_CAMERA && <CameraCheck onBack={() => setView(VIEW_HOME)} onSwitch={() => setView(VIEW_MANUAL)} />}
     </div>
   );
 }
