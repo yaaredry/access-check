@@ -300,7 +300,7 @@ function ApproveModal({ person, onConfirm, onCancel }) {
             style={{ textAlign: 'left', padding: '12px 16px' }}
           >
             <div style={{ fontWeight: 600 }}>Approve</div>
-            <div style={{ fontSize: 12, opacity: 0.8, marginTop: 2 }}>Standard approval — grants access based on the system rules</div>
+            <div style={{ fontSize: 12, opacity: 0.8, marginTop: 2 }}>Standard approval</div>
           </button>
           <button
             className="primary"
@@ -308,8 +308,8 @@ function ApproveModal({ person, onConfirm, onCancel }) {
             onClick={() => approve('ADMIN_APPROVED')}
             style={{ textAlign: 'left', padding: '12px 16px' }}
           >
-            <div style={{ fontWeight: 600 }}>Admin Approve</div>
-            <div style={{ fontSize: 12, opacity: 0.8, marginTop: 2 }}>Override approval — granted directly by an administrator</div>
+            <div style={{ fontWeight: 600 }}>Administrative Approval</div>
+            <div style={{ fontSize: 12, opacity: 0.8, marginTop: 2 }}>The person can be only in the administrative areas</div>
           </button>
         </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
