@@ -6,6 +6,7 @@ const ID_COL_SUBSTR        = 'תעודת זהות';
 const STATUS_COL_SUBSTR    = 'סטטוס';
 const POPULATION_COL_SUBSTR = 'אוכלוסיה';
 const REASON_COL_SUBSTR    = 'סיבת כניסה';
+const ESCORT_COL_SUBSTR    = 'אם אזרח: פרטי המלווה (שם מלא, טלפון)';
 
 function findCol(headers, substring) {
   return headers.find((h) => h.includes(substring)) || null;
@@ -66,11 +67,16 @@ async function fetchAndParse(sheetUrl) {
 
   if (!records.length) return [];
 
+  return mapRecords(records);
+}
+
+function mapRecords(records) {
   const headers = Object.keys(records[0]);
   const idCol         = findCol(headers, ID_COL_SUBSTR);
   const statusCol     = findCol(headers, STATUS_COL_SUBSTR);
   const populationCol = findCol(headers, POPULATION_COL_SUBSTR);
   const reasonCol     = findCol(headers, REASON_COL_SUBSTR);
+  const escortCol     = findCol(headers, ESCORT_COL_SUBSTR);
 
   if (!idCol || !statusCol) {
     throw new Error(
@@ -84,7 +90,8 @@ async function fetchAndParse(sheetUrl) {
     verdict: mapStatus(row[statusCol]),
     population: populationCol ? (row[populationCol] || '').trim() || null : null,
     reason: reasonCol ? (row[reasonCol] || '').trim() || null : null,
+    escortName: escortCol ? (row[escortCol] || '').trim() || null : null,
   }));
 }
 
-module.exports = { fetchAndParse, extractSheetInfo, mapStatus };
+module.exports = { fetchAndParse, extractSheetInfo, mapStatus, mapRecords };

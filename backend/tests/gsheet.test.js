@@ -1,6 +1,6 @@
 'use strict';
 
-const { extractSheetInfo, mapStatus } = require('../src/services/gsheetService');
+const { extractSheetInfo, mapStatus, mapRecords } = require('../src/services/gsheetService');
 
 describe('extractSheetInfo', () => {
   it('extracts sheet ID and gid from a full Google Sheets URL', () => {
@@ -51,5 +51,39 @@ describe('mapStatus', () => {
 
   it('trims whitespace before mapping', () => {
     expect(mapStatus('  מאושר  ')).toBe('APPROVED');
+  });
+});
+
+describe('mapRecords', () => {
+  const BASE_ROW = {
+    'תעודת זהות': '123456782',
+    'סטטוס': 'מאושר',
+  };
+
+  it('maps escort column to escortName', () => {
+    const records = [{ ...BASE_ROW, 'אם אזרח: פרטי המלווה (שם מלא, טלפון)': 'ישראל ישראלי 0501234567' }];
+    const [row] = mapRecords(records);
+    expect(row.escortName).toBe('ישראל ישראלי 0501234567');
+  });
+
+  it('sets escortName to null when escort column is absent', () => {
+    const [row] = mapRecords([{ ...BASE_ROW }]);
+    expect(row.escortName).toBeNull();
+  });
+
+  it('sets escortName to null when escort cell is empty', () => {
+    const records = [{ ...BASE_ROW, 'אם אזרח: פרטי המלווה (שם מלא, טלפון)': '' }];
+    const [row] = mapRecords(records);
+    expect(row.escortName).toBeNull();
+  });
+
+  it('trims whitespace from escort value', () => {
+    const records = [{ ...BASE_ROW, 'אם אזרח: פרטי המלווה (שם מלא, טלפון)': '  שם המלווה  ' }];
+    const [row] = mapRecords(records);
+    expect(row.escortName).toBe('שם המלווה');
+  });
+
+  it('throws when required columns are missing', () => {
+    expect(() => mapRecords([{ 'עמודה אחרת': 'x' }])).toThrow('Sheet is missing required columns');
   });
 });
