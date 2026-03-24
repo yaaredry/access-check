@@ -80,4 +80,16 @@ describe('VerdictDisplay', () => {
     render(<VerdictDisplay verdict="APPROVED" onBack={vi.fn()} autoResetMs={8000} />);
     expect(screen.getByText('Auto-reset in 8s')).toBeInTheDocument();
   });
+
+  it('shows instruction bullets for ADMIN_APPROVED', () => {
+    render(<VerdictDisplay verdict="ADMIN_APPROVED" onBack={vi.fn()} autoResetMs={0} />);
+    expect(screen.getByText('All visitor cameras must be covered with blue stickers')).toBeInTheDocument();
+    expect(screen.getByText('All visitors must obtain and wear a badge at all times')).toBeInTheDocument();
+  });
+
+  it('does not show instruction bullets for APPROVED', () => {
+    render(<VerdictDisplay verdict="APPROVED" onBack={vi.fn()} autoResetMs={0} />);
+    expect(screen.queryByText('All visitor cameras must be covered with blue stickers')).not.toBeInTheDocument();
+    expect(screen.queryByText('All visitors must obtain and wear a badge at all times')).not.toBeInTheDocument();
+  });
 });
