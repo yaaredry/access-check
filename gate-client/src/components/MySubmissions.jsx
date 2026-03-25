@@ -3,8 +3,12 @@ import { api } from '../api/client';
 
 function daysUntilExpiry(dateStr) {
   if (!dateStr) return null;
-  const diff = new Date(dateStr).setHours(23, 59, 59, 999) - Date.now();
-  return diff > 0 ? Math.ceil(diff / (1000 * 60 * 60 * 24)) : null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const expiry = new Date(dateStr + 'T00:00:00');
+  const days = Math.round((expiry - today) / (1000 * 60 * 60 * 24));
+  if (days < 0) return null;
+  return days === 0 ? 1 : days;
 }
 
 function statusConfig(row) {
