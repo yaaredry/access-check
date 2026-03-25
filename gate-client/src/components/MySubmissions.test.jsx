@@ -95,6 +95,31 @@ describe('MySubmissions', () => {
     expect(screen.queryByText('Expired')).not.toBeInTheDocument();
   });
 
+  it('shows expiry warning when approval_expiration is exactly today', async () => {
+    const today = new Date().toISOString().split('T')[0];
+    const row = { ...ADMIN_APPROVED_ROW, approval_expiration: today };
+    api.getMySubmissions.mockResolvedValue({ rows: [row] });
+    render(<MySubmissions />);
+    await waitFor(() => expect(screen.getByText(/Expires in 1 day/)).toBeInTheDocument());
+  });
+
+  it('shows expiry warning when approval_expiration is in 2 days', async () => {
+    const soon = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const row = { ...ADMIN_APPROVED_ROW, approval_expiration: soon };
+    api.getMySubmissions.mockResolvedValue({ rows: [row] });
+    render(<MySubmissions />);
+    await waitFor(() => expect(screen.getByText(/Expires in 2 days/)).toBeInTheDocument());
+  });
+
+  it('does not show expiry warning when approval_expiration is 3 days away', async () => {
+    const later = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const row = { ...ADMIN_APPROVED_ROW, approval_expiration: later };
+    api.getMySubmissions.mockResolvedValue({ rows: [row] });
+    render(<MySubmissions />);
+    await waitFor(() => expect(screen.getByText('Admin Approved')).toBeInTheDocument());
+    expect(screen.queryByText(/Expires in/)).not.toBeInTheDocument();
+  });
+
   it('PENDING is not treated as rejected despite having NOT_APPROVED verdict', async () => {
     api.getMySubmissions.mockResolvedValue({ rows: [PENDING_ROW] });
     render(<MySubmissions />);

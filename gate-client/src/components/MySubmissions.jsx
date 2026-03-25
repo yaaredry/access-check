@@ -1,6 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../api/client';
 
+function daysUntilExpiry(dateStr) {
+  if (!dateStr) return null;
+  const diff = new Date(dateStr).setHours(23, 59, 59, 999) - Date.now();
+  return diff > 0 ? Math.ceil(diff / (1000 * 60 * 60 * 24)) : null;
+}
+
 function statusConfig(row) {
   if (row.status === 'PENDING') {
     return { label: 'Pending Review', color: '#d97706', bg: 'rgba(245,158,11,.12)' };
@@ -67,6 +73,8 @@ export default function MySubmissions() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {rows.map(row => {
               const cfg = statusConfig(row);
+              const expiresInDays = daysUntilExpiry(row.approval_expiration);
+              const expiringSoon = expiresInDays !== null && expiresInDays <= 2;
               return (
                 <div key={row.id} style={{ ...cardStyle, borderLeft: `4px solid ${cfg.color}` }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
@@ -84,8 +92,17 @@ export default function MySubmissions() {
                     Submitted {new Date(row.created_at).toLocaleDateString()}
                   </div>
                   {row.approval_expiration && (
-                    <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>
+                    <div style={{ fontSize: 13, color: expiringSoon ? '#d97706' : 'var(--text-muted)', marginTop: 2 }}>
                       Expires {new Date(row.approval_expiration).toLocaleDateString()}
+                    </div>
+                  )}
+                  {expiringSoon && (
+                    <div style={{
+                      marginTop: 8, padding: '6px 10px', borderRadius: 8,
+                      background: 'rgba(245,158,11,.12)', color: '#d97706',
+                      fontSize: 12, fontWeight: 600,
+                    }}>
+                      ⚠ Expires in {expiresInDays === 1 ? '1 day' : `${expiresInDays} days`}
                     </div>
                   )}
                   {row.rejection_reason && (
