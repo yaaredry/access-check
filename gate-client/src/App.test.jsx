@@ -38,6 +38,10 @@ vi.mock('./components/AccessRequestForm', () => ({
   ),
 }));
 
+vi.mock('./components/MySubmissions', () => ({
+  default: () => <div data-testid="my-submissions" />,
+}));
+
 describe('App', () => {
   beforeEach(() => localStorage.clear());
 
@@ -126,6 +130,23 @@ describe('App', () => {
     await waitFor(() => screen.getByTestId('access-request-form'));
     fireEvent.click(screen.getByText('RequestorLogout'));
     expect(screen.getByText('Login as gate')).toBeInTheDocument();
+  });
+
+  it('shows My Submissions tab when requestor clicks it', async () => {
+    render(<App />);
+    fireEvent.click(screen.getByText('Login as requestor'));
+    await waitFor(() => screen.getByText('📄 My Submissions'));
+    fireEvent.click(screen.getByText('📄 My Submissions'));
+    expect(screen.getByTestId('my-submissions')).toBeInTheDocument();
+  });
+
+  it('switches back to New Request tab from My Submissions', async () => {
+    render(<App />);
+    fireEvent.click(screen.getByText('Login as requestor'));
+    await waitFor(() => screen.getByText('📄 My Submissions'));
+    fireEvent.click(screen.getByText('📄 My Submissions'));
+    fireEvent.click(screen.getByText('📋 New Request'));
+    expect(screen.getByTestId('access-request-form')).toBeInTheDocument();
   });
 
   it('restores authenticated state from localStorage', () => {

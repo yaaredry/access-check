@@ -47,4 +47,5 @@ export const api = {
   },
 
   submitAccessRequest: (data) => request('POST', '/access-requests', data),
+  getMySubmissions: () => request('GET', '/access-requests/mine'),
 };

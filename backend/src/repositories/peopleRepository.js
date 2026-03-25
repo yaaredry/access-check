@@ -107,6 +107,17 @@ async function remove(id) {
   return rowCount > 0;
 }
 
+async function findByRequesterEmail(email) {
+  const { rows } = await db.query(
+    `SELECT id, identifier_value, status, verdict, approval_expiration, rejection_reason, created_at
+     FROM people
+     WHERE requester_email = $1
+     ORDER BY created_at DESC`,
+    [email]
+  );
+  return rows;
+}
+
 async function upsertMany(records) {
   const client = await db.connect();
   let inserted = 0;
@@ -147,6 +158,7 @@ module.exports = {
   findById,
   findByIdentifier,
   findByIdentifierValue,
+  findByRequesterEmail,
   create,
   update,
   updateStatus,

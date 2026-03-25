@@ -3,6 +3,7 @@ import Login from './components/Login';
 import ManualCheck from './components/ManualCheck';
 import CameraCheck from './components/CameraCheck';
 import AccessRequestForm from './components/AccessRequestForm';
+import MySubmissions from './components/MySubmissions';
 
 const VIEW_HOME = 'home';
 const VIEW_MANUAL = 'manual';
@@ -34,7 +35,7 @@ export default function App() {
   }
 
   if (role === 'access_requestor') {
-    return <AccessRequestForm onLogout={handleLogout} requestorName={requestorName} />;
+    return <RequestorView onLogout={handleLogout} requestorName={requestorName} />;
   }
 
   return (
@@ -50,6 +51,53 @@ export default function App() {
       {view === VIEW_CAMERA && <CameraCheck onBack={() => setView(VIEW_HOME)} onSwitch={() => setView(VIEW_MANUAL)} />}
     </div>
   );
+}
+
+function RequestorView({ onLogout, requestorName }) {
+  const [tab, setTab] = useState('form');
+
+  return (
+    <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', maxWidth: 480, margin: '0 auto' }}>
+      <div style={{ display: 'flex', borderBottom: '2px solid var(--border)', background: 'var(--card-bg, #fff)' }}>
+        <button
+          onClick={() => setTab('form')}
+          style={tabStyle(tab === 'form')}
+        >
+          📋 New Request
+        </button>
+        <button
+          onClick={() => setTab('submissions')}
+          style={tabStyle(tab === 'submissions')}
+        >
+          📄 My Submissions
+        </button>
+      </div>
+      {tab === 'form'
+        ? <AccessRequestForm onLogout={onLogout} requestorName={requestorName} />
+        : <MySubmissions requestorName={requestorName} />
+      }
+      {tab === 'submissions' && (
+        <div style={{ padding: '0 24px 24px' }}>
+          <button className="secondary" onClick={onLogout} style={{ width: '100%' }}>Logout</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function tabStyle(active) {
+  return {
+    flex: 1,
+    padding: '14px 0',
+    fontSize: 14,
+    fontWeight: active ? 700 : 500,
+    color: active ? 'var(--primary)' : 'var(--text-muted)',
+    background: 'none',
+    border: 'none',
+    borderBottom: active ? '2px solid var(--primary)' : '2px solid transparent',
+    marginBottom: -2,
+    cursor: 'pointer',
+  };
 }
 
 function Home({ onManual, onCamera, onLogout }) {
