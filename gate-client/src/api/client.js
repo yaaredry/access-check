@@ -8,7 +8,7 @@ async function request(method, path, body, isFormData = false, signal = null) {
   const headers = {};
   const token = getToken();
   if (token) headers['Authorization'] = `Bearer ${token}`;
-  if (!isFormData) headers['Content-Type'] = 'application/json';
+  if (!isFormData && body !== undefined) headers['Content-Type'] = 'application/json';
 
   const res = await fetch(`${BASE}${path}`, {
     method,
