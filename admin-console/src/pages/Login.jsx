@@ -16,7 +16,11 @@ export default function Login() {
     setError('');
     setLoading(true);
     try {
-      const { token } = await api.login(username, password);
+      const { token, role } = await api.login(username, password);
+      if (role !== 'admin') {
+        setError('Access denied');
+        return;
+      }
       signIn(token, username);
       navigate('/people');
     } catch (err) {

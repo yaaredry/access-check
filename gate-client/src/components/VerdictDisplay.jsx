@@ -39,7 +39,7 @@ const CONFIG = {
   },
 };
 
-export default function VerdictDisplay({ verdict, identifierValue, escortName, onBack, autoResetMs = 8000 }) {
+export default function VerdictDisplay({ verdict, identifierValue, escortName, escortPhone, onBack, autoResetMs = 8000 }) {
   const cfg = CONFIG[verdict] || CONFIG.NOT_FOUND;
 
   useEffect(() => {
@@ -85,9 +85,10 @@ export default function VerdictDisplay({ verdict, identifierValue, escortName, o
         )}
       </div>
 
-      {verdict === 'APPROVED_WITH_ESCORT' && escortName && (
-        <div style={{ fontSize: 22, fontWeight: 700, color: cfg.color, textAlign: 'center' }}>
-          Escort: {escortName}
+      {(escortName || escortPhone) && (
+        <div style={{ textAlign: 'center', color: cfg.color }}>
+          {escortName && <div style={{ fontSize: 22, fontWeight: 700 }}>Escort: {escortName}</div>}
+          {escortPhone && <div style={{ fontSize: 18, fontWeight: 600, marginTop: 4 }}>{escortPhone}</div>}
         </div>
       )}
 

@@ -40,7 +40,10 @@ const requestBodyValidation = [
   body('reason')
     .trim()
     .notEmpty().withMessage('reason is required'),
+  // requesterName is only required from the body when the JWT does not carry a name
+  // (i.e. the generic shared requestor account, not a named individual)
   body('requesterName')
+    .if((value, { req }) => !req.user?.name)
     .trim()
     .notEmpty().withMessage('requesterName is required'),
   validate,
@@ -48,7 +51,11 @@ const requestBodyValidation = [
 
 async function create(req, res, next) {
   try {
-    const { ilId, population, division, escortFullName, escortPhone, approvalExpiration, reason, requesterName } = req.body;
+    const { ilId, population, division, escortFullName, escortPhone, approvalExpiration, reason, requesterName: requesterNameFromBody } = req.body;
+
+    // Named requestors have their identity locked to the JWT; generic requestor uses the form field
+    const requesterName = req.user.name || requesterNameFromBody;
+    const requesterEmail = req.user.name ? req.user.username : null;
 
     const existing = await peopleRepo.findByIdentifierValue(ilId);
     if (existing) {
@@ -70,6 +77,7 @@ async function create(req, res, next) {
       reason,
       status: 'PENDING',
       requesterName,
+      requesterEmail,
     });
 
     await auditRepo.log({

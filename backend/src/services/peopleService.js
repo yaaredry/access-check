@@ -8,7 +8,7 @@ const gsheetService = require('./gsheetService');
 const { validateIlId } = require('../utils/validateIlId');
 
 const VALID_TYPES = ['IL_ID', 'IDF_ID'];
-const VALID_VERDICTS = ['APPROVED', 'ADMIN_APPROVED', 'NOT_APPROVED'];
+const VALID_VERDICTS = ['APPROVED', 'ADMIN_APPROVED', 'APPROVED_WITH_ESCORT', 'NOT_APPROVED'];
 
 function validateIdentifierValue(type, value) {
   if (type === 'IL_ID') return validateIlId(value);

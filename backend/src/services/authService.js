@@ -16,12 +16,12 @@ async function login(username, password) {
   }
 
   const token = jwt.sign(
-    { sub: user.id, username: user.username, role: user.role },
+    { sub: user.id, username: user.username, role: user.role, name: user.name || null },
     process.env.JWT_SECRET || 'dev-secret',
     { expiresIn: process.env.JWT_EXPIRES_IN || '8h' }
   );
 
-  return { token, username: user.username, role: user.role };
+  return { token, username: user.username, role: user.role, name: user.name || null };
 }
 
 module.exports = { login };

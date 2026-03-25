@@ -51,7 +51,8 @@ async function verifyById(identifierType, identifierValue) {
 
   return {
     verdict,
-    escortFullName: verdict === VERDICTS.APPROVED_WITH_ESCORT ? person.escort_full_name : null,
+    escortFullName: person?.escort_full_name || null,
+    escortPhone: person?.escort_phone || null,
     person: person ? { id: person.id, identifierType: person.identifier_type, identifierValue: person.identifier_value } : null,
   };
 }
@@ -82,7 +83,7 @@ async function verifyByImage(imageBuffer) {
         source: 'image',
         metadata: { extractedIds: { ilIds, idfIds } },
       });
-      return { verdict, escortFullName: verdict === VERDICTS.APPROVED_WITH_ESCORT ? person.escort_full_name : null, identifierType: 'IL_ID', identifierValue: val };
+      return { verdict, escortFullName: person.escort_full_name || null, escortPhone: person.escort_phone || null, identifierType: 'IL_ID', identifierValue: val };
     }
   }
 
@@ -102,7 +103,7 @@ async function verifyByImage(imageBuffer) {
         source: 'image',
         metadata: { extractedIds: { ilIds, idfIds } },
       });
-      return { verdict, escortFullName: verdict === VERDICTS.APPROVED_WITH_ESCORT ? person.escort_full_name : null, identifierType: 'IDF_ID', identifierValue: val };
+      return { verdict, escortFullName: person.escort_full_name || null, escortPhone: person.escort_phone || null, identifierType: 'IDF_ID', identifierValue: val };
     }
   }
 

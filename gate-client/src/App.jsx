@@ -11,17 +11,21 @@ const VIEW_CAMERA = 'camera';
 export default function App() {
   const [authed, setAuthed] = useState(() => !!localStorage.getItem('gate_token'));
   const [role, setRole] = useState(() => localStorage.getItem('gate_role') || '');
+  const [requestorName, setRequestorName] = useState(() => localStorage.getItem('gate_name') || '');
   const [view, setView] = useState(VIEW_HOME);
 
   function handleLogout() {
     localStorage.removeItem('gate_token');
     localStorage.removeItem('gate_role');
+    localStorage.removeItem('gate_name');
     setAuthed(false);
     setRole('');
+    setRequestorName('');
   }
 
-  function handleLogin(userRole) {
+  function handleLogin(userRole, userName) {
     setRole(userRole);
+    setRequestorName(userName || '');
     setAuthed(true);
   }
 
@@ -30,7 +34,7 @@ export default function App() {
   }
 
   if (role === 'access_requestor') {
-    return <AccessRequestForm onLogout={handleLogout} />;
+    return <AccessRequestForm onLogout={handleLogout} requestorName={requestorName} />;
   }
 
   return (

@@ -73,6 +73,7 @@ describe('People — status quick filters', () => {
     expect(screen.getByRole('button', { name: 'Pending' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Approved' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Admin Approved' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Approved w/ Escort' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Expired' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Not Approved' })).toBeInTheDocument();
   });
@@ -202,6 +203,34 @@ describe('People — approve modal', () => {
     fireEvent.click(screen.getByText('ApproveRow'));
     fireEvent.click(screen.getByText('Administrative Approval'));
     await waitFor(() => expect(api.updatePersonStatus).toHaveBeenCalledWith(1, 'APPROVED', undefined, 'ADMIN_APPROVED'));
+  });
+
+  it('calls updatePersonStatus with APPROVED_WITH_ESCORT verdict when "Approved with Escort" is chosen', async () => {
+    api.updatePersonStatus.mockResolvedValue({});
+    setup();
+    await waitFor(() => screen.getByText('000000018'));
+    fireEvent.click(screen.getByText('ApproveRow'));
+    fireEvent.click(screen.getByText('Approved with Escort'));
+    await waitFor(() => expect(api.updatePersonStatus).toHaveBeenCalledWith(1, 'APPROVED', undefined, 'APPROVED_WITH_ESCORT'));
+  });
+
+  it('shows error message in approve modal when approval API call fails', async () => {
+    api.updatePersonStatus.mockRejectedValue(new Error('Internal Server Error'));
+    setup();
+    await waitFor(() => screen.getByText('000000018'));
+    fireEvent.click(screen.getByText('ApproveRow'));
+    fireEvent.click(screen.getByText('Approved with Escort'));
+    await waitFor(() => screen.getByText('Internal Server Error'));
+    expect(screen.getByText('Approve Access')).toBeInTheDocument();
+  });
+
+  it('shows fallback error message when error has no message', async () => {
+    api.updatePersonStatus.mockRejectedValue(new Error());
+    setup();
+    await waitFor(() => screen.getByText('000000018'));
+    fireEvent.click(screen.getByText('ApproveRow'));
+    fireEvent.click(screen.getByText('Approve'));
+    await waitFor(() => screen.getByText('Failed to approve. Please try again.'));
   });
 
   it('closes approve modal when Cancel is clicked', async () => {

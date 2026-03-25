@@ -41,6 +41,15 @@ describe('Admin Login', () => {
     await waitFor(() => expect(screen.getByText('Invalid username or password')).toBeInTheDocument());
   });
 
+  it('shows Access denied for non-admin roles', async () => {
+    api.login.mockResolvedValue({ token: 'tok', role: 'access_requestor' });
+    renderLogin();
+    await userEvent.type(screen.getByRole('textbox'), 'requestor');
+    await userEvent.type(document.querySelector('input[type="password"]'), 'pass');
+    fireEvent.click(screen.getByText('Sign In'));
+    await waitFor(() => expect(screen.getByText('Access denied')).toBeInTheDocument());
+  });
+
   it('shows loading state while signing in', async () => {
     api.login.mockImplementation(() => new Promise(() => {}));
     renderLogin();

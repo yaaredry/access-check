@@ -29,6 +29,7 @@ beforeAll(async () => {
       status VARCHAR(20),
       rejection_reason VARCHAR(500),
       requester_name VARCHAR(150),
+      requester_email VARCHAR(255),
       CONSTRAINT uq_test_identifier UNIQUE (identifier_type, identifier_value)
     )
   `);
@@ -335,6 +336,39 @@ describe('POST /people/upload-csv', () => {
     expect(res.status).toBe(200);
     expect(res.body.inserted).toBe(1);
     expect(res.body.errors).toHaveLength(1);
+  });
+
+  it('accepts APPROVED_WITH_ESCORT verdict in CSV upload', async () => {
+    const csv = [
+      'identifier_type,identifier_value,verdict,expiration_date',
+      'IL_ID,000000018,APPROVED_WITH_ESCORT,',
+    ].join('\n');
+
+    const res = await request(app)
+      .post('/people/upload-csv')
+      .set('Authorization', `Bearer ${authToken}`)
+      .attach('file', Buffer.from(csv), { filename: 'test.csv', contentType: 'text/csv' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.inserted).toBe(1);
+    expect(res.body.errors).toHaveLength(0);
+  });
+
+  it('rejects rows with unrecognised verdict in CSV upload', async () => {
+    const csv = [
+      'identifier_type,identifier_value,verdict,expiration_date',
+      'IL_ID,000000018,SUPER_APPROVED,',
+    ].join('\n');
+
+    const res = await request(app)
+      .post('/people/upload-csv')
+      .set('Authorization', `Bearer ${authToken}`)
+      .attach('file', Buffer.from(csv), { filename: 'test.csv', contentType: 'text/csv' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.inserted).toBe(0);
+    expect(res.body.errors).toHaveLength(1);
+    expect(res.body.errors[0].error).toMatch(/Invalid verdict/);
   });
 
   it('returns 400 when no file is attached', async () => {

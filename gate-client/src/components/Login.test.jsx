@@ -21,14 +21,33 @@ describe('Login', () => {
     expect(screen.getByText('Sign in')).toBeInTheDocument();
   });
 
-  it('calls onLogin with role on successful login', async () => {
-    api.login.mockResolvedValue({ token: 'tok', role: 'gate' });
+  it('calls onLogin with role and name on successful login', async () => {
+    api.login.mockResolvedValue({ token: 'tok', role: 'gate', name: null });
     const onLogin = vi.fn();
     render(<Login onLogin={onLogin} />);
     await userEvent.type(screen.getByPlaceholderText('Username'), 'gateuser');
     await userEvent.type(screen.getByPlaceholderText('Password'), 'pass');
     fireEvent.click(screen.getByText('Sign in'));
-    await waitFor(() => expect(onLogin).toHaveBeenCalledWith('gate'));
+    await waitFor(() => expect(onLogin).toHaveBeenCalledWith('gate', ''));
+  });
+
+  it('calls onLogin with name for named requestors', async () => {
+    api.login.mockResolvedValue({ token: 'tok', role: 'access_requestor', name: 'Dana Levi' });
+    const onLogin = vi.fn();
+    render(<Login onLogin={onLogin} />);
+    await userEvent.type(screen.getByPlaceholderText('Username'), 'dana@example.com');
+    await userEvent.type(screen.getByPlaceholderText('Password'), 'ab3kz');
+    fireEvent.click(screen.getByText('Sign in'));
+    await waitFor(() => expect(onLogin).toHaveBeenCalledWith('access_requestor', 'Dana Levi'));
+  });
+
+  it('stores gate_name in localStorage on login', async () => {
+    api.login.mockResolvedValue({ token: 'tok', role: 'access_requestor', name: 'Dana Levi' });
+    render(<Login onLogin={vi.fn()} />);
+    await userEvent.type(screen.getByPlaceholderText('Username'), 'dana@example.com');
+    await userEvent.type(screen.getByPlaceholderText('Password'), 'ab3kz');
+    fireEvent.click(screen.getByText('Sign in'));
+    await waitFor(() => expect(localStorage.getItem('gate_name')).toBe('Dana Levi'));
   });
 
   it('stores token and role in localStorage on success', async () => {
@@ -42,13 +61,13 @@ describe('Login', () => {
   });
 
   it('allows access_requestor role', async () => {
-    api.login.mockResolvedValue({ token: 'tok', role: 'access_requestor' });
+    api.login.mockResolvedValue({ token: 'tok', role: 'access_requestor', name: null });
     const onLogin = vi.fn();
     render(<Login onLogin={onLogin} />);
     await userEvent.type(screen.getByPlaceholderText('Username'), 'req');
     await userEvent.type(screen.getByPlaceholderText('Password'), 'req');
     fireEvent.click(screen.getByText('Sign in'));
-    await waitFor(() => expect(onLogin).toHaveBeenCalledWith('access_requestor'));
+    await waitFor(() => expect(onLogin).toHaveBeenCalledWith('access_requestor', ''));
   });
 
   it('shows Access denied for disallowed role', async () => {
