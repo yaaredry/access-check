@@ -7,6 +7,7 @@ const STATUS_COL_SUBSTR    = 'סטטוס';
 const POPULATION_COL_SUBSTR = 'אוכלוסיה';
 const REASON_COL_SUBSTR    = 'סיבת כניסה';
 const ESCORT_COL_SUBSTR    = 'אם אזרח: פרטי המלווה (שם מלא, טלפון)';
+const EMAIL_COL_SUBSTR     = 'כתובת אימייל';
 
 function findCol(headers, substring) {
   return headers.find((h) => h.includes(substring)) || null;
@@ -77,6 +78,7 @@ function mapRecords(records) {
   const populationCol = findCol(headers, POPULATION_COL_SUBSTR);
   const reasonCol     = findCol(headers, REASON_COL_SUBSTR);
   const escortCol     = findCol(headers, ESCORT_COL_SUBSTR);
+  const emailCol      = findCol(headers, EMAIL_COL_SUBSTR);
 
   if (!idCol || !statusCol) {
     throw new Error(
@@ -91,6 +93,7 @@ function mapRecords(records) {
     population: populationCol ? (row[populationCol] || '').trim() || null : null,
     reason: reasonCol ? (row[reasonCol] || '').trim() || null : null,
     escortName: escortCol ? (row[escortCol] || '').trim() || null : null,
+    requesterEmail: emailCol ? (row[emailCol] || '').trim() || null : null,
   }));
 }
 
