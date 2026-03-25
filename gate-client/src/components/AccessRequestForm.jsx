@@ -58,6 +58,14 @@ export default function AccessRequestForm({ onLogout }) {
     if (fieldErrors[field]) setFieldErrors((prev) => ({ ...prev, [field]: '' }));
   }
 
+  const today = new Date();
+  const minDate = new Date(today);
+  minDate.setDate(minDate.getDate() + 1);
+  const maxDate = new Date(today);
+  maxDate.setDate(maxDate.getDate() + 7);
+  const minDateStr = minDate.toISOString().split('T')[0];
+  const maxDateStr = maxDate.toISOString().split('T')[0];
+
   function clientValidate() {
     const errors = {};
     if (!form.requesterName.trim()) {
@@ -68,8 +76,10 @@ export default function AccessRequestForm({ onLogout }) {
     }
     if (!form.approvalExpiration) {
       errors.approvalExpiration = 'Expiration date is required.';
-    } else if (new Date(form.approvalExpiration) <= new Date()) {
+    } else if (form.approvalExpiration <= today.toISOString().split('T')[0]) {
       errors.approvalExpiration = 'The expiration date must be in the future.';
+    } else if (form.approvalExpiration > maxDateStr) {
+      errors.approvalExpiration = 'Expiration date cannot be more than 7 days from today.';
     }
     if (!form.reason.trim()) {
       errors.reason = 'Please explain the reason for this visit.';
@@ -211,6 +221,8 @@ export default function AccessRequestForm({ onLogout }) {
           <input
             type="date"
             value={form.approvalExpiration}
+            min={minDateStr}
+            max={maxDateStr}
             onChange={e => set('approvalExpiration', e.target.value)}
             style={{ ...inputStyle, ...(fieldErrors.approvalExpiration ? errorInputStyle : {}) }}
           />

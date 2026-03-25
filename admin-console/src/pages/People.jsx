@@ -6,6 +6,22 @@ import BulkUpload from '../components/BulkUpload';
 import GSheetImport from '../components/GSheetImport';
 
 const MODAL_NONE = null;
+
+const STATUS_FILTERS = [
+  { key: 'PENDING',        label: 'Pending' },
+  { key: 'APPROVED',       label: 'Approved' },
+  { key: 'ADMIN_APPROVED', label: 'Admin Approved' },
+  { key: 'EXPIRED',        label: 'Expired' },
+  { key: 'NOT_APPROVED',   label: 'Not Approved' },
+];
+
+function getDisplayStatus(person) {
+  if (person.status === 'PENDING') return 'PENDING';
+  if (person.approval_expiration && new Date(person.approval_expiration) < new Date()) return 'EXPIRED';
+  if (person.verdict === 'APPROVED') return 'APPROVED';
+  if (person.verdict === 'ADMIN_APPROVED') return 'ADMIN_APPROVED';
+  return 'NOT_APPROVED';
+}
 const MODAL_CREATE = 'create';
 const MODAL_EDIT = 'edit';
 const MODAL_BULK = 'bulk';
@@ -18,6 +34,7 @@ export default function People() {
   const [data, setData] = useState({ rows: [], total: 0 });
   const [search, setSearch] = useState('');
   const [offset, setOffset] = useState(0);
+  const [statusFilter, setStatusFilter] = useState(null);
   const [loading, setLoading] = useState(false);
   const [modal, setModal] = useState(MODAL_NONE);
   const [editTarget, setEditTarget] = useState(null);
@@ -133,6 +150,10 @@ export default function People() {
     setModal(MODAL_EDIT);
   }
 
+  const filteredRows = statusFilter
+    ? data.rows.filter(p => getDisplayStatus(p) === statusFilter)
+    : data.rows;
+
   const totalPages = Math.ceil(data.total / LIMIT);
   const currentPage = Math.floor(offset / LIMIT) + 1;
 
@@ -151,19 +172,32 @@ export default function People() {
       </div>
 
       <div className="card" style={{ marginBottom: 16 }}>
-        <form onSubmit={handleSearch} style={{ display: 'flex', gap: 8 }}>
-          <input
-            type="text"
-            placeholder="Search by identifier value…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            style={{ maxWidth: 360 }}
-          />
-          <button type="submit" className="primary">Search</button>
-          {search && (
-            <button type="button" className="secondary" onClick={() => { setSearch(''); setOffset(0); }}>Clear</button>
-          )}
-        </form>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+          <form onSubmit={handleSearch} style={{ display: 'flex', gap: 8 }}>
+            <input
+              type="text"
+              placeholder="Search by identifier value…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{ maxWidth: 360 }}
+            />
+            <button type="submit" className="primary">Search</button>
+            {search && (
+              <button type="button" className="secondary" onClick={() => { setSearch(''); setOffset(0); }}>Clear</button>
+            )}
+          </form>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {STATUS_FILTERS.map(({ key, label }) => (
+              <button
+                key={key}
+                className={statusFilter === key ? 'primary' : 'secondary'}
+                onClick={() => setStatusFilter(prev => prev === key ? null : key)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       <div className="card">
@@ -185,7 +219,7 @@ export default function People() {
             </button>
           </div>
         ) : (
-          <PersonTable rows={data.rows} onEdit={openEdit} onDelete={handleDelete} onApprove={handleApprove} onReject={handleReject} />
+          <PersonTable rows={filteredRows} onEdit={openEdit} onDelete={handleDelete} onApprove={handleApprove} onReject={handleReject} />
         )}
 
         {totalPages > 1 && (
