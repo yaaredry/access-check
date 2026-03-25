@@ -8,7 +8,12 @@ vi.mock('../api/client', () => ({
   api: { submitAccessRequest: vi.fn() },
 }));
 
-const FUTURE_DATE = '2099-12-31';
+// A valid date within the allowed 7-day window (tomorrow)
+const tomorrow = new Date();
+tomorrow.setDate(tomorrow.getDate() + 1);
+const FUTURE_DATE = tomorrow.toISOString().split('T')[0];
+
+const FAR_FUTURE_DATE = '2099-12-31';
 const VALID_ID = '000000018';
 
 function submitForm() {
@@ -71,6 +76,16 @@ describe('AccessRequestForm', () => {
     await userEvent.type(screen.getByPlaceholderText('Describe the reason for entry…'), 'Supply run');
     submitForm();
     await waitFor(() => expect(screen.getByText(/Expiration date is required/)).toBeInTheDocument());
+  });
+
+  it('shows validation error when expiration date is more than 7 days ahead', async () => {
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    await userEvent.type(screen.getByPlaceholderText('Your full name'), 'Jane Smith');
+    await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), VALID_ID);
+    fireEvent.change(document.querySelector('input[type="date"]'), { target: { value: FAR_FUTURE_DATE } });
+    await userEvent.type(screen.getByPlaceholderText('Describe the reason for entry…'), 'Supply run');
+    submitForm();
+    await waitFor(() => expect(screen.getByText(/cannot be more than 7 days/i)).toBeInTheDocument());
   });
 
   it('shows validation error when reason is missing', async () => {
