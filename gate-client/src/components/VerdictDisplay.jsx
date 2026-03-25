@@ -31,6 +31,13 @@ const CONFIG = {
     label: 'APPROVED WITH ESCORT',
     bg: 'rgba(234,179,8,.15)',
   },
+  PENDING: {
+    color: '#6366f1',
+    icon: '⏳',
+    label: 'PENDING REVIEW',
+    sub: 'This ID is pending admin approval',
+    bg: 'rgba(99,102,241,.12)',
+  },
   NOT_FOUND: {
     color: 'var(--not-found)',
     icon: '?',
@@ -81,6 +88,11 @@ export default function VerdictDisplay({ verdict, identifierValue, escortName, e
         {identifierValue && (
           <div style={{ fontSize: 18, color: 'var(--text-muted)', marginTop: 8, letterSpacing: 2 }}>
             {identifierValue}
+          </div>
+        )}
+        {cfg.sub && (
+          <div style={{ fontSize: 16, color: 'var(--text-muted)', marginTop: 10, fontWeight: 500 }}>
+            {cfg.sub}
           </div>
         )}
       </div>

@@ -170,6 +170,20 @@ describe('POST /verify/id', () => {
     expect(res.body.verdict).toBe('EXPIRED');
   });
 
+  it('returns PENDING for a person with status PENDING', async () => {
+    await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict, status) VALUES ('IL_ID', '000000018', 'NOT_APPROVED', 'PENDING')"
+    );
+
+    const res = await request(app)
+      .post('/verify/id')
+      .set('Authorization', `Bearer ${gateToken}`)
+      .send({ identifierType: 'IL_ID', identifierValue: '000000018' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.verdict).toBe('PENDING');
+  });
+
   it('returns 400 for invalid identifierType', async () => {
     const res = await request(app)
       .post('/verify/id')
