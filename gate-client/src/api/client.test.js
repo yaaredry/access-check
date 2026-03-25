@@ -4,8 +4,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 // The main thing we guard here is that Content-Type is NOT sent on GET
 // requests (which have no body), so that Caddy / proxies don't reject them.
 
-const MOCK_BASE = '';
-
 beforeEach(() => {
   localStorage.clear();
   vi.stubGlobal('fetch', vi.fn());
