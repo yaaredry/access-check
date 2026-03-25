@@ -96,9 +96,13 @@ describe('MySubmissions', () => {
     expect(api.getMySubmissions).toHaveBeenCalledTimes(2);
   });
 
-  it('shows requestorName when provided', async () => {
-    api.getMySubmissions.mockResolvedValue({ rows: [] });
-    render(<MySubmissions requestorName="Dana Levi" />);
-    await waitFor(() => expect(screen.getByText('Dana Levi')).toBeInTheDocument());
+  it('reloads when Try Again is clicked after error', async () => {
+    api.getMySubmissions
+      .mockRejectedValueOnce(new Error('Network error'))
+      .mockResolvedValueOnce({ rows: [] });
+    render(<MySubmissions />);
+    await waitFor(() => screen.getByText('Try Again'));
+    fireEvent.click(screen.getByText('Try Again'));
+    await waitFor(() => expect(screen.getByText('No submissions yet.')).toBeInTheDocument());
   });
 });

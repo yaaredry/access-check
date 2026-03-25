@@ -39,7 +39,7 @@ vi.mock('./components/AccessRequestForm', () => ({
 }));
 
 vi.mock('./components/MySubmissions', () => ({
-  default: () => <div data-testid="my-submissions" />,
+  default: () => <div data-testid="my-submissions">My Submissions Content</div>,
 }));
 
 describe('App', () => {

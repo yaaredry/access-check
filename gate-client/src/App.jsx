@@ -58,45 +58,68 @@ function RequestorView({ onLogout, requestorName }) {
 
   return (
     <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', maxWidth: 480, margin: '0 auto' }}>
-      <div style={{ display: 'flex', borderBottom: '2px solid var(--border)', background: 'var(--card-bg, #fff)' }}>
-        <button
-          onClick={() => setTab('form')}
-          style={tabStyle(tab === 'form')}
-        >
-          📋 New Request
-        </button>
-        <button
-          onClick={() => setTab('submissions')}
-          style={tabStyle(tab === 'submissions')}
-        >
-          📄 My Submissions
+      {/* Header */}
+      <div style={{
+        padding: '16px 20px 14px',
+        background: 'var(--surface)',
+        borderBottom: '1px solid var(--border)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexShrink: 0,
+      }}>
+        <div>
+          <div style={{ fontSize: 18, fontWeight: 900, letterSpacing: 0.5 }}>🛡️ Access Check</div>
+          {requestorName && (
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 3 }}>{requestorName}</div>
+          )}
+        </div>
+        <button onClick={onLogout} style={{
+          width: 'auto', padding: '8px 16px', fontSize: 13, fontWeight: 600,
+          background: 'transparent', border: '1px solid var(--border)',
+          color: 'var(--text-muted)', borderRadius: 10, letterSpacing: 0,
+        }}>
+          Logout
         </button>
       </div>
-      {tab === 'form'
-        ? <AccessRequestForm onLogout={onLogout} requestorName={requestorName} />
-        : <MySubmissions requestorName={requestorName} />
-      }
-      {tab === 'submissions' && (
-        <div style={{ padding: '0 24px 24px' }}>
-          <button className="secondary" onClick={onLogout} style={{ width: '100%' }}>Logout</button>
+
+      {/* Segmented control */}
+      <div style={{ padding: '12px 16px', background: 'var(--surface)', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+        <div style={{ display: 'flex', background: 'var(--bg)', borderRadius: 12, padding: 4, gap: 4 }}>
+          <button onClick={() => setTab('form')} style={segmentStyle(tab === 'form')}>
+            📋 New Request
+          </button>
+          <button onClick={() => setTab('submissions')} style={segmentStyle(tab === 'submissions')}>
+            📄 My Submissions
+          </button>
         </div>
-      )}
+      </div>
+
+      {/* Content */}
+      <div style={{ flex: 1, overflowY: 'auto' }}>
+        {tab === 'form'
+          ? <AccessRequestForm onLogout={onLogout} requestorName={requestorName} hideLogout />
+          : <MySubmissions requestorName={requestorName} />
+        }
+      </div>
     </div>
   );
 }
 
-function tabStyle(active) {
+function segmentStyle(active) {
   return {
     flex: 1,
-    padding: '14px 0',
+    padding: '10px 8px',
     fontSize: 14,
     fontWeight: active ? 700 : 500,
-    color: active ? 'var(--primary)' : 'var(--text-muted)',
-    background: 'none',
+    color: active ? '#fff' : 'var(--text-muted)',
+    background: active ? 'var(--primary)' : 'transparent',
     border: 'none',
-    borderBottom: active ? '2px solid var(--primary)' : '2px solid transparent',
-    marginBottom: -2,
+    borderRadius: 9,
     cursor: 'pointer',
+    width: 'auto',
+    letterSpacing: 0,
+    transition: 'background .15s, color .15s',
   };
 }
 

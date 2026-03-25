@@ -18,7 +18,7 @@ function statusConfig(row) {
   return { label: 'Unknown', color: 'var(--text-muted)', bg: 'rgba(100,116,139,.1)' };
 }
 
-export default function MySubmissions({ requestorName }) {
+export default function MySubmissions() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -40,15 +40,7 @@ export default function MySubmissions({ requestorName }) {
 
   return (
     <div style={containerStyle}>
-      <div style={{ padding: '24px 24px 0', textAlign: 'center' }}>
-        <div style={{ fontSize: 40, marginBottom: 8 }}>📄</div>
-        <h1 style={{ fontSize: 22, fontWeight: 900 }}>My Submissions</h1>
-        {requestorName && (
-          <p style={{ color: 'var(--text-muted)', fontSize: 14, marginTop: 4 }}>{requestorName}</p>
-        )}
-      </div>
-
-      <div style={{ padding: '16px 24px 24px' }}>
+      <div style={{ padding: '20px 20px 0' }}>
         {loading && (
           <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px 0' }}>Loading…</p>
         )}
@@ -121,8 +113,8 @@ const containerStyle = {
 };
 
 const cardStyle = {
-  background: 'var(--card-bg, #fff)',
+  background: 'var(--surface)',
   border: '1px solid var(--border)',
-  borderRadius: 10,
+  borderRadius: 12,
   padding: '14px 16px',
 };
