@@ -14,14 +14,16 @@ function validateIlId(value) {
 
 // Maps a UI status value to the { verdict, status } pair sent to the backend
 const STATUS_OPTIONS = [
-  { value: 'APPROVED',       label: 'Approved',        verdict: 'APPROVED',      status: null },
-  { value: 'ADMIN_APPROVED', label: 'Admin Approved',  verdict: 'ADMIN_APPROVED', status: null },
-  { value: 'NOT_APPROVED',   label: 'Not Approved',    verdict: 'NOT_APPROVED',   status: null },
-  { value: 'PENDING',        label: 'Pending Review',  verdict: 'NOT_APPROVED',   status: 'PENDING' },
+  { value: 'APPROVED',             label: 'Approved',              verdict: 'APPROVED',             status: null },
+  { value: 'ADMIN_APPROVED',       label: 'Admin Approved',        verdict: 'ADMIN_APPROVED',       status: null },
+  { value: 'APPROVED_WITH_ESCORT', label: 'Approved with Escort',  verdict: 'APPROVED_WITH_ESCORT', status: null },
+  { value: 'NOT_APPROVED',         label: 'Not Approved',          verdict: 'NOT_APPROVED',         status: null },
+  { value: 'PENDING',              label: 'Pending Review',        verdict: 'NOT_APPROVED',         status: 'PENDING' },
 ];
 
 function resolveUiStatus(initial) {
   if (initial?.status === 'PENDING') return 'PENDING';
+  if (initial?.verdict === 'APPROVED_WITH_ESCORT') return 'APPROVED_WITH_ESCORT';
   return initial?.verdict || 'APPROVED';
 }
 
@@ -58,9 +60,10 @@ export default function PersonForm({ initial, onSubmit, onCancel, loading }) {
     if (form.identifierType === 'IL_ID' && !validateIlId(form.identifierValue)) {
       errors.identifierValue = 'Invalid Israeli ID';
     }
-    if (form.population === 'CIVILIAN') {
-      if (!form.escortFullName.trim()) errors.escortFullName = 'Escort full name is required for civilian visitors.';
-      if (!form.escortPhone.trim()) errors.escortPhone = 'Escort phone is required for civilian visitors.';
+    const escortRequired = form.uiStatus === 'APPROVED_WITH_ESCORT' || form.population === 'CIVILIAN';
+    if (escortRequired) {
+      if (!form.escortFullName?.trim()) errors.escortFullName = 'Escort full name is required.';
+      if (!form.escortPhone?.trim()) errors.escortPhone = 'Escort phone is required.';
       else if (!/^\+?[\d]+$/.test(form.escortPhone)) errors.escortPhone = 'Phone number can only contain digits and an optional "+" at the start.';
     }
     if (Object.keys(errors).length > 0) {
@@ -150,7 +153,7 @@ export default function PersonForm({ initial, onSubmit, onCancel, loading }) {
         />
       </div>
 
-      {form.population === 'CIVILIAN' && (
+      {(form.uiStatus === 'APPROVED_WITH_ESCORT' || form.population === 'CIVILIAN') && (
         <>
           <div>
             <label htmlFor="pf-escortFullName" style={labelStyle}>Escort Full Name</label>

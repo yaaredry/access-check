@@ -8,6 +8,7 @@ const logger = require('../config/logger');
 const VERDICTS = {
   APPROVED: 'APPROVED',
   ADMIN_APPROVED: 'ADMIN_APPROVED',
+  APPROVED_WITH_ESCORT: 'APPROVED_WITH_ESCORT',
   NOT_APPROVED: 'NOT_APPROVED',
   PENDING: 'PENDING',
   EXPIRED: 'EXPIRED',
@@ -29,6 +30,7 @@ function resolveVerdict(person) {
 
   if (person.verdict === 'APPROVED') return VERDICTS.APPROVED;
   if (person.verdict === 'ADMIN_APPROVED') return VERDICTS.ADMIN_APPROVED;
+  if (person.verdict === 'APPROVED_WITH_ESCORT') return VERDICTS.APPROVED_WITH_ESCORT;
   if (person.status === 'APPROVED') return VERDICTS.APPROVED;
   return VERDICTS.NOT_APPROVED;
 }
@@ -47,7 +49,11 @@ async function verifyById(identifierType, identifierValue) {
     source: 'manual',
   });
 
-  return { verdict, person: person ? { id: person.id, identifierType: person.identifier_type, identifierValue: person.identifier_value } : null };
+  return {
+    verdict,
+    escortFullName: verdict === VERDICTS.APPROVED_WITH_ESCORT ? person.escort_full_name : null,
+    person: person ? { id: person.id, identifierType: person.identifier_type, identifierValue: person.identifier_value } : null,
+  };
 }
 
 async function verifyByImage(imageBuffer) {
@@ -76,7 +82,7 @@ async function verifyByImage(imageBuffer) {
         source: 'image',
         metadata: { extractedIds: { ilIds, idfIds } },
       });
-      return { verdict, identifierType: 'IL_ID', identifierValue: val };
+      return { verdict, escortFullName: verdict === VERDICTS.APPROVED_WITH_ESCORT ? person.escort_full_name : null, identifierType: 'IL_ID', identifierValue: val };
     }
   }
 
@@ -96,7 +102,7 @@ async function verifyByImage(imageBuffer) {
         source: 'image',
         metadata: { extractedIds: { ilIds, idfIds } },
       });
-      return { verdict, identifierType: 'IDF_ID', identifierValue: val };
+      return { verdict, escortFullName: verdict === VERDICTS.APPROVED_WITH_ESCORT ? person.escort_full_name : null, identifierType: 'IDF_ID', identifierValue: val };
     }
   }
 

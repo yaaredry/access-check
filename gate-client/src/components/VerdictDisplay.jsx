@@ -25,6 +25,12 @@ const CONFIG = {
     label: 'ADMIN APPROVED',
     bg: 'rgba(234,179,8,.15)',
   },
+  APPROVED_WITH_ESCORT: {
+    color: '#d97706',
+    icon: '✓',
+    label: 'APPROVED WITH ESCORT',
+    bg: 'rgba(234,179,8,.15)',
+  },
   NOT_FOUND: {
     color: 'var(--not-found)',
     icon: '?',
@@ -33,7 +39,7 @@ const CONFIG = {
   },
 };
 
-export default function VerdictDisplay({ verdict, identifierValue, onBack, autoResetMs = 8000 }) {
+export default function VerdictDisplay({ verdict, identifierValue, escortName, onBack, autoResetMs = 8000 }) {
   const cfg = CONFIG[verdict] || CONFIG.NOT_FOUND;
 
   useEffect(() => {
@@ -78,6 +84,12 @@ export default function VerdictDisplay({ verdict, identifierValue, onBack, autoR
           </div>
         )}
       </div>
+
+      {verdict === 'APPROVED_WITH_ESCORT' && escortName && (
+        <div style={{ fontSize: 22, fontWeight: 700, color: cfg.color, textAlign: 'center' }}>
+          Escort: {escortName}
+        </div>
+      )}
 
       {verdict === 'ADMIN_APPROVED' && (
         <ul style={{

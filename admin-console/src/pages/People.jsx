@@ -8,11 +8,12 @@ import GSheetImport from '../components/GSheetImport';
 const MODAL_NONE = null;
 
 const STATUS_FILTERS = [
-  { key: 'PENDING',        label: 'Pending' },
-  { key: 'APPROVED',       label: 'Approved' },
-  { key: 'ADMIN_APPROVED', label: 'Admin Approved' },
-  { key: 'EXPIRED',        label: 'Expired' },
-  { key: 'NOT_APPROVED',   label: 'Not Approved' },
+  { key: 'PENDING',              label: 'Pending' },
+  { key: 'APPROVED',             label: 'Approved' },
+  { key: 'ADMIN_APPROVED',       label: 'Admin Approved' },
+  { key: 'APPROVED_WITH_ESCORT', label: 'Approved w/ Escort' },
+  { key: 'EXPIRED',              label: 'Expired' },
+  { key: 'NOT_APPROVED',         label: 'Not Approved' },
 ];
 
 function getDisplayStatus(person) {
@@ -20,6 +21,7 @@ function getDisplayStatus(person) {
   if (person.approval_expiration && new Date(person.approval_expiration) < new Date()) return 'EXPIRED';
   if (person.verdict === 'APPROVED') return 'APPROVED';
   if (person.verdict === 'ADMIN_APPROVED') return 'ADMIN_APPROVED';
+  if (person.verdict === 'APPROVED_WITH_ESCORT') return 'APPROVED_WITH_ESCORT';
   return 'NOT_APPROVED';
 }
 const MODAL_CREATE = 'create';
@@ -344,6 +346,15 @@ function ApproveModal({ person, onConfirm, onCancel }) {
           >
             <div style={{ fontWeight: 600 }}>Administrative Approval</div>
             <div style={{ fontSize: 12, opacity: 0.8, marginTop: 2 }}>The person can be only in the administrative areas</div>
+          </button>
+          <button
+            className="primary"
+            disabled={loading}
+            onClick={() => approve('APPROVED_WITH_ESCORT')}
+            style={{ textAlign: 'left', padding: '12px 16px' }}
+          >
+            <div style={{ fontWeight: 600 }}>Approved with Escort</div>
+            <div style={{ fontSize: 12, opacity: 0.8, marginTop: 2 }}>The person must be accompanied by their registered escort at all times</div>
           </button>
         </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>

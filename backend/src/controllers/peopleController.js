@@ -5,7 +5,7 @@ const { validate } = require('../middlewares/validate');
 const peopleService = require('../services/peopleService');
 
 const IDENTIFIER_TYPES = ['IL_ID', 'IDF_ID'];
-const VERDICTS = ['APPROVED', 'ADMIN_APPROVED', 'NOT_APPROVED'];
+const VERDICTS = ['APPROVED', 'ADMIN_APPROVED', 'APPROVED_WITH_ESCORT', 'NOT_APPROVED'];
 
 const personBodyValidation = [
   body('identifierType').isIn(IDENTIFIER_TYPES).withMessage(`identifierType must be one of ${IDENTIFIER_TYPES.join(', ')}`),
@@ -23,6 +23,10 @@ const personBodyValidation = [
   body('verdict').isIn(VERDICTS).withMessage(`verdict must be one of ${VERDICTS.join(', ')}`),
   body('approvalExpiration').optional({ nullable: true }).isISO8601().withMessage('approvalExpiration must be a valid date'),
   body('requesterName').optional({ nullable: true }).trim(),
+  body('escortFullName').if(body('verdict').equals('APPROVED_WITH_ESCORT'))
+    .notEmpty().withMessage('escortFullName is required when verdict is APPROVED_WITH_ESCORT'),
+  body('escortPhone').if(body('verdict').equals('APPROVED_WITH_ESCORT'))
+    .notEmpty().withMessage('escortPhone is required when verdict is APPROVED_WITH_ESCORT'),
   validate,
 ];
 
@@ -78,7 +82,7 @@ async function updateStatus(req, res, next) {
     if (status === 'NOT_APPROVED' && !rejectionReason?.trim()) {
       return res.status(400).json({ error: 'rejectionReason is required when rejecting' });
     }
-    const allowedApprovalVerdicts = ['APPROVED', 'ADMIN_APPROVED'];
+    const allowedApprovalVerdicts = ['APPROVED', 'ADMIN_APPROVED', 'APPROVED_WITH_ESCORT'];
     const verdict = status === 'APPROVED'
       ? (allowedApprovalVerdicts.includes(requestedVerdict) ? requestedVerdict : 'ADMIN_APPROVED')
       : 'NOT_APPROVED';

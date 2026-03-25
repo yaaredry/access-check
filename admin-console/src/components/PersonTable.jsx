@@ -7,6 +7,7 @@ function verdictBadge(verdict, expiration, status) {
   }
   if (verdict === 'APPROVED') return <span className="badge approved">Approved</span>;
   if (verdict === 'ADMIN_APPROVED') return <span className="badge admin-approved">Admin Approved</span>;
+  if (verdict === 'APPROVED_WITH_ESCORT') return <span className="badge approved-with-escort">Approved with Escort</span>;
   return <span className="badge not-approved">Not Approved</span>;
 }
 

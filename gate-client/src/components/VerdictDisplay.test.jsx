@@ -81,6 +81,27 @@ describe('VerdictDisplay', () => {
     expect(screen.getByText('Auto-reset in 8s')).toBeInTheDocument();
   });
 
+  it('shows APPROVED WITH ESCORT label and icon', () => {
+    render(<VerdictDisplay verdict="APPROVED_WITH_ESCORT" onBack={vi.fn()} autoResetMs={0} />);
+    expect(screen.getByText('APPROVED WITH ESCORT')).toBeInTheDocument();
+    expect(screen.getByText('✓')).toBeInTheDocument();
+  });
+
+  it('shows escort name when verdict is APPROVED_WITH_ESCORT and escortName is provided', () => {
+    render(<VerdictDisplay verdict="APPROVED_WITH_ESCORT" escortName="Jane Doe" onBack={vi.fn()} autoResetMs={0} />);
+    expect(screen.getByText('Escort: Jane Doe')).toBeInTheDocument();
+  });
+
+  it('does not show escort line when escortName is not provided', () => {
+    render(<VerdictDisplay verdict="APPROVED_WITH_ESCORT" onBack={vi.fn()} autoResetMs={0} />);
+    expect(screen.queryByText(/Escort:/)).not.toBeInTheDocument();
+  });
+
+  it('does not show escort line for APPROVED even if escortName is passed', () => {
+    render(<VerdictDisplay verdict="APPROVED" escortName="Jane Doe" onBack={vi.fn()} autoResetMs={0} />);
+    expect(screen.queryByText(/Escort:/)).not.toBeInTheDocument();
+  });
+
   it('shows instruction bullets for ADMIN_APPROVED', () => {
     render(<VerdictDisplay verdict="ADMIN_APPROVED" onBack={vi.fn()} autoResetMs={0} />);
     expect(screen.getByText('All visitor cameras must be covered with blue stickers')).toBeInTheDocument();

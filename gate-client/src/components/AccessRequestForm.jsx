@@ -193,29 +193,25 @@ export default function AccessRequestForm({ onLogout }) {
           />
         </Field>
 
-        {form.population === 'CIVILIAN' && (
-          <>
-            <Field label="Escort Full Name" error={fieldErrors.escortFullName}>
-              <input
-                type="text"
-                placeholder="Escort's full name"
-                value={form.escortFullName}
-                onChange={e => set('escortFullName', e.target.value)}
-                style={{ ...inputStyle, ...(fieldErrors.escortFullName ? errorInputStyle : {}) }}
-              />
-            </Field>
+        <Field label={`Escort Full Name${form.population === 'CIVILIAN' ? '' : ' (optional)'}`} error={fieldErrors.escortFullName}>
+          <input
+            type="text"
+            placeholder="Escort's full name"
+            value={form.escortFullName}
+            onChange={e => set('escortFullName', e.target.value)}
+            style={{ ...inputStyle, ...(fieldErrors.escortFullName ? errorInputStyle : {}) }}
+          />
+        </Field>
 
-            <Field label="Escort Phone" error={fieldErrors.escortPhone}>
-              <input
-                type="tel"
-                placeholder="+972501234567"
-                value={form.escortPhone}
-                onChange={e => set('escortPhone', e.target.value)}
-                style={{ ...inputStyle, ...(fieldErrors.escortPhone ? errorInputStyle : {}) }}
-              />
-            </Field>
-          </>
-        )}
+        <Field label={`Escort Phone${form.population === 'CIVILIAN' ? '' : ' (optional)'}`} error={fieldErrors.escortPhone}>
+          <input
+            type="tel"
+            placeholder="+972501234567"
+            value={form.escortPhone}
+            onChange={e => set('escortPhone', e.target.value)}
+            style={{ ...inputStyle, ...(fieldErrors.escortPhone ? errorInputStyle : {}) }}
+          />
+        </Field>
 
         <Field label="Expiration Date" error={fieldErrors.approvalExpiration}>
           <input

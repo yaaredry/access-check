@@ -46,11 +46,12 @@ const PERSON = {
 
 // A diverse set of people covering all five display statuses
 const PEOPLE_ALL_STATUSES = [
-  { id: 1, identifier_type: 'IL_ID', identifier_value: 'pending-001',       verdict: null,           status: 'PENDING',       approval_expiration: null,          last_seen_at: null, created_at: '2024-01-01T00:00:00Z' },
-  { id: 2, identifier_type: 'IL_ID', identifier_value: 'approved-001',      verdict: 'APPROVED',     status: 'APPROVED',      approval_expiration: '2099-12-31',  last_seen_at: null, created_at: '2024-01-01T00:00:00Z' },
-  { id: 3, identifier_type: 'IL_ID', identifier_value: 'admin-approved-001', verdict: 'ADMIN_APPROVED', status: 'APPROVED',   approval_expiration: '2099-12-31',  last_seen_at: null, created_at: '2024-01-01T00:00:00Z' },
-  { id: 4, identifier_type: 'IL_ID', identifier_value: 'expired-001',       verdict: 'APPROVED',     status: 'APPROVED',      approval_expiration: '2000-01-01',  last_seen_at: null, created_at: '2024-01-01T00:00:00Z' },
-  { id: 5, identifier_type: 'IL_ID', identifier_value: 'not-approved-001',  verdict: 'NOT_APPROVED', status: 'NOT_APPROVED',  approval_expiration: null,          last_seen_at: null, created_at: '2024-01-01T00:00:00Z' },
+  { id: 1, identifier_type: 'IL_ID', identifier_value: 'pending-001',            verdict: null,                  status: 'PENDING',       approval_expiration: null,         last_seen_at: null, created_at: '2024-01-01T00:00:00Z' },
+  { id: 2, identifier_type: 'IL_ID', identifier_value: 'approved-001',           verdict: 'APPROVED',            status: 'APPROVED',      approval_expiration: '2099-12-31', last_seen_at: null, created_at: '2024-01-01T00:00:00Z' },
+  { id: 3, identifier_type: 'IL_ID', identifier_value: 'admin-approved-001',     verdict: 'ADMIN_APPROVED',      status: 'APPROVED',      approval_expiration: '2099-12-31', last_seen_at: null, created_at: '2024-01-01T00:00:00Z' },
+  { id: 4, identifier_type: 'IL_ID', identifier_value: 'approved-with-escort-001', verdict: 'APPROVED_WITH_ESCORT', status: 'APPROVED',   approval_expiration: '2099-12-31', last_seen_at: null, created_at: '2024-01-01T00:00:00Z' },
+  { id: 5, identifier_type: 'IL_ID', identifier_value: 'expired-001',            verdict: 'APPROVED',            status: 'APPROVED',      approval_expiration: '2000-01-01', last_seen_at: null, created_at: '2024-01-01T00:00:00Z' },
+  { id: 6, identifier_type: 'IL_ID', identifier_value: 'not-approved-001',       verdict: 'NOT_APPROVED',        status: 'NOT_APPROVED',  approval_expiration: null,         last_seen_at: null, created_at: '2024-01-01T00:00:00Z' },
 ];
 
 function setup() {
@@ -105,6 +106,18 @@ describe('People — status quick filters', () => {
     expect(screen.getByText('admin-approved-001')).toBeInTheDocument();
     expect(screen.queryByText('pending-001')).not.toBeInTheDocument();
     expect(screen.queryByText('approved-001')).not.toBeInTheDocument();
+    expect(screen.queryByText('expired-001')).not.toBeInTheDocument();
+    expect(screen.queryByText('not-approved-001')).not.toBeInTheDocument();
+  });
+
+  it('filters to only Approved with Escort rows when Approved w/ Escort is clicked', async () => {
+    setupMulti();
+    await waitFor(() => screen.getByText('approved-with-escort-001'));
+    fireEvent.click(screen.getByRole('button', { name: 'Approved w/ Escort' }));
+    expect(screen.getByText('approved-with-escort-001')).toBeInTheDocument();
+    expect(screen.queryByText('pending-001')).not.toBeInTheDocument();
+    expect(screen.queryByText('approved-001')).not.toBeInTheDocument();
+    expect(screen.queryByText('admin-approved-001')).not.toBeInTheDocument();
     expect(screen.queryByText('expired-001')).not.toBeInTheDocument();
     expect(screen.queryByText('not-approved-001')).not.toBeInTheDocument();
   });
