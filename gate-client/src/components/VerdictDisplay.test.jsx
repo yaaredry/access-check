@@ -87,18 +87,24 @@ describe('VerdictDisplay', () => {
     expect(screen.getByText('✓')).toBeInTheDocument();
   });
 
-  it('shows escort name when verdict is APPROVED_WITH_ESCORT and escortName is provided', () => {
+  it('shows escort name when escortName is provided', () => {
     render(<VerdictDisplay verdict="APPROVED_WITH_ESCORT" escortName="Jane Doe" onBack={vi.fn()} autoResetMs={0} />);
     expect(screen.getByText('Escort: Jane Doe')).toBeInTheDocument();
   });
 
-  it('does not show escort line when escortName is not provided', () => {
-    render(<VerdictDisplay verdict="APPROVED_WITH_ESCORT" onBack={vi.fn()} autoResetMs={0} />);
-    expect(screen.queryByText(/Escort:/)).not.toBeInTheDocument();
+  it('shows escort phone when escortPhone is provided', () => {
+    render(<VerdictDisplay verdict="APPROVED_WITH_ESCORT" escortName="Jane Doe" escortPhone="+972501234567" onBack={vi.fn()} autoResetMs={0} />);
+    expect(screen.getByText('+972501234567')).toBeInTheDocument();
   });
 
-  it('does not show escort line for APPROVED even if escortName is passed', () => {
-    render(<VerdictDisplay verdict="APPROVED" escortName="Jane Doe" onBack={vi.fn()} autoResetMs={0} />);
+  it('shows escort info for APPROVED verdict when escort fields are present', () => {
+    render(<VerdictDisplay verdict="APPROVED" escortName="Jane Doe" escortPhone="+972501234567" onBack={vi.fn()} autoResetMs={0} />);
+    expect(screen.getByText('Escort: Jane Doe')).toBeInTheDocument();
+    expect(screen.getByText('+972501234567')).toBeInTheDocument();
+  });
+
+  it('does not show escort block when neither escortName nor escortPhone is provided', () => {
+    render(<VerdictDisplay verdict="APPROVED_WITH_ESCORT" onBack={vi.fn()} autoResetMs={0} />);
     expect(screen.queryByText(/Escort:/)).not.toBeInTheDocument();
   });
 

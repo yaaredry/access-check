@@ -57,6 +57,7 @@ export default function CameraCheck({ onBack, onSwitch }) {
         verdict={result.verdict}
         identifierValue={result.identifierValue || ''}
         escortName={result.escortFullName}
+        escortPhone={result.escortPhone}
         onBack={reset}
       />
     );

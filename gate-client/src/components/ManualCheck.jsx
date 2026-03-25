@@ -58,6 +58,7 @@ export default function ManualCheck({ onBack, onSwitch }) {
         verdict={result.verdict}
         identifierValue={value.trim()}
         escortName={result.escortFullName}
+        escortPhone={result.escortPhone}
         onBack={reset}
       />
     );
