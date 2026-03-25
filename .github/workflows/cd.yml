@@ -19,7 +19,7 @@ jobs:
           username: ${{ secrets.GCP_USER }}
           key: ${{ secrets.GCP_SSH_KEY }}
           script: |
-            docker system prune -af --volumes
+            docker system prune -af
             cd /opt/access-check
             git pull
             make deploy
