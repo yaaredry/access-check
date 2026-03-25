@@ -37,6 +37,13 @@ describe('PersonTable', () => {
     expect(badge).not.toHaveClass('approved');
   });
 
+  it('shows Approved with Escort badge for APPROVED_WITH_ESCORT', () => {
+    render(<PersonTable rows={[{ ...BASE, verdict: 'APPROVED_WITH_ESCORT' }]} onEdit={vi.fn()} onDelete={vi.fn()} />);
+    const badge = screen.getByText('Approved with Escort');
+    expect(badge).toHaveClass('badge', 'approved-with-escort');
+    expect(badge).not.toHaveClass('approved');
+  });
+
   it('shows Not Approved badge for NOT_APPROVED', () => {
     render(<PersonTable rows={[{ ...BASE, verdict: 'NOT_APPROVED' }]} onEdit={vi.fn()} onDelete={vi.fn()} />);
     expect(screen.getByText('Not Approved')).toHaveClass('badge', 'not-approved');

@@ -140,6 +140,51 @@ describe('POST /people', () => {
     expect(res.body.verdict).toBe('ADMIN_APPROVED');
   });
 
+  it('creates a person with APPROVED_WITH_ESCORT verdict when escort fields are provided', async () => {
+    const res = await request(app)
+      .post('/people')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({
+        identifierType: 'IL_ID',
+        identifierValue: '000000018',
+        verdict: 'APPROVED_WITH_ESCORT',
+        escortFullName: 'John Smith',
+        escortPhone: '+972501234567',
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.verdict).toBe('APPROVED_WITH_ESCORT');
+    expect(res.body.escort_full_name).toBe('John Smith');
+  });
+
+  it('returns 400 for APPROVED_WITH_ESCORT when escortFullName is missing', async () => {
+    const res = await request(app)
+      .post('/people')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({
+        identifierType: 'IL_ID',
+        identifierValue: '000000018',
+        verdict: 'APPROVED_WITH_ESCORT',
+        escortPhone: '+972501234567',
+      });
+
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 400 for APPROVED_WITH_ESCORT when escortPhone is missing', async () => {
+    const res = await request(app)
+      .post('/people')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({
+        identifierType: 'IL_ID',
+        identifierValue: '000000018',
+        verdict: 'APPROVED_WITH_ESCORT',
+        escortFullName: 'John Smith',
+      });
+
+    expect(res.status).toBe(400);
+  });
+
   it('returns 401 without token', async () => {
     const res = await request(app)
       .post('/people')

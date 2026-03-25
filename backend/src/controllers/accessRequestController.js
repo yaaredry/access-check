@@ -30,9 +30,11 @@ const requestBodyValidation = [
   body('approvalExpiration')
     .isISO8601().withMessage('approvalExpiration must be a valid date')
     .custom((value) => {
-      if (new Date(value) <= new Date()) {
-        throw new Error('approvalExpiration must be a future date');
-      }
+      const date = new Date(value);
+      if (date <= new Date()) throw new Error('approvalExpiration must be a future date');
+      const max = new Date();
+      max.setDate(max.getDate() + 7);
+      if (date > max) throw new Error('approvalExpiration cannot be more than 7 days from today');
       return true;
     }),
   body('reason')
@@ -47,6 +49,14 @@ const requestBodyValidation = [
 async function create(req, res, next) {
   try {
     const { ilId, population, division, escortFullName, escortPhone, approvalExpiration, reason, requesterName } = req.body;
+
+    const existing = await peopleRepo.findByIdentifierValue(ilId);
+    if (existing) {
+      const msg = existing.status === 'PENDING'
+        ? 'A request for this ID is already pending review.'
+        : 'A record for this ID already exists. Please contact the administrator.';
+      return res.status(409).json({ error: msg });
+    }
 
     const person = await peopleRepo.create({
       identifierType: 'IL_ID',

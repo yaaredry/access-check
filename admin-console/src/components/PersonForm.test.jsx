@@ -69,7 +69,7 @@ describe('PersonForm', () => {
     await userEvent.type(screen.getByLabelText(/Escort Phone/i), '+972501234567');
     fireEvent.click(screen.getByText('Save'));
     await waitFor(() => {
-      expect(screen.getByText(/Escort full name is required for civilian visitors/i)).toBeInTheDocument();
+      expect(screen.getByText(/Escort full name is required/i)).toBeInTheDocument();
     });
   });
 

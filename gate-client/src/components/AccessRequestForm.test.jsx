@@ -41,17 +41,20 @@ describe('AccessRequestForm', () => {
     expect(screen.getByText('Submit Request')).toBeInTheDocument();
   });
 
-  it('hides escort fields when population is IL Military', () => {
+  it('shows escort fields for IL Military (always visible, optional)', () => {
     render(<AccessRequestForm onLogout={vi.fn()} />);
-    expect(screen.queryByPlaceholderText("Escort's full name")).not.toBeInTheDocument();
-    expect(screen.queryByPlaceholderText('+972501234567')).not.toBeInTheDocument();
-  });
-
-  it('shows escort fields when population is Civilian', async () => {
-    render(<AccessRequestForm onLogout={vi.fn()} />);
-    await userEvent.selectOptions(screen.getByDisplayValue('IL Military'), 'CIVILIAN');
     expect(screen.getByPlaceholderText("Escort's full name")).toBeInTheDocument();
     expect(screen.getByPlaceholderText('+972501234567')).toBeInTheDocument();
+    expect(screen.getByText(/Escort Full Name \(optional\)/)).toBeInTheDocument();
+    expect(screen.getByText(/Escort Phone \(optional\)/)).toBeInTheDocument();
+  });
+
+  it('shows escort fields as required (no optional label) for Civilian', async () => {
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    await userEvent.selectOptions(screen.getByDisplayValue('IL Military'), 'CIVILIAN');
+    expect(screen.getByText('Escort Full Name')).toBeInTheDocument();
+    expect(screen.getByText('Escort Phone')).toBeInTheDocument();
+    expect(screen.queryByText(/Escort Full Name \(optional\)/)).not.toBeInTheDocument();
   });
 
   it('shows validation error when Your Name is missing', async () => {

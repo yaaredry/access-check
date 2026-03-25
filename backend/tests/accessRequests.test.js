@@ -8,10 +8,14 @@ const jwt = require('jsonwebtoken');
 const requestorToken = jwt.sign({ sub: 99, username: 'requestor', role: 'access_requestor' }, process.env.JWT_SECRET || 'dev-secret');
 const adminToken = jwt.sign({ sub: 1, username: 'admin', role: 'admin' }, process.env.JWT_SECRET || 'dev-secret');
 
+const tomorrow = new Date();
+tomorrow.setDate(tomorrow.getDate() + 1);
+const TOMORROW = tomorrow.toISOString().split('T')[0];
+
 const VALID_PAYLOAD = {
   ilId: '000000018',
   population: 'IL_MILITARY',
-  approvalExpiration: '2099-12-31',
+  approvalExpiration: TOMORROW,
   reason: 'Delivery',
   requesterName: 'Jane Smith',
 };
@@ -88,7 +92,7 @@ describe('POST /access-requests', () => {
         population: 'CIVILIAN',
         escortFullName: 'John Smith',
         escortPhone: '+972501234567',
-        approvalExpiration: '2099-12-31',
+        approvalExpiration: TOMORROW,
         reason: 'Contractor visit',
         requesterName: 'Jane Smith',
       });
@@ -106,7 +110,7 @@ describe('POST /access-requests', () => {
       .send({
         ilId: '000000018',
         population: 'CIVILIAN',
-        approvalExpiration: '2099-12-31',
+        approvalExpiration: TOMORROW,
         reason: 'Contractor visit',
       });
 
@@ -131,6 +135,44 @@ describe('POST /access-requests', () => {
     expect(res.status).toBe(400);
   });
 
+  it('returns 400 for expiration date more than 7 days ahead', async () => {
+    const res = await request(app)
+      .post('/access-requests')
+      .set('Authorization', `Bearer ${requestorToken}`)
+      .send({ ...VALID_PAYLOAD, approvalExpiration: '2099-12-31' });
+
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 409 when a PENDING record already exists for the same ID', async () => {
+    await request(app)
+      .post('/access-requests')
+      .set('Authorization', `Bearer ${requestorToken}`)
+      .send(VALID_PAYLOAD);
+
+    const res = await request(app)
+      .post('/access-requests')
+      .set('Authorization', `Bearer ${requestorToken}`)
+      .send(VALID_PAYLOAD);
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toMatch(/already pending/i);
+  });
+
+  it('returns 409 when a non-pending record already exists for the same ID', async () => {
+    await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict, status) VALUES ('IL_ID', '000000018', 'APPROVED', 'APPROVED')"
+    );
+
+    const res = await request(app)
+      .post('/access-requests')
+      .set('Authorization', `Bearer ${requestorToken}`)
+      .send(VALID_PAYLOAD);
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toMatch(/already exists/i);
+  });
+
   it('returns 400 for invalid phone (letters)', async () => {
     const res = await request(app)
       .post('/access-requests')
@@ -140,7 +182,7 @@ describe('POST /access-requests', () => {
         population: 'CIVILIAN',
         escortFullName: 'John Smith',
         escortPhone: 'abc123',
-        approvalExpiration: '2099-12-31',
+        approvalExpiration: TOMORROW,
         reason: 'Visit',
       });
 

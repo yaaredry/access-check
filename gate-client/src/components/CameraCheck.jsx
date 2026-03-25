@@ -56,6 +56,7 @@ export default function CameraCheck({ onBack, onSwitch }) {
       <VerdictDisplay
         verdict={result.verdict}
         identifierValue={result.identifierValue || ''}
+        escortName={result.escortFullName}
         onBack={reset}
       />
     );
