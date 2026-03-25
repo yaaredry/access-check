@@ -34,6 +34,13 @@ describe('VerdictDisplay', () => {
     expect(screen.getByText('✓')).toBeInTheDocument();
   });
 
+  it('shows PENDING REVIEW label and sub-text for PENDING verdict', () => {
+    render(<VerdictDisplay verdict="PENDING" onBack={vi.fn()} autoResetMs={0} />);
+    expect(screen.getByText('PENDING REVIEW')).toBeInTheDocument();
+    expect(screen.getByText('This ID is pending admin approval')).toBeInTheDocument();
+    expect(screen.getByText('⏳')).toBeInTheDocument();
+  });
+
   it('shows NOT FOUND for unknown verdict', () => {
     render(<VerdictDisplay verdict="UNKNOWN_VERDICT" onBack={vi.fn()} autoResetMs={0} />);
     expect(screen.getByText('NOT FOUND')).toBeInTheDocument();
