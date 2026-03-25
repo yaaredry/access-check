@@ -116,16 +116,17 @@ async function upsertMany(records) {
     await client.query('BEGIN');
     for (const r of records) {
       const { rows } = await client.query(
-        `INSERT INTO people (identifier_type, identifier_value, verdict, approval_expiration, population, reason)
-         VALUES ($1, $2, $3, $4, $5, $6)
+        `INSERT INTO people (identifier_type, identifier_value, verdict, approval_expiration, population, reason, escort_full_name)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
          ON CONFLICT (identifier_type, identifier_value)
          DO UPDATE SET verdict = EXCLUDED.verdict,
                        approval_expiration = EXCLUDED.approval_expiration,
                        population = COALESCE(EXCLUDED.population, people.population),
                        reason = COALESCE(EXCLUDED.reason, people.reason),
+                       escort_full_name = COALESCE(EXCLUDED.escort_full_name, people.escort_full_name),
                        updated_at = NOW()
          RETURNING (xmax = 0) AS inserted`,
-        [r.identifierType, r.identifierValue, r.verdict, r.approvalExpiration || null, r.population || null, r.reason || null]
+        [r.identifierType, r.identifierValue, r.verdict, r.approvalExpiration || null, r.population || null, r.reason || null, r.escortName || null]
       );
       if (rows[0].inserted) inserted++;
       else updated++;

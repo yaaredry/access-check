@@ -79,6 +79,19 @@ export default function VerdictDisplay({ verdict, identifierValue, onBack, autoR
         )}
       </div>
 
+      {verdict === 'ADMIN_APPROVED' && (
+        <ul style={{
+          listStyle: 'disc',
+          paddingLeft: 28,
+          margin: 0,
+          textAlign: 'left',
+          display: 'inline-block',
+        }}>
+          <li style={{ fontSize: 22, fontWeight: 600, lineHeight: 1.6 }}>All visitor cameras must be covered with blue stickers</li>
+          <li style={{ fontSize: 22, fontWeight: 600, lineHeight: 1.6 }}>All visitors must obtain and wear a badge at all times</li>
+        </ul>
+      )}
+
       <button className="back" style={{ marginTop: 16, maxWidth: 320 }} onClick={onBack}>
         ← Back
       </button>

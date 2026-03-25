@@ -121,7 +121,7 @@ async function importFromGSheet(url) {
   const valid = [];
   let skipped = 0;
 
-  for (const { rowNum, identifierValue: rawId, verdict, population, reason } of rows) {
+  for (const { rowNum, identifierValue: rawId, verdict, population, reason, escortName } of rows) {
     if (verdict === null) {
       skipped++;
       continue;
@@ -135,7 +135,7 @@ async function importFromGSheet(url) {
       continue;
     }
 
-    valid.push({ identifierType: 'IL_ID', identifierValue, verdict, population: population || null, reason: reason || null });
+    valid.push({ identifierType: 'IL_ID', identifierValue, verdict, population: population || null, reason: reason || null, escortName: escortName || null });
   }
 
   let result = { inserted: 0, updated: 0 };
