@@ -34,7 +34,7 @@ export default function MySubmissions() {
     try {
       const data = await api.getMySubmissions();
       setRows(data.rows);
-    } catch (_err) {
+    } catch {
       setError('Could not load submissions. Please try again.');
     } finally {
       setLoading(false);
