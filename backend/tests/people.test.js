@@ -29,6 +29,7 @@ beforeAll(async () => {
       status VARCHAR(20),
       rejection_reason VARCHAR(500),
       requester_name VARCHAR(150),
+      requester_email VARCHAR(255),
       CONSTRAINT uq_test_identifier UNIQUE (identifier_type, identifier_value)
     )
   `);

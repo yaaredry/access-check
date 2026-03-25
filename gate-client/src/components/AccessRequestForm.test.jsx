@@ -167,6 +167,35 @@ describe('AccessRequestForm', () => {
     expect(onLogout).toHaveBeenCalled();
   });
 
+  it('pre-fills and disables the name field when requestorName prop is provided', () => {
+    render(<AccessRequestForm onLogout={vi.fn()} requestorName="Dana Levi" />);
+    const nameInput = screen.getByPlaceholderText('Your full name');
+    expect(nameInput).toHaveValue('Dana Levi');
+    expect(nameInput).toBeDisabled();
+  });
+
+  it('does not show name validation error when requestorName prop is provided and field is empty', async () => {
+    render(<AccessRequestForm onLogout={vi.fn()} requestorName="Dana Levi" />);
+    // Don't fill name (it's locked), fill everything else
+    await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), VALID_ID);
+    fireEvent.change(document.querySelector('input[type="date"]'), { target: { value: FUTURE_DATE } });
+    await userEvent.type(screen.getByPlaceholderText('Describe the reason for entry…'), 'Supply run');
+    submitForm();
+    await waitFor(() => expect(screen.queryByText(/Please enter your name/i)).not.toBeInTheDocument());
+  });
+
+  it('retains the locked name after Submit Another', async () => {
+    api.submitAccessRequest.mockResolvedValue({});
+    render(<AccessRequestForm onLogout={vi.fn()} requestorName="Dana Levi" />);
+    await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), VALID_ID);
+    fireEvent.change(document.querySelector('input[type="date"]'), { target: { value: FUTURE_DATE } });
+    await userEvent.type(screen.getByPlaceholderText('Describe the reason for entry…'), 'Supply run');
+    submitForm();
+    await waitFor(() => screen.getByText('Submit Another'));
+    fireEvent.click(screen.getByText('Submit Another'));
+    expect(screen.getByPlaceholderText('Your full name')).toHaveValue('Dana Levi');
+  });
+
   it('disables submit button while loading', async () => {
     api.submitAccessRequest.mockImplementation(() => new Promise(() => {}));
     render(<AccessRequestForm onLogout={vi.fn()} />);

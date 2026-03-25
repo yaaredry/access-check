@@ -84,6 +84,18 @@ describe('PersonTable', () => {
     expect(screen.getByText('Bob Cohen')).toBeInTheDocument();
   });
 
+  it('shows requester email as tooltip on the name when requester_email is present', () => {
+    render(<PersonTable rows={[{ ...BASE, requester_name: 'Bob Cohen', requester_email: 'bob@example.com' }]} onEdit={vi.fn()} onDelete={vi.fn()} onReject={vi.fn()} />);
+    const nameSpan = screen.getByText('Bob Cohen');
+    expect(nameSpan).toHaveAttribute('title', 'bob@example.com');
+  });
+
+  it('shows requester name without a title when no requester_email', () => {
+    render(<PersonTable rows={[{ ...BASE, requester_name: 'Bob Cohen', requester_email: null }]} onEdit={vi.fn()} onDelete={vi.fn()} onReject={vi.fn()} />);
+    const nameSpan = screen.getByText('Bob Cohen');
+    expect(nameSpan).not.toHaveAttribute('title');
+  });
+
   it('shows — for escort columns when not set', () => {
     render(<PersonTable rows={[BASE]} onEdit={vi.fn()} onDelete={vi.fn()} onReject={vi.fn()} />);
     const dashes = screen.getAllByText('—');

@@ -6,6 +6,7 @@ const db = require('../src/config/database');
 const jwt = require('jsonwebtoken');
 
 const requestorToken = jwt.sign({ sub: 99, username: 'requestor', role: 'access_requestor' }, process.env.JWT_SECRET || 'dev-secret');
+const namedRequestorToken = jwt.sign({ sub: 98, username: 'jane@example.com', role: 'access_requestor', name: 'Jane Smith' }, process.env.JWT_SECRET || 'dev-secret');
 const adminToken = jwt.sign({ sub: 1, username: 'admin', role: 'admin' }, process.env.JWT_SECRET || 'dev-secret');
 
 const tomorrow = new Date();
@@ -40,6 +41,7 @@ beforeAll(async () => {
       status VARCHAR(20),
       rejection_reason VARCHAR(500),
       requester_name VARCHAR(150),
+      requester_email VARCHAR(255),
       CONSTRAINT uq_test_ar_identifier UNIQUE (identifier_type, identifier_value)
     )
   `);
@@ -233,6 +235,41 @@ describe('POST /access-requests', () => {
       .send(VALID_PAYLOAD);
 
     expect(res.status).toBe(403);
+  });
+
+  it('named requestor: derives requesterName and requesterEmail from JWT, body field not needed', async () => {
+    const { requesterName: _rn, ...payloadWithoutName } = VALID_PAYLOAD;
+    const res = await request(app)
+      .post('/access-requests')
+      .set('Authorization', `Bearer ${namedRequestorToken}`)
+      .send(payloadWithoutName);
+
+    expect(res.status).toBe(201);
+    const { rows } = await db.query('SELECT * FROM people WHERE identifier_value = $1', ['000000018']);
+    expect(rows[0].requester_name).toBe('Jane Smith');
+    expect(rows[0].requester_email).toBe('jane@example.com');
+  });
+
+  it('named requestor: JWT name takes precedence over any body requesterName', async () => {
+    const res = await request(app)
+      .post('/access-requests')
+      .set('Authorization', `Bearer ${namedRequestorToken}`)
+      .send({ ...VALID_PAYLOAD, requesterName: 'Someone Else' });
+
+    expect(res.status).toBe(201);
+    const { rows } = await db.query('SELECT * FROM people WHERE identifier_value = $1', ['000000018']);
+    expect(rows[0].requester_name).toBe('Jane Smith');
+  });
+
+  it('generic requestor: requesterEmail is null when no name in JWT', async () => {
+    await request(app)
+      .post('/access-requests')
+      .set('Authorization', `Bearer ${requestorToken}`)
+      .send(VALID_PAYLOAD);
+
+    const { rows } = await db.query('SELECT * FROM people WHERE identifier_value = $1', ['000000018']);
+    expect(rows[0].requester_name).toBe('Jane Smith');
+    expect(rows[0].requester_email).toBeNull();
   });
 });
 

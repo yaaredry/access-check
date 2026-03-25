@@ -46,8 +46,8 @@ function friendlyMessage(msg, field) {
   return msg;
 }
 
-export default function AccessRequestForm({ onLogout }) {
-  const [form, setForm] = useState(EMPTY);
+export default function AccessRequestForm({ onLogout, requestorName }) {
+  const [form, setForm] = useState({ ...EMPTY, requesterName: requestorName || '' });
   const [fieldErrors, setFieldErrors] = useState({});
   const [generalError, setGeneralError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -68,7 +68,7 @@ export default function AccessRequestForm({ onLogout }) {
 
   function clientValidate() {
     const errors = {};
-    if (!form.requesterName.trim()) {
+    if (!requestorName && !form.requesterName.trim()) {
       errors.requesterName = 'Please enter your name.';
     }
     if (!validateIlId(form.ilId)) {
@@ -132,7 +132,7 @@ export default function AccessRequestForm({ onLogout }) {
           <p style={{ color: 'var(--text-muted)', marginBottom: 32 }}>
             Your access request has been submitted and is pending review.
           </p>
-          <button className="scan" onClick={() => { setSubmitted(false); setForm(EMPTY); }}>
+          <button className="scan" onClick={() => { setSubmitted(false); setForm({ ...EMPTY, requesterName: requestorName || '' }); }}>
             Submit Another
           </button>
         </div>
@@ -155,8 +155,9 @@ export default function AccessRequestForm({ onLogout }) {
             placeholder="Your full name"
             value={form.requesterName}
             onChange={e => set('requesterName', e.target.value)}
-            required
-            style={{ ...inputStyle, ...(fieldErrors.requesterName ? errorInputStyle : {}) }}
+            required={!requestorName}
+            disabled={!!requestorName}
+            style={{ ...inputStyle, ...(fieldErrors.requesterName ? errorInputStyle : {}), ...(requestorName ? lockedInputStyle : {}) }}
           />
         </Field>
 
@@ -284,4 +285,10 @@ const inputStyle = {
 const errorInputStyle = {
   borderColor: 'var(--not-approved)',
   outline: 'none',
+};
+
+const lockedInputStyle = {
+  background: 'var(--bg-muted, #f3f4f6)',
+  color: 'var(--text-muted)',
+  cursor: 'not-allowed',
 };

@@ -4,7 +4,7 @@ const db = require('../config/database');
 
 async function findByUsername(username) {
   const { rows } = await db.query(
-    'SELECT id, username, password, role FROM users WHERE username = $1',
+    'SELECT id, username, password, role, name FROM users WHERE LOWER(username) = LOWER($1)',
     [username]
   );
   return rows[0] || null;

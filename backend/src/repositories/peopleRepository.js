@@ -7,7 +7,7 @@ async function findAll({ search, limit = 50, offset = 0 }) {
     SELECT id, identifier_type, identifier_value, verdict,
            approval_expiration, created_at, updated_at, last_seen_at,
            population, division, escort_full_name, escort_phone, reason, status,
-           rejection_reason, requester_name
+           rejection_reason, requester_name, requester_email
     FROM people
   `;
   const params = [];
@@ -55,14 +55,14 @@ async function findByIdentifierValue(identifierValue) {
   return rows[0] || null;
 }
 
-async function create({ identifierType, identifierValue, verdict, approvalExpiration, population, division, escortFullName, escortPhone, reason, status, requesterName }) {
+async function create({ identifierType, identifierValue, verdict, approvalExpiration, population, division, escortFullName, escortPhone, reason, status, requesterName, requesterEmail }) {
   const { rows } = await db.query(
     `INSERT INTO people (identifier_type, identifier_value, verdict, approval_expiration,
-                         population, division, escort_full_name, escort_phone, reason, status, requester_name)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                         population, division, escort_full_name, escort_phone, reason, status, requester_name, requester_email)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
      RETURNING *`,
     [identifierType, identifierValue, verdict, approvalExpiration || null,
-     population || null, division || null, escortFullName || null, escortPhone || null, reason || null, status || null, requesterName || null]
+     population || null, division || null, escortFullName || null, escortPhone || null, reason || null, status || null, requesterName || null, requesterEmail || null]
   );
   return rows[0];
 }

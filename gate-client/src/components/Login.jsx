@@ -19,7 +19,8 @@ export default function Login({ onLogin }) {
       }
       localStorage.setItem('gate_token', res.token);
       localStorage.setItem('gate_role', res.role);
-      onLogin(res.role);
+      localStorage.setItem('gate_name', res.name || '');
+      onLogin(res.role, res.name || '');
     } catch (err) {
       setError(err.message || 'Login failed');
     } finally {
