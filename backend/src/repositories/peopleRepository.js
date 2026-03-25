@@ -73,7 +73,7 @@ async function update(id, { identifierType, identifierValue, verdict, approvalEx
      SET identifier_type    = COALESCE($2, identifier_type),
          identifier_value   = COALESCE($3, identifier_value),
          verdict            = COALESCE($4, verdict),
-         approval_expiration = $5,
+         approval_expiration = COALESCE($5, approval_expiration),
          population         = COALESCE($6, population),
          division           = COALESCE($7, division),
          escort_full_name   = COALESCE($8, escort_full_name),

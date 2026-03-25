@@ -311,11 +311,15 @@ export default function People() {
 
 function ApproveModal({ person, onConfirm, onCancel }) {
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   async function approve(verdict) {
     setLoading(true);
+    setError(null);
     try {
       await onConfirm(verdict);
+    } catch (err) {
+      setError(err.message || 'Failed to approve. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -357,6 +361,9 @@ function ApproveModal({ person, onConfirm, onCancel }) {
             <div style={{ fontSize: 12, opacity: 0.8, marginTop: 2 }}>The person must be accompanied by their registered escort at all times</div>
           </button>
         </div>
+        {error && (
+          <div style={{ color: 'var(--not-approved)', fontWeight: 600, marginBottom: 16 }}>{error}</div>
+        )}
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
           <button className="secondary" onClick={onCancel} disabled={loading}>Cancel</button>
         </div>

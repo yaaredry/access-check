@@ -51,8 +51,8 @@ async function verifyById(identifierType, identifierValue) {
 
   return {
     verdict,
-    escortFullName: person.escort_full_name || null,
-    escortPhone: person.escort_phone || null,
+    escortFullName: person?.escort_full_name || null,
+    escortPhone: person?.escort_phone || null,
     person: person ? { id: person.id, identifierType: person.identifier_type, identifierValue: person.identifier_value } : null,
   };
 }
