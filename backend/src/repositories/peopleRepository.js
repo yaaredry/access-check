@@ -4,27 +4,29 @@ const db = require('../config/database');
 
 async function findAll({ search, limit = 50, offset = 0 }) {
   let query = `
-    SELECT id, identifier_type, identifier_value, verdict,
-           approval_expiration, created_at, updated_at, last_seen_at,
-           population, division, escort_full_name, escort_phone, reason, status,
-           rejection_reason, requester_name, requester_email
-    FROM people
+    SELECT p.id, p.identifier_type, p.identifier_value, p.verdict,
+           p.approval_expiration, p.created_at, p.updated_at, p.last_seen_at,
+           p.population, p.division, p.escort_full_name, p.escort_phone, p.reason, p.status,
+           p.rejection_reason, p.requester_name, p.requester_email,
+           u.name AS requestor_user_name
+    FROM people p
+    LEFT JOIN users u ON u.username = p.requester_email
   `;
   const params = [];
 
   if (search) {
     params.push(`%${search}%`);
-    query += ` WHERE identifier_value ILIKE $${params.length}`;
+    query += ` WHERE p.identifier_value ILIKE $${params.length}`;
   }
 
-  query += ` ORDER BY (status = 'PENDING') DESC NULLS LAST, created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+  query += ` ORDER BY (p.status = 'PENDING') DESC NULLS LAST, p.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
   params.push(limit, offset);
 
   const { rows } = await db.query(query, params);
 
   const countQuery = search
-    ? 'SELECT COUNT(*) FROM people WHERE identifier_value ILIKE $1'
-    : 'SELECT COUNT(*) FROM people';
+    ? 'SELECT COUNT(*) FROM people p WHERE p.identifier_value ILIKE $1'
+    : 'SELECT COUNT(*) FROM people p';
   const countParams = search ? [`%${search}%`] : [];
   const { rows: countRows } = await db.query(countQuery, countParams);
 
