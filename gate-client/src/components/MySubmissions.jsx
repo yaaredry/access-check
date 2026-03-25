@@ -5,13 +5,18 @@ function statusConfig(row) {
   if (row.status === 'PENDING') {
     return { label: 'Pending Review', color: '#d97706', bg: 'rgba(245,158,11,.12)' };
   }
-  if (row.status === 'NOT_APPROVED') {
+  if (row.status === 'NOT_APPROVED' || row.verdict === 'NOT_APPROVED') {
     return { label: 'Rejected', color: 'var(--not-approved)', bg: 'rgba(239,68,68,.1)' };
   }
-  if (['APPROVED', 'ADMIN_APPROVED', 'APPROVED_WITH_ESCORT'].includes(row.verdict) ||
-      row.status === 'APPROVED') {
+  if (row.status === 'APPROVED' || ['APPROVED', 'ADMIN_APPROVED', 'APPROVED_WITH_ESCORT'].includes(row.verdict)) {
     if (row.approval_expiration && new Date(row.approval_expiration) < new Date()) {
       return { label: 'Expired', color: 'var(--text-muted)', bg: 'rgba(100,116,139,.1)' };
+    }
+    if (row.verdict === 'APPROVED_WITH_ESCORT') {
+      return { label: 'Approved with Escort', color: 'var(--approved)', bg: 'rgba(34,197,94,.1)' };
+    }
+    if (row.verdict === 'ADMIN_APPROVED') {
+      return { label: 'Admin Approved', color: 'var(--approved)', bg: 'rgba(34,197,94,.1)' };
     }
     return { label: 'Approved', color: 'var(--approved)', bg: 'rgba(34,197,94,.1)' };
   }
