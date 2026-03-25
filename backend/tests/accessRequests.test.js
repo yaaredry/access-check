@@ -238,7 +238,7 @@ describe('POST /access-requests', () => {
   });
 
   it('named requestor: derives requesterName and requesterEmail from JWT, body field not needed', async () => {
-    const { requesterName: _rn, ...payloadWithoutName } = VALID_PAYLOAD;
+    const { requesterName: _, ...payloadWithoutName } = VALID_PAYLOAD; // eslint-disable-line no-unused-vars
     const res = await request(app)
       .post('/access-requests')
       .set('Authorization', `Bearer ${namedRequestorToken}`)
