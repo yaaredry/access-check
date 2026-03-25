@@ -6,6 +6,7 @@ const db = require('../src/config/database');
 const jwt = require('jsonwebtoken');
 const gsheetService = require('../src/services/gsheetService');
 const auditRepo = require('../src/repositories/auditRepository');
+const peopleRepo = require('../src/repositories/peopleRepository');
 
 const authToken = jwt.sign({ sub: 1, username: 'admin', role: 'admin' }, process.env.JWT_SECRET || 'dev-secret');
 
@@ -504,6 +505,40 @@ describe('PATCH /people/:id/status', () => {
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('APPROVED');
     expect(res.body.rejection_reason).toBeNull();
+  });
+});
+
+describe('peopleRepository direct', () => {
+  it('updateStatus updates only the status field', async () => {
+    const { rows: [person] } = await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict, status) VALUES ('IL_ID', '000000018', 'NOT_APPROVED', 'PENDING') RETURNING id"
+    );
+    const updated = await peopleRepo.updateStatus(person.id, 'APPROVED');
+    expect(updated.id).toBe(person.id);
+    expect(updated.status).toBe('APPROVED');
+  });
+
+  it('upsertMany returns updated count when record already exists', async () => {
+    const record = { identifierType: 'IL_ID', identifierValue: '000000018', verdict: 'APPROVED', approvalExpiration: null };
+    const first = await peopleRepo.upsertMany([record]);
+    expect(first.inserted).toBe(1);
+    expect(first.updated).toBe(0);
+
+    const second = await peopleRepo.upsertMany([{ ...record, verdict: 'NOT_APPROVED' }]);
+    expect(second.inserted).toBe(0);
+    expect(second.updated).toBe(1);
+  });
+
+  it('upsertMany rolls back the entire batch and throws on DB error', async () => {
+    const valid = { identifierType: 'IL_ID', identifierValue: '000000018', verdict: 'APPROVED', approvalExpiration: null };
+    // identifier_value is VARCHAR(50) — 51 chars triggers a DB error mid-transaction
+    const bad = { identifierType: 'IL_ID', identifierValue: 'x'.repeat(51), verdict: 'APPROVED', approvalExpiration: null };
+
+    await expect(peopleRepo.upsertMany([valid, bad])).rejects.toThrow();
+
+    // Rollback should have undone the valid insert too
+    const { rows } = await db.query("SELECT * FROM people WHERE identifier_value = '000000018'");
+    expect(rows).toHaveLength(0);
   });
 });
 

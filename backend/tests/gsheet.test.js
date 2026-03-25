@@ -1,6 +1,10 @@
 'use strict';
 
-const { extractSheetInfo, mapStatus, mapRecords } = require('../src/services/gsheetService');
+const { EventEmitter } = require('events');
+const https = require('https');
+const { extractSheetInfo, mapStatus, mapRecords, fetchAndParse } = require('../src/services/gsheetService');
+
+const VALID_URL = 'https://docs.google.com/spreadsheets/d/abc123/edit';
 
 describe('extractSheetInfo', () => {
   it('extracts sheet ID and gid from a full Google Sheets URL', () => {
@@ -85,5 +89,88 @@ describe('mapRecords', () => {
 
   it('throws when required columns are missing', () => {
     expect(() => mapRecords([{ 'עמודה אחרת': 'x' }])).toThrow('Sheet is missing required columns');
+  });
+});
+
+describe('fetchAndParse HTTP layer', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  function mockGet(handler) {
+    jest.spyOn(https, 'get').mockImplementation((url, cb) => {
+      const req = new EventEmitter();
+      handler(url, cb, req);
+      return req;
+    });
+  }
+
+  function makeRes(statusCode, headers = {}) {
+    const res = new EventEmitter();
+    res.statusCode = statusCode;
+    res.headers = headers;
+    return res;
+  }
+
+  it('fetches, parses and returns records from a successful response', async () => {
+    const csv = 'תעודת זהות,סטטוס\n000000018,מאושר\n';
+    mockGet((url, cb) => {
+      const res = makeRes(200);
+      process.nextTick(() => { cb(res); res.emit('data', Buffer.from(csv)); res.emit('end'); });
+    });
+    const result = await fetchAndParse(VALID_URL);
+    expect(result).toHaveLength(1);
+    expect(result[0].verdict).toBe('APPROVED');
+  });
+
+  it('returns empty array when CSV has no data rows', async () => {
+    mockGet((url, cb) => {
+      const res = makeRes(200);
+      process.nextTick(() => { cb(res); res.emit('data', Buffer.from('col1,col2\n')); res.emit('end'); });
+    });
+    await expect(fetchAndParse(VALID_URL)).resolves.toEqual([]);
+  });
+
+  it('rejects with HTTP status message on non-200 response', async () => {
+    mockGet((url, cb) => {
+      process.nextTick(() => cb(makeRes(403)));
+    });
+    await expect(fetchAndParse(VALID_URL)).rejects.toThrow('HTTP 403');
+  });
+
+  it('follows a redirect and returns the final response data', async () => {
+    let call = 0;
+    const csv = 'תעודת זהות,סטטוס\n301802500,מאושר מנהלתי\n';
+    mockGet((url, cb) => {
+      if (call++ === 0) {
+        process.nextTick(() => cb(makeRes(302, { location: 'https://docs.google.com/redirected' })));
+      } else {
+        const res = makeRes(200);
+        process.nextTick(() => { cb(res); res.emit('data', Buffer.from(csv)); res.emit('end'); });
+      }
+    });
+    const result = await fetchAndParse(VALID_URL);
+    expect(result).toHaveLength(1);
+    expect(result[0].verdict).toBe('ADMIN_APPROVED');
+  });
+
+  it('rejects after too many redirects', async () => {
+    mockGet((url, cb) => {
+      process.nextTick(() => cb(makeRes(302, { location: url })));
+    });
+    await expect(fetchAndParse(VALID_URL)).rejects.toThrow('Too many redirects');
+  });
+
+  it('rejects on request-level network error', async () => {
+    mockGet((url, cb, req) => {
+      process.nextTick(() => req.emit('error', new Error('ECONNREFUSED')));
+    });
+    await expect(fetchAndParse(VALID_URL)).rejects.toThrow('ECONNREFUSED');
+  });
+
+  it('rejects on response-level stream error', async () => {
+    mockGet((url, cb) => {
+      const res = makeRes(200);
+      process.nextTick(() => { cb(res); res.emit('error', new Error('socket hang up')); });
+    });
+    await expect(fetchAndParse(VALID_URL)).rejects.toThrow('socket hang up');
   });
 });
