@@ -94,4 +94,13 @@ async function create(req, res, next) {
   }
 }
 
-module.exports = { create, requestBodyValidation };
+async function mine(req, res, next) {
+  try {
+    const rows = await peopleRepo.findByRequesterEmail(req.user.username);
+    return res.json({ rows });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+module.exports = { create, mine, requestBodyValidation };

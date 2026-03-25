@@ -46,7 +46,7 @@ function friendlyMessage(msg, field) {
   return msg;
 }
 
-export default function AccessRequestForm({ onLogout, requestorName }) {
+export default function AccessRequestForm({ onLogout, requestorName, hideLogout }) {
   const [form, setForm] = useState({ ...EMPTY, requesterName: requestorName || '' });
   const [fieldErrors, setFieldErrors] = useState({});
   const [generalError, setGeneralError] = useState('');
@@ -245,9 +245,11 @@ export default function AccessRequestForm({ onLogout, requestorName }) {
           {loading ? 'Submitting…' : 'Submit Request'}
         </button>
 
-        <button type="button" className="secondary" onClick={onLogout}>
-          Logout
-        </button>
+        {!hideLogout && (
+          <button type="button" className="secondary" onClick={onLogout}>
+            Logout
+          </button>
+        )}
       </form>
     </div>
   );

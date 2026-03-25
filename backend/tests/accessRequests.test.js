@@ -327,3 +327,60 @@ describe('PATCH /people/:id/status (admin approve/reject)', () => {
     expect(res.status).toBe(403);
   });
 });
+
+describe('GET /access-requests/mine', () => {
+  it('returns only records submitted by the calling named requestor', async () => {
+    await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict, status, requester_email) VALUES ('IL_ID', '000000018', 'NOT_APPROVED', 'PENDING', 'jane@example.com')"
+    );
+    await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict, status, requester_email) VALUES ('IL_ID', '000000026', 'NOT_APPROVED', 'PENDING', 'other@example.com')"
+    );
+
+    const res = await request(app)
+      .get('/access-requests/mine')
+      .set('Authorization', `Bearer ${namedRequestorToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.rows).toHaveLength(1);
+    expect(res.body.rows[0].identifier_value).toBe('000000018');
+  });
+
+  it('returns an empty array when the requestor has no submissions', async () => {
+    const res = await request(app)
+      .get('/access-requests/mine')
+      .set('Authorization', `Bearer ${namedRequestorToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.rows).toHaveLength(0);
+  });
+
+  it('returns records ordered newest first', async () => {
+    await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict, status, requester_email, created_at) VALUES ('IL_ID', '000000018', 'NOT_APPROVED', 'PENDING', 'jane@example.com', NOW() - INTERVAL '1 day')"
+    );
+    await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict, status, requester_email, created_at) VALUES ('IL_ID', '000000026', 'NOT_APPROVED', 'PENDING', 'jane@example.com', NOW())"
+    );
+
+    const res = await request(app)
+      .get('/access-requests/mine')
+      .set('Authorization', `Bearer ${namedRequestorToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.rows[0].identifier_value).toBe('000000026');
+    expect(res.body.rows[1].identifier_value).toBe('000000018');
+  });
+
+  it('returns 401 without a token', async () => {
+    const res = await request(app).get('/access-requests/mine');
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 403 for admin role', async () => {
+    const res = await request(app)
+      .get('/access-requests/mine')
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(res.status).toBe(403);
+  });
+});

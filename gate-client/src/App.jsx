@@ -3,6 +3,7 @@ import Login from './components/Login';
 import ManualCheck from './components/ManualCheck';
 import CameraCheck from './components/CameraCheck';
 import AccessRequestForm from './components/AccessRequestForm';
+import MySubmissions from './components/MySubmissions';
 
 const VIEW_HOME = 'home';
 const VIEW_MANUAL = 'manual';
@@ -34,7 +35,7 @@ export default function App() {
   }
 
   if (role === 'access_requestor') {
-    return <AccessRequestForm onLogout={handleLogout} requestorName={requestorName} />;
+    return <RequestorView onLogout={handleLogout} requestorName={requestorName} />;
   }
 
   return (
@@ -50,6 +51,76 @@ export default function App() {
       {view === VIEW_CAMERA && <CameraCheck onBack={() => setView(VIEW_HOME)} onSwitch={() => setView(VIEW_MANUAL)} />}
     </div>
   );
+}
+
+function RequestorView({ onLogout, requestorName }) {
+  const [tab, setTab] = useState('form');
+
+  return (
+    <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', maxWidth: 480, margin: '0 auto' }}>
+      {/* Header */}
+      <div style={{
+        padding: '16px 20px 14px',
+        background: 'var(--surface)',
+        borderBottom: '1px solid var(--border)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexShrink: 0,
+      }}>
+        <div>
+          <div style={{ fontSize: 18, fontWeight: 900, letterSpacing: 0.5 }}>🛡️ Access Check</div>
+          {requestorName && (
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 3 }}>{requestorName}</div>
+          )}
+        </div>
+        <button onClick={onLogout} style={{
+          width: 'auto', padding: '8px 16px', fontSize: 13, fontWeight: 600,
+          background: 'transparent', border: '1px solid var(--border)',
+          color: 'var(--text-muted)', borderRadius: 10, letterSpacing: 0,
+        }}>
+          Logout
+        </button>
+      </div>
+
+      {/* Segmented control */}
+      <div style={{ padding: '12px 16px', background: 'var(--surface)', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+        <div style={{ display: 'flex', background: 'var(--bg)', borderRadius: 12, padding: 4, gap: 4 }}>
+          <button onClick={() => setTab('form')} style={segmentStyle(tab === 'form')}>
+            📋 New Request
+          </button>
+          <button onClick={() => setTab('submissions')} style={segmentStyle(tab === 'submissions')}>
+            📄 My Submissions
+          </button>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div style={{ flex: 1, overflowY: 'auto' }}>
+        {tab === 'form'
+          ? <AccessRequestForm onLogout={onLogout} requestorName={requestorName} hideLogout />
+          : <MySubmissions requestorName={requestorName} />
+        }
+      </div>
+    </div>
+  );
+}
+
+function segmentStyle(active) {
+  return {
+    flex: 1,
+    padding: '10px 8px',
+    fontSize: 14,
+    fontWeight: active ? 700 : 500,
+    color: active ? '#fff' : 'var(--text-muted)',
+    background: active ? 'var(--primary)' : 'transparent',
+    border: 'none',
+    borderRadius: 9,
+    cursor: 'pointer',
+    width: 'auto',
+    letterSpacing: 0,
+    transition: 'background .15s, color .15s',
+  };
 }
 
 function Home({ onManual, onCamera, onLogout }) {
