@@ -9,21 +9,6 @@ const ocrService = require('../src/services/ocrService');
 const gateToken = jwt.sign({ sub: 2, username: 'megido', role: 'gate' }, process.env.JWT_SECRET || 'dev-secret');
 
 beforeAll(async () => {
-  await db.query('DROP TABLE IF EXISTS people CASCADE');
-  await db.query(`
-    CREATE TABLE people (
-      id SERIAL PRIMARY KEY,
-      identifier_type VARCHAR(20) NOT NULL,
-      identifier_value VARCHAR(50) NOT NULL,
-      verdict VARCHAR(20) NOT NULL DEFAULT 'NOT_APPROVED',
-      approval_expiration DATE,
-      last_seen_at TIMESTAMPTZ DEFAULT NULL,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      status VARCHAR(20),
-      CONSTRAINT uq_verify_identifier UNIQUE (identifier_type, identifier_value)
-    )
-  `);
   await db.query(`
     CREATE TABLE IF NOT EXISTS audit_logs (
       id SERIAL PRIMARY KEY,

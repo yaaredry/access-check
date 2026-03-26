@@ -30,6 +30,9 @@ export default function Layout() {
           <NavLink to="/people" style={({ isActive }) => ({ color: isActive ? '#60a5fa' : '#cbd5e1', fontSize: 14 })}>
             People
           </NavLink>
+          <NavLink to="/users" style={({ isActive }) => ({ color: isActive ? '#60a5fa' : '#cbd5e1', fontSize: 14 })}>
+            Users
+          </NavLink>
           <span style={styles.user}>{username}</span>
           <button className="secondary" onClick={signOut} style={{ padding: '4px 12px', fontSize: 13 }}>
             Logout
