@@ -10,7 +10,7 @@ export default function UserTable({ users, onEdit, onDelete, onRegenerate }) {
           <tr>
             <th>Name</th>
             <th>Email</th>
-            <th>Requests</th>
+            <th># Submissions</th>
             <th>Created</th>
             <th>Updated</th>
             <th>Actions</th>
