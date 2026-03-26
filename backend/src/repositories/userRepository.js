@@ -20,7 +20,7 @@ async function findById(id) {
 
 async function listRequestors() {
   const { rows } = await db.query(
-    "SELECT id, username, name, role, created_at FROM users WHERE role = 'access_requestor' ORDER BY created_at DESC"
+    "SELECT id, username, name, role, created_at, updated_at FROM users WHERE role = 'access_requestor' ORDER BY created_at DESC"
   );
   return rows;
 }
