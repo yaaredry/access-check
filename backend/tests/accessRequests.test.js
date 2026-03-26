@@ -22,29 +22,6 @@ const VALID_PAYLOAD = {
 };
 
 beforeAll(async () => {
-  await db.query('DROP TABLE IF EXISTS people CASCADE');
-  await db.query(`
-    CREATE TABLE people (
-      id SERIAL PRIMARY KEY,
-      identifier_type VARCHAR(20) NOT NULL,
-      identifier_value VARCHAR(50) NOT NULL,
-      verdict VARCHAR(20) NOT NULL DEFAULT 'NOT_APPROVED',
-      approval_expiration DATE,
-      last_seen_at TIMESTAMPTZ DEFAULT NULL,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      population VARCHAR(20),
-      division VARCHAR(100),
-      escort_full_name VARCHAR(150),
-      escort_phone VARCHAR(30),
-      reason VARCHAR(500),
-      status VARCHAR(20),
-      rejection_reason VARCHAR(500),
-      requester_name VARCHAR(150),
-      requester_email VARCHAR(255),
-      CONSTRAINT uq_test_ar_identifier UNIQUE (identifier_type, identifier_value)
-    )
-  `);
   await db.query(`
     CREATE TABLE IF NOT EXISTS audit_logs (
       id SERIAL PRIMARY KEY,

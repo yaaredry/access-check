@@ -54,4 +54,10 @@ export const api = {
 
   importGSheet: (url) => request('POST', '/people/import-gsheet', { url }),
   updatePersonStatus: (id, status, rejectionReason, verdict) => request('PATCH', `/people/${id}/status`, { status, rejectionReason, verdict }),
+
+  listUsers: () => request('GET', '/users'),
+  createUser: (data) => request('POST', '/users', data),
+  updateUser: (id, data) => request('PUT', `/users/${id}`, data),
+  deleteUser: (id) => request('DELETE', `/users/${id}`),
+  regeneratePassword: (id) => request('POST', `/users/${id}/regenerate-password`),
 };
