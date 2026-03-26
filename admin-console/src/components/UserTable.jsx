@@ -10,6 +10,7 @@ export default function UserTable({ users, onEdit, onDelete, onRegenerate }) {
           <tr>
             <th>Name</th>
             <th>Email</th>
+            <th>Requests</th>
             <th>Created</th>
             <th>Updated</th>
             <th>Actions</th>
@@ -20,6 +21,9 @@ export default function UserTable({ users, onEdit, onDelete, onRegenerate }) {
             <tr key={u.id}>
               <td style={{ fontWeight: 600 }}>{u.name || '—'}</td>
               <td style={{ color: 'var(--text-muted)', fontSize: 13 }}>{u.username}</td>
+              <td style={{ fontSize: 13, fontWeight: u.request_count > 0 ? 600 : 400, color: u.request_count > 0 ? 'var(--text)' : 'var(--text-muted)' }}>
+                {u.request_count}
+              </td>
               <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>
                 {new Date(u.created_at).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })}
               </td>

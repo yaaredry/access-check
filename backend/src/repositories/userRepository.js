@@ -20,7 +20,13 @@ async function findById(id) {
 
 async function listRequestors() {
   const { rows } = await db.query(
-    "SELECT id, username, name, role, created_at, updated_at FROM users WHERE role = 'access_requestor' ORDER BY created_at DESC"
+    `SELECT u.id, u.username, u.name, u.role, u.created_at, u.updated_at,
+            COUNT(p.id)::int AS request_count
+     FROM users u
+     LEFT JOIN people p ON LOWER(p.requester_email) = LOWER(u.username)
+     WHERE u.role = 'access_requestor'
+     GROUP BY u.id
+     ORDER BY u.created_at DESC`
   );
   return rows;
 }
