@@ -4,27 +4,29 @@ const db = require('../config/database');
 
 async function findAll({ search, limit = 50, offset = 0 }) {
   let query = `
-    SELECT id, identifier_type, identifier_value, verdict,
-           approval_expiration, created_at, updated_at, last_seen_at,
-           population, division, escort_full_name, escort_phone, reason, status,
-           rejection_reason, requester_name, requester_email
-    FROM people
+    SELECT p.id, p.identifier_type, p.identifier_value, p.verdict,
+           p.approval_expiration, p.created_at, p.updated_at, p.last_seen_at,
+           p.population, p.division, p.escort_full_name, p.escort_phone, p.reason, p.status,
+           p.rejection_reason, p.requester_name, p.requester_email,
+           u.name AS requestor_user_name
+    FROM people p
+    LEFT JOIN users u ON u.username = p.requester_email
   `;
   const params = [];
 
   if (search) {
     params.push(`%${search}%`);
-    query += ` WHERE identifier_value ILIKE $${params.length}`;
+    query += ` WHERE p.identifier_value ILIKE $${params.length}`;
   }
 
-  query += ` ORDER BY (status = 'PENDING') DESC NULLS LAST, created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+  query += ` ORDER BY (p.status = 'PENDING') DESC NULLS LAST, p.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
   params.push(limit, offset);
 
   const { rows } = await db.query(query, params);
 
   const countQuery = search
-    ? 'SELECT COUNT(*) FROM people WHERE identifier_value ILIKE $1'
-    : 'SELECT COUNT(*) FROM people';
+    ? 'SELECT COUNT(*) FROM people p WHERE p.identifier_value ILIKE $1'
+    : 'SELECT COUNT(*) FROM people p';
   const countParams = search ? [`%${search}%`] : [];
   const { rows: countRows } = await db.query(countQuery, countParams);
 
@@ -127,17 +129,18 @@ async function upsertMany(records) {
     await client.query('BEGIN');
     for (const r of records) {
       const { rows } = await client.query(
-        `INSERT INTO people (identifier_type, identifier_value, verdict, approval_expiration, population, reason, escort_full_name)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `INSERT INTO people (identifier_type, identifier_value, verdict, approval_expiration, population, reason, escort_full_name, requester_email)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          ON CONFLICT (identifier_type, identifier_value)
          DO UPDATE SET verdict = EXCLUDED.verdict,
                        approval_expiration = EXCLUDED.approval_expiration,
                        population = COALESCE(EXCLUDED.population, people.population),
                        reason = COALESCE(EXCLUDED.reason, people.reason),
                        escort_full_name = COALESCE(EXCLUDED.escort_full_name, people.escort_full_name),
+                       requester_email = COALESCE(EXCLUDED.requester_email, people.requester_email),
                        updated_at = NOW()
          RETURNING (xmax = 0) AS inserted`,
-        [r.identifierType, r.identifierValue, r.verdict, r.approvalExpiration || null, r.population || null, r.reason || null, r.escortName || null]
+        [r.identifierType, r.identifierValue, r.verdict, r.approvalExpiration || null, r.population || null, r.reason || null, r.escortName || null, r.requesterEmail || null]
       );
       if (rows[0].inserted) inserted++;
       else updated++;

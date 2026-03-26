@@ -103,8 +103,8 @@ export default function PersonTable({ rows, onEdit, onDelete, onApprove, onRejec
               <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{p.escort_phone || '—'}</td>
               <td style={{ color: 'var(--text-muted)', fontSize: 12, maxWidth: 200 }}>{p.reason || '—'}</td>
               <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>
-                {p.requester_name
-                  ? <span title={p.requester_email || undefined}>{p.requester_name}</span>
+                {(p.requestor_user_name || p.requester_name)
+                  ? <span title={p.requester_email || undefined}>{p.requestor_user_name || p.requester_name}</span>
                   : '—'}
               </td>
               <td>

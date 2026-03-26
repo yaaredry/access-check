@@ -87,6 +87,29 @@ describe('mapRecords', () => {
     expect(row.escortName).toBe('שם המלווה');
   });
 
+  it('maps email column to requesterEmail', () => {
+    const records = [{ ...BASE_ROW, 'כתובת אימייל': 'user@example.com' }];
+    const [row] = mapRecords(records);
+    expect(row.requesterEmail).toBe('user@example.com');
+  });
+
+  it('sets requesterEmail to null when email column is absent', () => {
+    const [row] = mapRecords([{ ...BASE_ROW }]);
+    expect(row.requesterEmail).toBeNull();
+  });
+
+  it('sets requesterEmail to null when email cell is empty', () => {
+    const records = [{ ...BASE_ROW, 'כתובת אימייל': '' }];
+    const [row] = mapRecords(records);
+    expect(row.requesterEmail).toBeNull();
+  });
+
+  it('trims whitespace from email value', () => {
+    const records = [{ ...BASE_ROW, 'כתובת אימייל': '  user@example.com  ' }];
+    const [row] = mapRecords(records);
+    expect(row.requesterEmail).toBe('user@example.com');
+  });
+
   it('throws when required columns are missing', () => {
     expect(() => mapRecords([{ 'עמודה אחרת': 'x' }])).toThrow('Sheet is missing required columns');
   });
