@@ -21,10 +21,10 @@ export default function UserTable({ users, onEdit, onDelete, onRegenerate }) {
               <td style={{ fontWeight: 600 }}>{u.name || '—'}</td>
               <td style={{ color: 'var(--text-muted)', fontSize: 13 }}>{u.username}</td>
               <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>
-                {new Date(u.created_at).toLocaleDateString()}
+                {new Date(u.created_at).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })}
               </td>
               <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>
-                {new Date(u.updated_at).toLocaleDateString()}
+                {new Date(u.updated_at).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })}
               </td>
               <td>
                 <div style={{ display: 'flex', gap: 6 }}>
