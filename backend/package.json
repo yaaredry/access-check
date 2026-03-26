@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node scripts/migrate.js && nodemon src/server.js",
+    "pretest": "node scripts/migrate.js",
     "test": "jest --forceExit --runInBand",
     "lint": "eslint src tests --ext .js",
     "lint:fix": "eslint src tests --ext .js --fix",
