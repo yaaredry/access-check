@@ -59,10 +59,15 @@ async function create(req, res, next) {
 
     const existing = await peopleRepo.findByIdentifierValue(ilId);
     if (existing) {
-      const msg = existing.status === 'PENDING'
-        ? 'A request for this ID is already pending review.'
-        : 'A record for this ID already exists. Please contact the administrator.';
-      return res.status(409).json({ error: msg });
+      return res.status(409).json({
+        error: 'A record for this ID already exists.',
+        existing: {
+          status: existing.status,
+          verdict: existing.verdict,
+          rejection_reason: existing.rejection_reason || null,
+          approval_expiration: existing.approval_expiration || null,
+        },
+      });
     }
 
     const person = await peopleRepo.create({

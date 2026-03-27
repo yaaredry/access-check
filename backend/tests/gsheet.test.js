@@ -113,6 +113,35 @@ describe('mapRecords', () => {
   it('throws when required columns are missing', () => {
     expect(() => mapRecords([{ 'עמודה אחרת': 'x' }])).toThrow('Sheet is missing required columns');
   });
+
+  it('maps ליווי=TRUE to APPROVED_WITH_ESCORT verdict', () => {
+    const records = [{ ...BASE_ROW, 'ליווי': 'TRUE' }];
+    const [row] = mapRecords(records);
+    expect(row.verdict).toBe('APPROVED_WITH_ESCORT');
+  });
+
+  it('maps ליווי=true (lowercase) to APPROVED_WITH_ESCORT', () => {
+    const records = [{ ...BASE_ROW, 'ליווי': 'true' }];
+    const [row] = mapRecords(records);
+    expect(row.verdict).toBe('APPROVED_WITH_ESCORT');
+  });
+
+  it('does not override verdict when ליווי=FALSE', () => {
+    const records = [{ ...BASE_ROW, 'ליווי': 'FALSE' }];
+    const [row] = mapRecords(records);
+    expect(row.verdict).toBe('APPROVED');
+  });
+
+  it('does not override verdict when ליווי column is empty', () => {
+    const records = [{ ...BASE_ROW, 'ליווי': '' }];
+    const [row] = mapRecords(records);
+    expect(row.verdict).toBe('APPROVED');
+  });
+
+  it('does not override verdict when ליווי column is absent', () => {
+    const [row] = mapRecords([{ ...BASE_ROW }]);
+    expect(row.verdict).toBe('APPROVED');
+  });
 });
 
 describe('fetchAndParse HTTP layer', () => {
