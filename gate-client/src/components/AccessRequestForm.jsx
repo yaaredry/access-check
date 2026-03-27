@@ -50,6 +50,7 @@ export default function AccessRequestForm({ onLogout, requestorName, hideLogout 
   const [form, setForm] = useState({ ...EMPTY, requesterName: requestorName || '' });
   const [fieldErrors, setFieldErrors] = useState({});
   const [generalError, setGeneralError] = useState('');
+  const [existingRecord, setExistingRecord] = useState(null);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -95,6 +96,7 @@ export default function AccessRequestForm({ onLogout, requestorName, hideLogout 
   async function handleSubmit(e) {
     e.preventDefault();
     setGeneralError('');
+    setExistingRecord(null);
 
     const clientErrors = clientValidate();
     if (Object.keys(clientErrors).length > 0) {
@@ -115,6 +117,8 @@ export default function AccessRequestForm({ onLogout, requestorName, hideLogout 
           parsed[path] = friendlyMessage(msg, path);
         });
         setFieldErrors(parsed);
+      } else if (err.status === 409 && err.data?.existing) {
+        setExistingRecord(err.data.existing);
       } else {
         setGeneralError(err.message || 'Something went wrong. Please try again.');
       }
@@ -235,6 +239,8 @@ export default function AccessRequestForm({ onLogout, requestorName, hideLogout 
           />
         </Field>
 
+        {existingRecord && <ExistingRecordCard record={existingRecord} />}
+
         {generalError && (
           <p style={{ color: 'var(--not-approved)', fontSize: 14, margin: 0, textAlign: 'center', fontWeight: 500 }}>
             {generalError}
@@ -251,6 +257,55 @@ export default function AccessRequestForm({ onLogout, requestorName, hideLogout 
           </button>
         )}
       </form>
+    </div>
+  );
+}
+
+function existingStatusConfig(record) {
+  if (record.status === 'PENDING') {
+    return { label: 'Pending Review', color: '#d97706', bg: 'rgba(245,158,11,.12)', icon: '🟡' };
+  }
+  if (record.status === 'NOT_APPROVED' || record.verdict === 'NOT_APPROVED') {
+    return { label: 'Rejected', color: 'var(--not-approved)', bg: 'rgba(239,68,68,.1)', icon: '🔴' };
+  }
+  if (['APPROVED', 'ADMIN_APPROVED', 'APPROVED_WITH_ESCORT'].includes(record.verdict)) {
+    if (record.approval_expiration && new Date(record.approval_expiration) < new Date()) {
+      return { label: 'Expired', color: 'var(--text-muted)', bg: 'rgba(100,116,139,.1)', icon: '⚫' };
+    }
+    if (record.verdict === 'APPROVED_WITH_ESCORT') return { label: 'Approved with Escort', color: 'var(--approved)', bg: 'rgba(34,197,94,.1)', icon: '🟢' };
+    if (record.verdict === 'ADMIN_APPROVED') return { label: 'Admin Approved', color: 'var(--approved)', bg: 'rgba(34,197,94,.1)', icon: '🟢' };
+    return { label: 'Approved', color: 'var(--approved)', bg: 'rgba(34,197,94,.1)', icon: '🟢' };
+  }
+  return { label: 'Unknown', color: 'var(--text-muted)', bg: 'rgba(100,116,139,.1)', icon: '⚪' };
+}
+
+function ExistingRecordCard({ record }) {
+  const cfg = existingStatusConfig(record);
+  return (
+    <div style={{
+      borderRadius: 12, border: `1px solid ${cfg.color}`,
+      background: cfg.bg, padding: '16px 18px',
+    }}>
+      <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>
+        A record for this ID already exists
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: record.rejection_reason || record.approval_expiration ? 10 : 0 }}>
+        <span style={{ fontSize: 18 }}>{cfg.icon}</span>
+        <span style={{ fontWeight: 700, color: cfg.color, fontSize: 15 }}>{cfg.label}</span>
+      </div>
+      {record.rejection_reason && (
+        <div style={{ fontSize: 13, color: 'var(--not-approved)', fontStyle: 'italic', marginBottom: 6 }}>
+          {record.rejection_reason}
+        </div>
+      )}
+      {record.approval_expiration && (
+        <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+          Expires {new Date(record.approval_expiration).toLocaleDateString()}
+        </div>
+      )}
+      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 10 }}>
+        Please contact the administrator for further assistance.
+      </div>
     </div>
   );
 }
