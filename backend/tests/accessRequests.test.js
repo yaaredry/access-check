@@ -135,7 +135,8 @@ describe('POST /access-requests', () => {
       .send(VALID_PAYLOAD);
 
     expect(res.status).toBe(409);
-    expect(res.body.error).toMatch(/already pending/i);
+    expect(res.body.error).toMatch(/already exists/i);
+    expect(res.body.existing).toMatchObject({ status: 'PENDING' });
   });
 
   it('returns 409 when a non-pending record already exists for the same ID', async () => {
@@ -150,6 +151,7 @@ describe('POST /access-requests', () => {
 
     expect(res.status).toBe(409);
     expect(res.body.error).toMatch(/already exists/i);
+    expect(res.body.existing).toMatchObject({ verdict: 'APPROVED' });
   });
 
   it('returns 400 for invalid phone (letters)', async () => {
