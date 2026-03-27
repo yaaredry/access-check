@@ -113,6 +113,29 @@ describe('mapRecords', () => {
   it('throws when required columns are missing', () => {
     expect(() => mapRecords([{ 'עמודה אחרת': 'x' }])).toThrow('Sheet is missing required columns');
   });
+
+  it('maps ליווי column with a value to APPROVED_WITH_ESCORT verdict', () => {
+    const records = [{ ...BASE_ROW, 'ליווי': 'כן' }];
+    const [row] = mapRecords(records);
+    expect(row.verdict).toBe('APPROVED_WITH_ESCORT');
+  });
+
+  it('maps ליווי column with any non-empty value to APPROVED_WITH_ESCORT', () => {
+    const records = [{ ...BASE_ROW, 'ליווי': 'ישראל ישראלי' }];
+    const [row] = mapRecords(records);
+    expect(row.verdict).toBe('APPROVED_WITH_ESCORT');
+  });
+
+  it('does not override verdict when ליווי column is empty', () => {
+    const records = [{ ...BASE_ROW, 'ליווי': '' }];
+    const [row] = mapRecords(records);
+    expect(row.verdict).toBe('APPROVED');
+  });
+
+  it('does not override verdict when ליווי column is absent', () => {
+    const [row] = mapRecords([{ ...BASE_ROW }]);
+    expect(row.verdict).toBe('APPROVED');
+  });
 });
 
 describe('fetchAndParse HTTP layer', () => {
