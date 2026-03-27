@@ -89,7 +89,7 @@ function mapRecords(records) {
   }
 
   return records.map((row, i) => {
-    const hasEscort = escortStatusCol && (row[escortStatusCol] || '').trim() !== '';
+    const hasEscort = escortStatusCol && (row[escortStatusCol] || '').trim().toUpperCase() === 'TRUE';
     const verdict = hasEscort ? 'APPROVED_WITH_ESCORT' : mapStatus(row[statusCol]);
     return {
       rowNum: i + 2,
