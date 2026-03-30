@@ -19,6 +19,8 @@ async function request(method, path, body, isFormData = false, signal = null) {
 
   if (res.status === 401) {
     localStorage.removeItem('gate_token');
+    localStorage.removeItem('gate_role');
+    localStorage.removeItem('gate_name');
     window.location.reload();
     return;
   }

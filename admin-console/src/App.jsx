@@ -9,8 +9,25 @@ import Layout from './components/Layout';
 const AuthCtx = createContext(null);
 export const useAuth = () => useContext(AuthCtx);
 
+function isTokenExpired(token) {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    return payload.exp && Date.now() >= payload.exp * 1000;
+  } catch {
+    return true;
+  }
+}
+
 function AuthProvider({ children }) {
-  const [token, setToken] = useState(() => localStorage.getItem('token'));
+  const [token, setToken] = useState(() => {
+    const t = localStorage.getItem('token');
+    if (t && isTokenExpired(t)) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('username');
+      return null;
+    }
+    return t;
+  });
   const [username, setUsername] = useState(() => localStorage.getItem('username'));
 
   function signIn(tok, user) {

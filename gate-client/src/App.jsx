@@ -9,16 +9,36 @@ const VIEW_HOME = 'home';
 const VIEW_MANUAL = 'manual';
 const VIEW_CAMERA = 'camera';
 
+function isTokenExpired(token) {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    return payload.exp && Date.now() >= payload.exp * 1000;
+  } catch {
+    return true;
+  }
+}
+
+function clearGateSession() {
+  localStorage.removeItem('gate_token');
+  localStorage.removeItem('gate_role');
+  localStorage.removeItem('gate_name');
+}
+
 export default function App() {
-  const [authed, setAuthed] = useState(() => !!localStorage.getItem('gate_token'));
+  const [authed, setAuthed] = useState(() => {
+    const t = localStorage.getItem('gate_token');
+    if (t && isTokenExpired(t)) {
+      clearGateSession();
+      return false;
+    }
+    return !!t;
+  });
   const [role, setRole] = useState(() => localStorage.getItem('gate_role') || '');
   const [requestorName, setRequestorName] = useState(() => localStorage.getItem('gate_name') || '');
   const [view, setView] = useState(VIEW_HOME);
 
   function handleLogout() {
-    localStorage.removeItem('gate_token');
-    localStorage.removeItem('gate_role');
-    localStorage.removeItem('gate_name');
+    clearGateSession();
     setAuthed(false);
     setRole('');
     setRequestorName('');
