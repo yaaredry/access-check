@@ -376,7 +376,7 @@ export default function Stats() {
           </div>
 
           {requests.populationBreakdown.length > 0 && (
-            <div style={s.half}>
+            <div style={{ ...s.half, borderLeft: '2px solid #e2e8f0', paddingLeft: 24 }}>
               <div style={{ fontSize: 12, color: '#64748b', marginBottom: 8 }}>By population</div>
               <table style={s.table}>
                 <thead>
@@ -410,14 +410,14 @@ export default function Stats() {
         </div>
         <div style={s.cardRow}>
           <StatCard
-            label="Avg time to verdict (all time)"
-            value={fmtHours(admin.avgTimeToVerdict.avg_hours_all_time)}
-            sub="from request creation to verdict"
+            label="Median time to verdict (last 7d)"
+            value={fmtHours(admin.avgTimeToVerdict.median_hours_7d)}
+            sub="requests created in last 7 days"
           />
           <StatCard
-            label="Avg time to verdict (last 30d)"
-            value={fmtHours(admin.avgTimeToVerdict.avg_hours_30d)}
-            sub="from request creation to verdict"
+            label="Avg time to verdict (last 7d)"
+            value={fmtHours(admin.avgTimeToVerdict.avg_hours_7d)}
+            sub="requests created in last 7 days"
           />
         </div>
       </div>

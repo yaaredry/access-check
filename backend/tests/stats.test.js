@@ -278,8 +278,8 @@ describe('GET /stats — admin verdict counts', () => {
     expect(Number(vc.last_7d)).toBe(3);
   });
 
-  it('calculates average time to verdict in hours', async () => {
-    // 4 hours between created_at and status_changed_at
+  it('calculates median and avg time to verdict for records created in last 7 days', async () => {
+    // 4 hours between created_at and status_changed_at, created within last 7 days
     await db.query(`
       INSERT INTO people (identifier_type, identifier_value, verdict, status, created_at, status_changed_at)
       VALUES ('IL_ID', '000000018', 'APPROVED', 'APPROVED', NOW() - '4 hours'::INTERVAL, NOW())
@@ -288,7 +288,22 @@ describe('GET /stats — admin verdict counts', () => {
     const res = await request(app).get('/stats').set('Authorization', `Bearer ${adminToken}`);
     const avg = res.body.admin.avgTimeToVerdict;
 
-    expect(parseFloat(avg.avg_hours_all_time)).toBeCloseTo(4.0, 0);
+    expect(parseFloat(avg.median_hours_7d)).toBeCloseTo(4.0, 0);
+    expect(parseFloat(avg.avg_hours_7d)).toBeCloseTo(4.0, 0);
+  });
+
+  it('excludes records created outside the 7-day window from verdict timing', async () => {
+    // Record created 10 days ago — should not count toward 7d metrics
+    await db.query(`
+      INSERT INTO people (identifier_type, identifier_value, verdict, status, created_at, status_changed_at)
+      VALUES ('IL_ID', '000000018', 'APPROVED', 'APPROVED', NOW() - '10 days'::INTERVAL, NOW() - '9 days'::INTERVAL)
+    `);
+
+    const res = await request(app).get('/stats').set('Authorization', `Bearer ${adminToken}`);
+    const avg = res.body.admin.avgTimeToVerdict;
+
+    expect(avg.median_hours_7d).toBeNull();
+    expect(avg.avg_hours_7d).toBeNull();
   });
 
   it('returns null avg time when no records have been decided', async () => {
@@ -297,8 +312,8 @@ describe('GET /stats — admin verdict counts', () => {
     const res = await request(app).get('/stats').set('Authorization', `Bearer ${adminToken}`);
     const avg = res.body.admin.avgTimeToVerdict;
 
-    expect(avg.avg_hours_all_time).toBeNull();
-    expect(avg.avg_hours_30d).toBeNull();
+    expect(avg.median_hours_7d).toBeNull();
+    expect(avg.avg_hours_7d).toBeNull();
   });
 });
 
