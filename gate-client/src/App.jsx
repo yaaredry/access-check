@@ -35,7 +35,7 @@ export default function App() {
   });
   const [role, setRole] = useState(() => localStorage.getItem('gate_role') || '');
   const [requestorName, setRequestorName] = useState(() => localStorage.getItem('gate_name') || '');
-  const [view, setView] = useState(VIEW_HOME);
+  const [view, setView] = useState(VIEW_MANUAL);
 
   function handleLogout() {
     clearGateSession();
@@ -66,8 +66,8 @@ export default function App() {
       maxWidth: 480,
       margin: '0 auto',
     }}>
-      {view === VIEW_HOME && <Home onManual={() => setView(VIEW_MANUAL)} onCamera={() => setView(VIEW_CAMERA)} onLogout={handleLogout} />}
-      {view === VIEW_MANUAL && <ManualCheck onBack={() => setView(VIEW_HOME)} onSwitch={() => setView(VIEW_CAMERA)} />}
+      {view === VIEW_HOME && <Home onManual={() => setView(VIEW_MANUAL)} onLogout={handleLogout} />}
+      {view === VIEW_MANUAL && <ManualCheck onBack={() => setView(VIEW_HOME)} />}
       {view === VIEW_CAMERA && <CameraCheck onBack={() => setView(VIEW_HOME)} onSwitch={() => setView(VIEW_MANUAL)} />}
     </div>
   );
@@ -143,7 +143,7 @@ function segmentStyle(active) {
   };
 }
 
-function Home({ onManual, onCamera, onLogout }) {
+function Home({ onManual, onLogout }) {
   return (
     <div style={{
       display: 'flex',
@@ -162,9 +162,6 @@ function Home({ onManual, onCamera, onLogout }) {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16, width: '100%', maxWidth: 360 }}>
-        <button className="scan" onClick={onCamera} style={{ padding: '28px 20px', fontSize: 22 }}>
-          📷  Scan ID Card
-        </button>
         <button className="manual" onClick={onManual} style={{ padding: '28px 20px', fontSize: 22 }}>
           ✏️  Enter ID Manually
         </button>
