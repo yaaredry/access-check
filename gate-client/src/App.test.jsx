@@ -150,7 +150,9 @@ describe('App', () => {
   });
 
   it('restores authenticated state from localStorage', () => {
-    localStorage.setItem('gate_token', 'existing-token');
+    // A real JWT with exp far in the future (year 2099) so the expiry check passes
+    const futureJwt = 'eyJhbGciOiJIUzI1NiJ9.' + btoa(JSON.stringify({ sub: 1, exp: 4070908800 })) + '.sig';
+    localStorage.setItem('gate_token', futureJwt);
     localStorage.setItem('gate_role', 'gate');
     render(<App />);
     expect(screen.getByText(/Scan ID Card/)).toBeInTheDocument();

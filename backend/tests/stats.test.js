@@ -44,15 +44,6 @@ function insertScan(verdict = 'APPROVED', interval = '1 hour') {
   );
 }
 
-function insertPerson({ id = '000000018', verdict = 'NOT_APPROVED', status = 'PENDING', population = null, requesterEmail = null, requesterName = null, interval = '1 hour', statusInterval = null } = {}) {
-  return db.query(
-    `INSERT INTO people (identifier_type, identifier_value, verdict, status, population, requester_email, requester_name, created_at, status_changed_at)
-     VALUES ('IL_ID', $1, $2, $3, $4, $5, $6, NOW() - $7::INTERVAL, $8)`,
-    [id, verdict, status, population, requesterEmail, requesterName, interval,
-     statusInterval ? db.query.bind(db, `SELECT NOW() - $1::INTERVAL`, [statusInterval]) : null]
-  );
-}
-
 // Simpler person insert without status_changed_at complexity
 function insertPersonRaw({ id, verdict, status, population, requesterEmail, requesterName, createdInterval, statusChangedInterval }) {
   const statusChangedAt = statusChangedInterval
