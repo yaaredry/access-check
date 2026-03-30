@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "predev": "lsof -ti :3001 | xargs kill -9 2>/dev/null; lsof -ti :3002 | xargs kill -9 2>/dev/null; lsof -ti :3003 | xargs kill -9 2>/dev/null; true",
-    "dev": "docker-compose -f docker-compose.dev.yml -p access-check-dev up -d postgres && concurrently --kill-others-on-fail --names \"backend,admin,gate\" --prefix-colors \"cyan,magenta,yellow\" \"npm run dev --prefix backend\" \"npm run dev --prefix admin-console\" \"npm run dev --prefix gate-client\"",
+    "dev": "/Applications/Docker.app/Contents/Resources/bin/docker compose -f docker-compose.dev.yml -p access-check-dev up -d postgres && concurrently --kill-others-on-fail --names \"backend,admin,gate\" --prefix-colors \"cyan,magenta,yellow\" \"npm run dev --prefix backend\" \"npm run dev --prefix admin-console\" \"npm run dev --prefix gate-client\"",
     "install:all": "npm install --prefix backend && npm install --prefix admin-console && npm install --prefix gate-client",
     "migrate": "npm run --prefix backend migrate",
     "seed": "npm run --prefix backend seed"

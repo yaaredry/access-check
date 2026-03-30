@@ -9,16 +9,36 @@ const VIEW_HOME = 'home';
 const VIEW_MANUAL = 'manual';
 const VIEW_CAMERA = 'camera';
 
+function isTokenExpired(token) {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    return payload.exp && Date.now() >= payload.exp * 1000;
+  } catch {
+    return true;
+  }
+}
+
+function clearGateSession() {
+  localStorage.removeItem('gate_token');
+  localStorage.removeItem('gate_role');
+  localStorage.removeItem('gate_name');
+}
+
 export default function App() {
-  const [authed, setAuthed] = useState(() => !!localStorage.getItem('gate_token'));
+  const [authed, setAuthed] = useState(() => {
+    const t = localStorage.getItem('gate_token');
+    if (t && isTokenExpired(t)) {
+      clearGateSession();
+      return false;
+    }
+    return !!t;
+  });
   const [role, setRole] = useState(() => localStorage.getItem('gate_role') || '');
   const [requestorName, setRequestorName] = useState(() => localStorage.getItem('gate_name') || '');
-  const [view, setView] = useState(VIEW_HOME);
+  const [view, setView] = useState(VIEW_MANUAL);
 
   function handleLogout() {
-    localStorage.removeItem('gate_token');
-    localStorage.removeItem('gate_role');
-    localStorage.removeItem('gate_name');
+    clearGateSession();
     setAuthed(false);
     setRole('');
     setRequestorName('');
@@ -46,8 +66,8 @@ export default function App() {
       maxWidth: 480,
       margin: '0 auto',
     }}>
-      {view === VIEW_HOME && <Home onManual={() => setView(VIEW_MANUAL)} onCamera={() => setView(VIEW_CAMERA)} onLogout={handleLogout} />}
-      {view === VIEW_MANUAL && <ManualCheck onBack={() => setView(VIEW_HOME)} onSwitch={() => setView(VIEW_CAMERA)} />}
+      {view === VIEW_HOME && <Home onManual={() => setView(VIEW_MANUAL)} onLogout={handleLogout} />}
+      {view === VIEW_MANUAL && <ManualCheck onBack={() => setView(VIEW_HOME)} />}
       {view === VIEW_CAMERA && <CameraCheck onBack={() => setView(VIEW_HOME)} onSwitch={() => setView(VIEW_MANUAL)} />}
     </div>
   );
@@ -123,7 +143,7 @@ function segmentStyle(active) {
   };
 }
 
-function Home({ onManual, onCamera, onLogout }) {
+function Home({ onManual, onLogout }) {
   return (
     <div style={{
       display: 'flex',
@@ -142,9 +162,6 @@ function Home({ onManual, onCamera, onLogout }) {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16, width: '100%', maxWidth: 360 }}>
-        <button className="scan" onClick={onCamera} style={{ padding: '28px 20px', fontSize: 22 }}>
-          📷  Scan ID Card
-        </button>
         <button className="manual" onClick={onManual} style={{ padding: '28px 20px', fontSize: 22 }}>
           ✏️  Enter ID Manually
         </button>

@@ -20,7 +20,7 @@ function isValidId(type, value) {
   return false;
 }
 
-export default function ManualCheck({ onBack, onSwitch }) {
+export default function ManualCheck({ onBack }) {
   const [type, setType] = useState('IL_ID');
   const [value, setValue] = useState('');
   const [loading, setLoading] = useState(false);
@@ -101,7 +101,6 @@ export default function ManualCheck({ onBack, onSwitch }) {
         </button>
       </form>
 
-      <button className="scan" onClick={onSwitch} style={{ fontSize: 18 }}>📷 Switch to Scan ID Card</button>
       <button className="back" onClick={onBack}>← Back</button>
     </div>
   );

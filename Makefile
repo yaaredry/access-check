@@ -1,4 +1,4 @@
-.PHONY: dev test build run migrate stop clean logs lint lint-fix seed db-shell deploy-remote
+.PHONY: dev dev-db dev-db-stop test build run migrate stop clean logs lint lint-fix seed db-shell deploy-remote
 
 # ── Remote server config (override on CLI or export in shell) ────────────────
 SERVER  ?= YOUR_GCP_EXTERNAL_IP
@@ -7,8 +7,9 @@ SSH_USER ?= YOUR_GCP_USERNAME
 APP_DIR  ?= /opt/access-check
 DOMAIN   ?= your-domain.com
 
-PROD = docker-compose -f docker-compose.prod.yml
-DEV  = docker-compose -f docker-compose.dev.yml -p access-check-dev
+DOCKER = /Applications/Docker.app/Contents/Resources/bin/docker
+PROD = $(DOCKER) compose -f docker-compose.prod.yml
+DEV  = $(DOCKER) compose -f docker-compose.dev.yml -p access-check-dev
 
 # ── Development ──────────────────────────────────────────────────────────────
 
@@ -63,7 +64,7 @@ seed:
 
 # Open a psql shell into the production database
 db-shell:
-	docker exec -it access-check-db psql -U postgres -d access_check
+	$(DOCKER) exec -it access-check-db psql -U postgres -d access_check
 
 # ── Code quality ─────────────────────────────────────────────────────────────
 

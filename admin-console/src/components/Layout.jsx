@@ -27,11 +27,29 @@ export default function Layout() {
       <header style={styles.header}>
         <span style={styles.logo}>Access Check — Admin</span>
         <nav style={styles.nav}>
-          <NavLink to="/people" style={({ isActive }) => ({ color: isActive ? '#60a5fa' : '#cbd5e1', fontSize: 14 })}>
+          <NavLink to="/people" style={({ isActive }) => ({
+            fontSize: 14, fontWeight: 500, padding: '5px 14px', borderRadius: 6,
+            textDecoration: 'none',
+            background: isActive ? '#2563eb' : 'rgba(255,255,255,0.08)',
+            color: isActive ? '#fff' : '#cbd5e1',
+          })}>
             People
           </NavLink>
-          <NavLink to="/users" style={({ isActive }) => ({ color: isActive ? '#60a5fa' : '#cbd5e1', fontSize: 14 })}>
+          <NavLink to="/users" style={({ isActive }) => ({
+            fontSize: 14, fontWeight: 500, padding: '5px 14px', borderRadius: 6,
+            textDecoration: 'none',
+            background: isActive ? '#2563eb' : 'rgba(255,255,255,0.08)',
+            color: isActive ? '#fff' : '#cbd5e1',
+          })}>
             Users
+          </NavLink>
+          <NavLink to="/stats" style={({ isActive }) => ({
+            fontSize: 14, fontWeight: 500, padding: '5px 14px', borderRadius: 6,
+            textDecoration: 'none',
+            background: isActive ? '#2563eb' : 'rgba(255,255,255,0.08)',
+            color: isActive ? '#fff' : '#cbd5e1',
+          })}>
+            Stats
           </NavLink>
           <span style={styles.user}>{username}</span>
           <button className="secondary" onClick={signOut} style={{ padding: '4px 12px', fontSize: 13 }}>
