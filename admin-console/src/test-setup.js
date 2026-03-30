@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom';
 
-// jsdom doesn't always wire up localStorage to the global scope in module
+// jsdom doesn't always wire up localStorage to the globalThis scope in module
 // contexts — provide a simple in-memory implementation so all tests can use it.
 const store = {};
 const localStorageMock = {

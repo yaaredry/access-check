@@ -4,7 +4,7 @@ import { api } from './client';
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 function mockFetch(status, body = {}) {
-  global.fetch = vi.fn().mockResolvedValue({
+  globalThis.fetch = vi.fn().mockResolvedValue({
     status,
     ok: status >= 200 && status < 300,
     json: () => Promise.resolve(body),
@@ -56,7 +56,7 @@ describe('api client — auth error handling', () => {
   });
 
   it('returns null on 204', async () => {
-    global.fetch = vi.fn().mockResolvedValue({ status: 204, ok: true });
+    globalThis.fetch = vi.fn().mockResolvedValue({ status: 204, ok: true });
     const result = await api.deletePerson(1);
     expect(result).toBeNull();
   });
@@ -64,7 +64,7 @@ describe('api client — auth error handling', () => {
   it('includes Authorization header when token is present', async () => {
     mockFetch(200, []);
     await api.listUsers();
-    const headers = global.fetch.mock.calls[0][1].headers;
+    const headers = globalThis.fetch.mock.calls[0][1].headers;
     expect(headers['Authorization']).toBe('Bearer test-token');
   });
 
@@ -72,7 +72,7 @@ describe('api client — auth error handling', () => {
     localStorage.removeItem('token');
     mockFetch(200, []);
     await api.listUsers();
-    const headers = global.fetch.mock.calls[0][1].headers;
+    const headers = globalThis.fetch.mock.calls[0][1].headers;
     expect(headers['Authorization']).toBeUndefined();
   });
 });
