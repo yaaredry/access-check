@@ -37,7 +37,7 @@ function makeStats(overrides = {}) {
     },
     admin: {
       verdictCounts:    { last_24h: '3', last_72h: '8', last_7d: '25', last_30d: '90' },
-      avgTimeToVerdict: { avg_hours_all_time: '12.5', avg_hours_30d: '8.0' },
+      avgTimeToVerdict: { median_hours_7d: '12.5', avg_hours_7d: '8.0' },
       ...overrides.admin,
     },
   };
@@ -228,7 +228,7 @@ describe('Stats — admin section', () => {
 
   it('shows avg time in hours when value is between 1 and 24', async () => {
     api.getStats.mockResolvedValue(makeStats({
-      admin: { avgTimeToVerdict: { avg_hours_all_time: '12.5', avg_hours_30d: '8.0' } },
+      admin: { avgTimeToVerdict: { median_hours_7d: '12.5', avg_hours_7d: '8.0' } },
     }));
     render(<Stats />);
     await waitFor(() => screen.getByText('System Usage'));
@@ -238,7 +238,7 @@ describe('Stats — admin section', () => {
 
   it('shows avg time in minutes when value is less than 1 hour', async () => {
     api.getStats.mockResolvedValue(makeStats({
-      admin: { avgTimeToVerdict: { avg_hours_all_time: '0.5', avg_hours_30d: '0.25' } },
+      admin: { avgTimeToVerdict: { median_hours_7d: '0.5', avg_hours_7d: '0.25' } },
     }));
     render(<Stats />);
     await waitFor(() => screen.getByText('System Usage'));
@@ -248,7 +248,7 @@ describe('Stats — admin section', () => {
 
   it('shows avg time in days when value is 24 hours or more', async () => {
     api.getStats.mockResolvedValue(makeStats({
-      admin: { avgTimeToVerdict: { avg_hours_all_time: '48', avg_hours_30d: '72' } },
+      admin: { avgTimeToVerdict: { median_hours_7d: '48', avg_hours_7d: '72' } },
     }));
     render(<Stats />);
     await waitFor(() => screen.getByText('System Usage'));
@@ -258,7 +258,7 @@ describe('Stats — admin section', () => {
 
   it('shows — when avg time is null', async () => {
     api.getStats.mockResolvedValue(makeStats({
-      admin: { avgTimeToVerdict: { avg_hours_all_time: null, avg_hours_30d: null } },
+      admin: { avgTimeToVerdict: { median_hours_7d: null, avg_hours_7d: null } },
     }));
     render(<Stats />);
     await waitFor(() => screen.getByText('System Usage'));
