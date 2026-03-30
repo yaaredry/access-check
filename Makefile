@@ -8,8 +8,10 @@ APP_DIR  ?= /opt/access-check
 DOMAIN   ?= your-domain.com
 
 DOCKER = docker
-PROD = $(DOCKER) compose -f docker-compose.prod.yml
-DEV  = $(DOCKER) compose -f docker-compose.dev.yml -p access-check-dev
+# Use 'docker compose' (v2 plugin) if available, fall back to 'docker-compose' (v1 standalone)
+COMPOSE = $(shell docker compose version > /dev/null 2>&1 && echo "docker compose" || echo "docker-compose")
+PROD = $(COMPOSE) -f docker-compose.prod.yml
+DEV  = $(COMPOSE) -f docker-compose.dev.yml -p access-check-dev
 
 # ── Development ──────────────────────────────────────────────────────────────
 
