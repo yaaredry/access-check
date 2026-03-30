@@ -20,7 +20,7 @@ async function request(method, path, body, isFormData = false) {
 
   const data = await res.json();
   if (!res.ok) {
-    if (res.status === 401) {
+    if (res.status === 401 || res.status === 403) {
       localStorage.removeItem('token');
       localStorage.removeItem('username');
       window.location.replace('/admin/login');
