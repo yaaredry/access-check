@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import People from './pages/People';
 import Users from './pages/Users';
+import Stats from './pages/Stats';
 import Layout from './components/Layout';
 
 const AuthCtx = createContext(null);
@@ -51,6 +52,7 @@ export default function App() {
             <Route index element={<Navigate to="/people" replace />} />
             <Route path="people" element={<People />} />
             <Route path="users" element={<Users />} />
+            <Route path="stats" element={<Stats />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

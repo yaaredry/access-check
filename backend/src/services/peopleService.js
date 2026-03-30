@@ -40,12 +40,14 @@ async function createPerson(data) {
 async function updatePerson(id, data) {
   const person = await peopleRepo.update(id, data);
   if (person) {
+    const isVerdictChange = data.status === 'APPROVED' || data.status === 'NOT_APPROVED';
     await auditRepo.log({
-      action: 'UPDATE',
+      action: isVerdictChange ? 'VERDICT_GIVEN' : 'UPDATE',
       identifierType: person.identifier_type,
       identifierValue: person.identifier_value,
       verdict: person.verdict,
       source: 'admin',
+      metadata: isVerdictChange ? { status: data.status, rejectionReason: data.rejectionReason || null } : null,
     });
   }
   return person;

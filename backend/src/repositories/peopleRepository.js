@@ -70,6 +70,10 @@ async function create({ identifierType, identifierValue, verdict, approvalExpira
 }
 
 async function update(id, { identifierType, identifierValue, verdict, approvalExpiration, population, division, escortFullName, escortPhone, reason, status, rejectionReason, requesterName }) {
+  // Compute status_changed_at in JS to avoid PostgreSQL type inference issues with dual $N usage.
+  // Pass NOW() when transitioning to a final verdict, null otherwise (COALESCE keeps existing value).
+  const statusChangedAt = (status === 'APPROVED' || status === 'NOT_APPROVED') ? new Date() : null;
+
   const { rows } = await db.query(
     `UPDATE people
      SET identifier_type    = COALESCE($2, identifier_type),
@@ -83,11 +87,13 @@ async function update(id, { identifierType, identifierValue, verdict, approvalEx
          reason             = COALESCE($10, reason),
          status             = $11,
          rejection_reason   = $12,
-         requester_name     = COALESCE($13, requester_name)
+         requester_name     = COALESCE($13, requester_name),
+         status_changed_at  = COALESCE($14, status_changed_at)
      WHERE id = $1
      RETURNING *`,
     [id, identifierType, identifierValue, verdict, approvalExpiration ?? null,
-     population ?? null, division ?? null, escortFullName ?? null, escortPhone ?? null, reason ?? null, status ?? null, rejectionReason ?? null, requesterName ?? null]
+     population ?? null, division ?? null, escortFullName ?? null, escortPhone ?? null, reason ?? null, status ?? null, rejectionReason ?? null, requesterName ?? null,
+     statusChangedAt]
   );
   return rows[0] || null;
 }
