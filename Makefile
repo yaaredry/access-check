@@ -7,7 +7,7 @@ SSH_USER ?= YOUR_GCP_USERNAME
 APP_DIR  ?= /opt/access-check
 DOMAIN   ?= your-domain.com
 
-DOCKER = /Applications/Docker.app/Contents/Resources/bin/docker
+DOCKER = docker
 PROD = $(DOCKER) compose -f docker-compose.prod.yml
 DEV  = $(DOCKER) compose -f docker-compose.dev.yml -p access-check-dev
 
@@ -70,7 +70,7 @@ db-shell:
 
 test:
 	$(DEV) up -d postgres
-	@until docker exec access-check-db-dev pg_isready -U postgres > /dev/null 2>&1; do sleep 1; done
+	@until $(DOCKER) exec access-check-db-dev pg_isready -U postgres > /dev/null 2>&1; do sleep 1; done
 	cd backend && npm test
 
 lint:
