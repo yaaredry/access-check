@@ -103,6 +103,7 @@ export default function People() {
       await api.updatePerson(editTarget.id, formData);
       setModal(MODAL_NONE);
       setEditTarget(null);
+      setOffset(0);
       load();
     } finally {
       setFormLoading(false);
