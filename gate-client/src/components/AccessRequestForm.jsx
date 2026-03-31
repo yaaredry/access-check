@@ -357,6 +357,7 @@ function existingStatusConfig(record) {
 
 function ExistingRecordCard({ record, onResubmit, approvalExpiration, loading }) {
   const cfg = existingStatusConfig(record);
+  const isRejected = record.status === 'NOT_APPROVED';
   const dateLabel = approvalExpiration
     ? new Date(approvalExpiration + 'T12:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
     : null;
@@ -390,7 +391,7 @@ function ExistingRecordCard({ record, onResubmit, approvalExpiration, loading })
           disabled={loading}
           style={{ marginTop: 14, width: '100%' }}
         >
-          {loading ? 'Submitting…' : dateLabel ? `Request Extension until ${dateLabel}` : 'Request Extension'}
+          {loading ? 'Submitting…' : isRejected ? 'Resubmit Request' : dateLabel ? `Request Extension until ${dateLabel}` : 'Request Extension'}
         </button>
       ) : (
         <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 10 }}>
