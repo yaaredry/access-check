@@ -20,19 +20,21 @@ const EMPTY = {
   division: '',
   escortFullName: '',
   escortPhone: '',
+  approvalStartDate: '',
   approvalExpiration: '',
   reason: '',
 };
 
 // Maps backend field paths to friendly labels used in error messages
 const FIELD_LABELS = {
-  requesterName:    'your name',
-  ilId:             'ID number',
-  population:       'population',
-  escortFullName:   'escort full name',
-  escortPhone:      'escort phone',
+  requesterName:      'your name',
+  ilId:               'ID number',
+  population:         'population',
+  escortFullName:     'escort full name',
+  escortPhone:        'escort phone',
+  approvalStartDate:  'start date',
   approvalExpiration: 'expiration date',
-  reason:           'reason for entering',
+  reason:             'reason for entering',
 };
 
 // Maps specific backend error messages to user-friendly text
@@ -41,6 +43,8 @@ function friendlyMessage(msg, field) {
   if (msg.includes('required for CIVILIAN')) return `${FIELD_LABELS[field] ?? field} is required for civilian visitors.`;
   if (msg.includes('required')) return `${FIELD_LABELS[field] ?? field} is required.`;
   if (msg.includes('future date')) return 'The expiration date must be in the future.';
+  if (msg.includes('not be after approvalExpiration')) return 'Start date cannot be after the expiration date.';
+  if (msg.includes('7 days from approvalStartDate')) return 'Expiration date cannot be more than 7 days from the start date.';
   if (msg.includes('valid date')) return 'Please enter a valid date.';
   if (msg.includes('digits')) return 'Phone number can only contain digits and an optional "+" at the start.';
   return msg;
@@ -62,10 +66,13 @@ export default function AccessRequestForm({ onLogout, requestorName, hideLogout 
   const today = new Date();
   const minDate = new Date(today);
   minDate.setDate(minDate.getDate() + 1);
-  const maxDate = new Date(today);
-  maxDate.setDate(maxDate.getDate() + 7);
   const minDateStr = minDate.toISOString().split('T')[0];
-  const maxDateStr = maxDate.toISOString().split('T')[0];
+
+  // Max expiration is 7 days from start date (if set) or 7 days from today
+  const expiryBaseDate = form.approvalStartDate ? new Date(form.approvalStartDate + 'T00:00:00') : today;
+  const maxExpiryDate = new Date(expiryBaseDate);
+  maxExpiryDate.setDate(maxExpiryDate.getDate() + 7);
+  const maxDateStr = maxExpiryDate.toISOString().split('T')[0];
 
   function clientValidate() {
     const errors = {};
@@ -80,7 +87,12 @@ export default function AccessRequestForm({ onLogout, requestorName, hideLogout 
     } else if (form.approvalExpiration <= today.toISOString().split('T')[0]) {
       errors.approvalExpiration = 'The expiration date must be in the future.';
     } else if (form.approvalExpiration > maxDateStr) {
-      errors.approvalExpiration = 'Expiration date cannot be more than 7 days from today.';
+      errors.approvalExpiration = form.approvalStartDate
+        ? 'Expiration date cannot be more than 7 days from the start date.'
+        : 'Expiration date cannot be more than 7 days from today.';
+    }
+    if (form.approvalStartDate && form.approvalExpiration && form.approvalStartDate > form.approvalExpiration) {
+      errors.approvalStartDate = 'Start date cannot be after the expiration date.';
     }
     if (!form.reason.trim()) {
       errors.reason = 'Please explain the reason for this visit.';
@@ -231,11 +243,22 @@ export default function AccessRequestForm({ onLogout, requestorName, hideLogout 
           />
         </Field>
 
+        <Field label="Start Date (optional)" error={fieldErrors.approvalStartDate}>
+          <input
+            type="date"
+            value={form.approvalStartDate}
+            min={minDateStr}
+            max={form.approvalExpiration || maxDateStr}
+            onChange={e => set('approvalStartDate', e.target.value)}
+            style={{ ...inputStyle, ...(fieldErrors.approvalStartDate ? errorInputStyle : {}) }}
+          />
+        </Field>
+
         <Field label="Expiration Date" error={fieldErrors.approvalExpiration}>
           <input
             type="date"
             value={form.approvalExpiration}
-            min={minDateStr}
+            min={form.approvalStartDate || minDateStr}
             max={maxDateStr}
             onChange={e => set('approvalExpiration', e.target.value)}
             style={{ ...inputStyle, ...(fieldErrors.approvalExpiration ? errorInputStyle : {}) }}

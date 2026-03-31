@@ -13,12 +13,19 @@ const VERDICTS = {
   PENDING: 'PENDING',
   EXPIRED: 'EXPIRED',
   NOT_FOUND: 'NOT_FOUND',
+  NOT_YET_ACTIVE: 'NOT_YET_ACTIVE',
 };
 
 function resolveVerdict(person) {
   if (!person) return VERDICTS.NOT_FOUND;
 
   if (person.status === 'PENDING') return VERDICTS.PENDING;
+
+  if (person.approval_start_date) {
+    const start = new Date(person.approval_start_date);
+    start.setHours(0, 0, 0, 0); // start of start day
+    if (start > new Date()) return VERDICTS.NOT_YET_ACTIVE;
+  }
 
   if (person.approval_expiration) {
     const expiry = new Date(person.approval_expiration);

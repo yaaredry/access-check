@@ -31,6 +31,13 @@ const CONFIG = {
     label: 'APPROVED WITH ESCORT',
     bg: 'rgba(234,179,8,.15)',
   },
+  NOT_YET_ACTIVE: {
+    color: '#6366f1',
+    icon: '⏳',
+    label: 'NOT YET ACTIVE',
+    sub: 'This approval is not valid yet',
+    bg: 'rgba(99,102,241,.12)',
+  },
   PENDING: {
     color: '#6366f1',
     icon: '⏳',

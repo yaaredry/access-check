@@ -29,12 +29,35 @@ const requestBodyValidation = [
     .matches(/^\+?[\d]+$/).withMessage('escortPhone must contain digits and optional leading +'),
   body('approvalExpiration')
     .isISO8601().withMessage('approvalExpiration must be a valid date')
-    .custom((value) => {
+    .custom((value, { req }) => {
       const date = new Date(value);
       if (date <= new Date()) throw new Error('approvalExpiration must be a future date');
-      const max = new Date();
-      max.setDate(max.getDate() + 7);
-      if (date > max) throw new Error('approvalExpiration cannot be more than 7 days from today');
+      let max;
+      if (req.body.approvalStartDate) {
+        // Use UTC midnight for both to avoid timezone drift between date-string parsing and local midnight
+        const base = new Date(req.body.approvalStartDate + 'T00:00:00Z');
+        max = new Date(base);
+        max.setUTCDate(max.getUTCDate() + 7);
+        max.setUTCHours(23, 59, 59, 999);
+      } else {
+        max = new Date();
+        max.setDate(max.getDate() + 7);
+      }
+      if (date > max) throw new Error(
+        req.body.approvalStartDate
+          ? 'approvalExpiration cannot be more than 7 days from approvalStartDate'
+          : 'approvalExpiration cannot be more than 7 days from today'
+      );
+      return true;
+    }),
+  body('approvalStartDate')
+    .optional({ nullable: true })
+    .isISO8601().withMessage('approvalStartDate must be a valid date')
+    .custom((value, { req }) => {
+      if (!value) return true;
+      if (req.body.approvalExpiration && value > req.body.approvalExpiration) {
+        throw new Error('approvalStartDate must not be after approvalExpiration');
+      }
       return true;
     }),
   body('reason')
@@ -51,7 +74,7 @@ const requestBodyValidation = [
 
 async function create(req, res, next) {
   try {
-    const { ilId, population, division, escortFullName, escortPhone, approvalExpiration, reason, requesterName: requesterNameFromBody } = req.body;
+    const { ilId, population, division, escortFullName, escortPhone, approvalExpiration, approvalStartDate, reason, requesterName: requesterNameFromBody } = req.body;
 
     // Named requestors have their identity locked to the JWT; generic requestor uses the form field
     const requesterName = req.user.name || requesterNameFromBody;
@@ -76,6 +99,7 @@ async function create(req, res, next) {
       identifierValue: ilId,
       verdict: 'NOT_APPROVED',
       approvalExpiration,
+      approvalStartDate: approvalStartDate || null,
       population,
       division: division || null,
       escortFullName: population === 'CIVILIAN' ? escortFullName : null,
@@ -114,12 +138,35 @@ const resubmitBodyValidation = [
     .matches(/^\+?[\d]+$/).withMessage('escortPhone must contain digits and optional leading +'),
   body('approvalExpiration')
     .isISO8601().withMessage('approvalExpiration must be a valid date')
-    .custom((value) => {
+    .custom((value, { req }) => {
       const date = new Date(value);
       if (date <= new Date()) throw new Error('approvalExpiration must be a future date');
-      const max = new Date();
-      max.setDate(max.getDate() + 7);
-      if (date > max) throw new Error('approvalExpiration cannot be more than 7 days from today');
+      let max;
+      if (req.body.approvalStartDate) {
+        // Use UTC midnight for both to avoid timezone drift between date-string parsing and local midnight
+        const base = new Date(req.body.approvalStartDate + 'T00:00:00Z');
+        max = new Date(base);
+        max.setUTCDate(max.getUTCDate() + 7);
+        max.setUTCHours(23, 59, 59, 999);
+      } else {
+        max = new Date();
+        max.setDate(max.getDate() + 7);
+      }
+      if (date > max) throw new Error(
+        req.body.approvalStartDate
+          ? 'approvalExpiration cannot be more than 7 days from approvalStartDate'
+          : 'approvalExpiration cannot be more than 7 days from today'
+      );
+      return true;
+    }),
+  body('approvalStartDate')
+    .optional({ nullable: true })
+    .isISO8601().withMessage('approvalStartDate must be a valid date')
+    .custom((value, { req }) => {
+      if (!value) return true;
+      if (req.body.approvalExpiration && value > req.body.approvalExpiration) {
+        throw new Error('approvalStartDate must not be after approvalExpiration');
+      }
       return true;
     }),
   body('reason')
@@ -143,7 +190,7 @@ function isResubmittable(record) {
 async function resubmit(req, res, next) {
   try {
     const { id } = req.params;
-    const { population, division, escortFullName, escortPhone, approvalExpiration, reason, requesterName: requesterNameFromBody } = req.body;
+    const { population, division, escortFullName, escortPhone, approvalExpiration, approvalStartDate, reason, requesterName: requesterNameFromBody } = req.body;
 
     const record = await peopleRepo.findById(id);
     if (!record) return res.status(404).json({ error: 'Record not found.' });
@@ -157,6 +204,7 @@ async function resubmit(req, res, next) {
 
     const updated = await peopleRepo.resubmitById(id, {
       approvalExpiration,
+      approvalStartDate: approvalStartDate || null,
       population,
       division: division || null,
       escortFullName: population === 'CIVILIAN' ? escortFullName : null,

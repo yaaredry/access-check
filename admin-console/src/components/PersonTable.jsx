@@ -1,9 +1,14 @@
 import { useState } from 'react';
 
-function verdictBadge(verdict, expiration, status) {
+function verdictBadge(verdict, expiration, status, startDate) {
   if (status === 'PENDING') return <span className="badge pending">Pending</span>;
   if (expiration && new Date(expiration) < new Date()) {
     return <span className="badge expired">Expired</span>;
+  }
+  if (startDate) {
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    if (start > new Date()) return <span className="badge not-yet-active">Not Yet Active</span>;
   }
   if (verdict === 'APPROVED') return <span className="badge approved">Approved</span>;
   if (verdict === 'ADMIN_APPROVED') return <span className="badge admin-approved">Admin Approved</span>;
@@ -108,14 +113,20 @@ export default function PersonTable({ rows, onEdit, onDelete, onApprove, onRejec
                   : '—'}
               </td>
               <td>
-                {verdictBadge(p.verdict, p.approval_expiration, p.status)}
+                {verdictBadge(p.verdict, p.approval_expiration, p.status, p.approval_start_date)}
                 {p.rejection_reason && (
                   <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, maxWidth: 180 }}>
                     {p.rejection_reason}
                   </div>
                 )}
               </td>
-              <td>{p.approval_expiration ? new Date(p.approval_expiration).toLocaleDateString() : '—'}</td>
+              <td>
+                {p.approval_start_date && p.approval_expiration
+                  ? `${new Date(p.approval_start_date).toLocaleDateString()} – ${new Date(p.approval_expiration).toLocaleDateString()}`
+                  : p.approval_expiration
+                    ? new Date(p.approval_expiration).toLocaleDateString()
+                    : '—'}
+              </td>
               <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>
                 {p.last_seen_at
                   ? new Date(p.last_seen_at).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })

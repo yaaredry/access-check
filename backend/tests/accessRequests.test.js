@@ -200,6 +200,82 @@ describe('POST /access-requests', () => {
     expect(res.status).toBe(400);
   });
 
+  it('saves approvalStartDate when provided', async () => {
+    const res = await request(app)
+      .post('/access-requests')
+      .set('Authorization', `Bearer ${requestorToken}`)
+      .send({ ...VALID_PAYLOAD, approvalStartDate: TOMORROW });
+
+    expect(res.status).toBe(201);
+    const { rows } = await db.query('SELECT * FROM people WHERE identifier_value = $1', ['000000018']);
+    expect(rows[0].approval_start_date).not.toBeNull();
+  });
+
+  it('works without approvalStartDate (backwards compatible)', async () => {
+    const res = await request(app)
+      .post('/access-requests')
+      .set('Authorization', `Bearer ${requestorToken}`)
+      .send(VALID_PAYLOAD);
+
+    expect(res.status).toBe(201);
+    const { rows } = await db.query('SELECT * FROM people WHERE identifier_value = $1', ['000000018']);
+    expect(rows[0].approval_start_date).toBeNull();
+  });
+
+  it('returns 400 when approvalStartDate is after approvalExpiration', async () => {
+    const dayAfterTomorrow = new Date();
+    dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2);
+    const DAY_AFTER_TOMORROW = dayAfterTomorrow.toISOString().split('T')[0];
+
+    const res = await request(app)
+      .post('/access-requests')
+      .set('Authorization', `Bearer ${requestorToken}`)
+      .send({ ...VALID_PAYLOAD, approvalStartDate: DAY_AFTER_TOMORROW, approvalExpiration: TOMORROW });
+
+    expect(res.status).toBe(400);
+  });
+
+  it('allows approvalStartDate equal to approvalExpiration (same-day range)', async () => {
+    const res = await request(app)
+      .post('/access-requests')
+      .set('Authorization', `Bearer ${requestorToken}`)
+      .send({ ...VALID_PAYLOAD, approvalStartDate: TOMORROW, approvalExpiration: TOMORROW });
+
+    expect(res.status).toBe(201);
+  });
+
+  it('allows expiration 7 days from start date (beyond the normal 7-day window)', async () => {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() + 2);
+    const expiryDate = new Date(startDate);
+    expiryDate.setDate(expiryDate.getDate() + 7);
+    const START = startDate.toISOString().split('T')[0];
+    const EXPIRY = expiryDate.toISOString().split('T')[0];
+
+    const res = await request(app)
+      .post('/access-requests')
+      .set('Authorization', `Bearer ${requestorToken}`)
+      .send({ ...VALID_PAYLOAD, approvalStartDate: START, approvalExpiration: EXPIRY });
+
+    expect(res.status).toBe(201);
+  });
+
+  it('returns 400 when expiration is more than 7 days from start date', async () => {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() + 2);
+    const expiryDate = new Date(startDate);
+    expiryDate.setDate(expiryDate.getDate() + 8); // 8 days from start = too far
+    const START = startDate.toISOString().split('T')[0];
+    const EXPIRY = expiryDate.toISOString().split('T')[0];
+
+    const res = await request(app)
+      .post('/access-requests')
+      .set('Authorization', `Bearer ${requestorToken}`)
+      .send({ ...VALID_PAYLOAD, approvalStartDate: START, approvalExpiration: EXPIRY });
+
+    expect(res.status).toBe(400);
+  });
+
   it('returns 401 without token', async () => {
     const res = await request(app)
       .post('/access-requests')
@@ -493,6 +569,54 @@ describe('POST /access-requests/:id/resubmit', () => {
     expect(rows[0].requester_email).toBeNull();
     expect(rows[0].rejection_reason).toBeNull(); // cleared
     expect(rows[0].status).toBe('PENDING');
+  });
+
+  // ── Start date (approval_start_date) ─────────────────────────────────────
+
+  it('resubmit saves approvalStartDate when provided', async () => {
+    const id = await insertPerson({ status: 'NOT_APPROVED', verdict: 'NOT_APPROVED' });
+
+    const res = await request(app)
+      .post(`/access-requests/${id}/resubmit`)
+      .set('Authorization', `Bearer ${requestorToken}`)
+      .send({ ...RESUBMIT_PAYLOAD, approvalStartDate: TOMORROW });
+
+    expect(res.status).toBe(200);
+    const { rows } = await db.query('SELECT * FROM people WHERE id = $1', [id]);
+    expect(rows[0].approval_start_date).not.toBeNull();
+  });
+
+  it('resubmit clears approvalStartDate when not provided', async () => {
+    // Record previously had a start date
+    const { rows: inserted } = await db.query(
+      `INSERT INTO people (identifier_type, identifier_value, verdict, status, approval_start_date, approval_expiration)
+       VALUES ('IL_ID', '000000018', 'NOT_APPROVED', 'NOT_APPROVED', '2020-01-01', '2020-06-01') RETURNING id`
+    );
+    const id = inserted[0].id;
+
+    const res = await request(app)
+      .post(`/access-requests/${id}/resubmit`)
+      .set('Authorization', `Bearer ${requestorToken}`)
+      .send(RESUBMIT_PAYLOAD); // no approvalStartDate
+
+    expect(res.status).toBe(200);
+    const { rows } = await db.query('SELECT * FROM people WHERE id = $1', [id]);
+    expect(rows[0].approval_start_date).toBeNull();
+  });
+
+  it('resubmit returns 400 when approvalStartDate is after approvalExpiration', async () => {
+    const dayAfterTomorrow = new Date();
+    dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2);
+    const DAY_AFTER_TOMORROW = dayAfterTomorrow.toISOString().split('T')[0];
+
+    const id = await insertPerson({ status: 'NOT_APPROVED', verdict: 'NOT_APPROVED' });
+
+    const res = await request(app)
+      .post(`/access-requests/${id}/resubmit`)
+      .set('Authorization', `Bearer ${requestorToken}`)
+      .send({ ...RESUBMIT_PAYLOAD, approvalStartDate: DAY_AFTER_TOMORROW, approvalExpiration: TOMORROW });
+
+    expect(res.status).toBe(400);
   });
 });
 

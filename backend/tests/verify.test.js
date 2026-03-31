@@ -169,6 +169,64 @@ describe('POST /verify/id', () => {
     expect(res.body.verdict).toBe('PENDING');
   });
 
+  it('returns NOT_YET_ACTIVE when approval_start_date is in the future', async () => {
+    await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict, approval_start_date, approval_expiration) VALUES ('IL_ID', '000000018', 'APPROVED', '2099-01-01', '2099-12-31')"
+    );
+
+    const res = await request(app)
+      .post('/verify/id')
+      .set('Authorization', `Bearer ${gateToken}`)
+      .send({ identifierType: 'IL_ID', identifierValue: '000000018' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.verdict).toBe('NOT_YET_ACTIVE');
+  });
+
+  it('returns APPROVED when approval_start_date is today (already active)', async () => {
+    const today = new Date().toISOString().split('T')[0];
+    await db.query(
+      `INSERT INTO people (identifier_type, identifier_value, verdict, approval_start_date, approval_expiration) VALUES ('IL_ID', '000000018', 'APPROVED', '${today}', '2099-12-31')`
+    );
+
+    const res = await request(app)
+      .post('/verify/id')
+      .set('Authorization', `Bearer ${gateToken}`)
+      .send({ identifierType: 'IL_ID', identifierValue: '000000018' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.verdict).toBe('APPROVED');
+  });
+
+  it('returns APPROVED when approval_start_date is in the past', async () => {
+    await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict, approval_start_date, approval_expiration) VALUES ('IL_ID', '000000018', 'APPROVED', '2020-01-01', '2099-12-31')"
+    );
+
+    const res = await request(app)
+      .post('/verify/id')
+      .set('Authorization', `Bearer ${gateToken}`)
+      .send({ identifierType: 'IL_ID', identifierValue: '000000018' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.verdict).toBe('APPROVED');
+  });
+
+  it('NOT_YET_ACTIVE takes precedence over EXPIRED when start_date is future and expiry is past', async () => {
+    // The start check runs before the expiry check, so a future start wins.
+    await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict, approval_start_date, approval_expiration) VALUES ('IL_ID', '000000018', 'APPROVED', '2099-01-01', '2020-01-01')"
+    );
+
+    const res = await request(app)
+      .post('/verify/id')
+      .set('Authorization', `Bearer ${gateToken}`)
+      .send({ identifierType: 'IL_ID', identifierValue: '000000018' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.verdict).toBe('NOT_YET_ACTIVE');
+  });
+
   it('returns 400 for invalid identifierType', async () => {
     const res = await request(app)
       .post('/verify/id')
