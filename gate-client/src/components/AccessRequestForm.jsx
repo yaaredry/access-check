@@ -127,6 +127,19 @@ export default function AccessRequestForm({ onLogout, requestorName, hideLogout 
     }
   }
 
+  async function handleResubmit(id) {
+    setLoading(true);
+    setGeneralError('');
+    try {
+      await api.resubmitAccessRequest(id, form);
+      setSubmitted(true);
+    } catch (err) {
+      setGeneralError(err.message || 'Something went wrong. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
   if (submitted) {
     return (
       <div style={containerStyle}>
@@ -239,7 +252,14 @@ export default function AccessRequestForm({ onLogout, requestorName, hideLogout 
           />
         </Field>
 
-        {existingRecord && <ExistingRecordCard record={existingRecord} />}
+        {existingRecord && (
+          <ExistingRecordCard
+            record={existingRecord}
+            approvalExpiration={form.approvalExpiration}
+            onResubmit={isResubmittable(existingRecord) ? () => handleResubmit(existingRecord.id) : null}
+            loading={loading}
+          />
+        )}
 
         {generalError && (
           <p style={{ color: 'var(--not-approved)', fontSize: 14, margin: 0, textAlign: 'center', fontWeight: 500 }}>
@@ -261,6 +281,14 @@ export default function AccessRequestForm({ onLogout, requestorName, hideLogout 
   );
 }
 
+function isResubmittable(record) {
+  if (record.status === 'NOT_APPROVED') return true;
+  if (['APPROVED', 'ADMIN_APPROVED', 'APPROVED_WITH_ESCORT'].includes(record.verdict)) {
+    return !!(record.approval_expiration && new Date(record.approval_expiration) < new Date());
+  }
+  return false;
+}
+
 function existingStatusConfig(record) {
   if (record.status === 'PENDING') {
     return { label: 'Pending Review', color: '#d97706', bg: 'rgba(245,158,11,.12)', icon: '🟡' };
@@ -279,8 +307,11 @@ function existingStatusConfig(record) {
   return { label: 'Unknown', color: 'var(--text-muted)', bg: 'rgba(100,116,139,.1)', icon: '⚪' };
 }
 
-function ExistingRecordCard({ record }) {
+function ExistingRecordCard({ record, onResubmit, approvalExpiration, loading }) {
   const cfg = existingStatusConfig(record);
+  const dateLabel = approvalExpiration
+    ? new Date(approvalExpiration + 'T12:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
+    : null;
   return (
     <div style={{
       borderRadius: 12, border: `1px solid ${cfg.color}`,
@@ -303,9 +334,21 @@ function ExistingRecordCard({ record }) {
           Expires {new Date(record.approval_expiration).toLocaleDateString()}
         </div>
       )}
-      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 10 }}>
-        Please contact the administrator for further assistance.
-      </div>
+      {onResubmit ? (
+        <button
+          type="button"
+          className="scan"
+          onClick={onResubmit}
+          disabled={loading}
+          style={{ marginTop: 14, width: '100%' }}
+        >
+          {loading ? 'Submitting…' : dateLabel ? `Request Extension until ${dateLabel}` : 'Request Extension'}
+        </button>
+      ) : (
+        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 10 }}>
+          Please contact the administrator for further assistance.
+        </div>
+      )}
     </div>
   );
 }

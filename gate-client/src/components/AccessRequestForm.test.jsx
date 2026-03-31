@@ -5,7 +5,7 @@ import AccessRequestForm from './AccessRequestForm';
 import { api } from '../api/client';
 
 vi.mock('../api/client', () => ({
-  api: { submitAccessRequest: vi.fn() },
+  api: { submitAccessRequest: vi.fn(), resubmitAccessRequest: vi.fn() },
 }));
 
 // A valid date within the allowed 7-day window (tomorrow)
@@ -202,5 +202,120 @@ describe('AccessRequestForm', () => {
     await fillRequiredFields();
     submitForm();
     await waitFor(() => expect(screen.getByText('Submitting…')).toBeDisabled());
+  });
+});
+
+// ── helpers for 409 conflict scenarios ───────────────────────────────────────
+
+function make409Error(existing) {
+  return Object.assign(new Error('A record for this ID already exists.'), {
+    status: 409,
+    data: { existing },
+  });
+}
+
+const PAST_DATE = '2020-01-01T00:00:00.000Z';
+
+describe('AccessRequestForm — resubmit flow', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  // ── Resubmit button visibility ────────────────────────────────────────────
+
+  it('shows Request Extension button for NOT_APPROVED record', async () => {
+    api.submitAccessRequest.mockRejectedValue(
+      make409Error({ id: 42, status: 'NOT_APPROVED', verdict: 'NOT_APPROVED', rejection_reason: 'Denied', approval_expiration: null })
+    );
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    await fillRequiredFields();
+    submitForm();
+    await waitFor(() => expect(screen.getByRole('button', { name: /Request Extension/i })).toBeInTheDocument());
+  });
+
+  it('shows Request Extension button for APPROVED record with past expiration (expired)', async () => {
+    api.submitAccessRequest.mockRejectedValue(
+      make409Error({ id: 42, status: 'APPROVED', verdict: 'APPROVED', rejection_reason: null, approval_expiration: PAST_DATE })
+    );
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    await fillRequiredFields();
+    submitForm();
+    await waitFor(() => expect(screen.getByRole('button', { name: /Request Extension/i })).toBeInTheDocument());
+  });
+
+  it('does NOT show Request Extension button for PENDING record', async () => {
+    api.submitAccessRequest.mockRejectedValue(
+      make409Error({ id: 42, status: 'PENDING', verdict: 'NOT_APPROVED', rejection_reason: null, approval_expiration: null })
+    );
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    await fillRequiredFields();
+    submitForm();
+    await waitFor(() => expect(screen.getByText(/already exists/i)).toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: /Request Extension/i })).not.toBeInTheDocument();
+  });
+
+  it('does NOT show Request Extension button for APPROVED record with future expiration', async () => {
+    api.submitAccessRequest.mockRejectedValue(
+      make409Error({ id: 42, status: 'APPROVED', verdict: 'APPROVED', rejection_reason: null, approval_expiration: FUTURE_DATE + 'T00:00:00.000Z' })
+    );
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    await fillRequiredFields();
+    submitForm();
+    await waitFor(() => expect(screen.getByText(/already exists/i)).toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: /Request Extension/i })).not.toBeInTheDocument();
+  });
+
+  // ── Resubmit UX (2-click flow) ────────────────────────────────────────────
+
+  it('shows the requested expiration date inside the Request Extension button', async () => {
+    api.submitAccessRequest.mockRejectedValue(
+      make409Error({ id: 42, status: 'NOT_APPROVED', verdict: 'NOT_APPROVED', rejection_reason: null, approval_expiration: null })
+    );
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    await fillRequiredFields(); // fills FUTURE_DATE as expiration
+    submitForm();
+    await waitFor(() => expect(screen.getByRole('button', { name: /Request Extension until/i })).toBeInTheDocument());
+  });
+
+  it('calls resubmitAccessRequest directly when Request Extension button is clicked', async () => {
+    api.submitAccessRequest.mockRejectedValue(
+      make409Error({ id: 42, status: 'NOT_APPROVED', verdict: 'NOT_APPROVED', rejection_reason: null, approval_expiration: null })
+    );
+    api.resubmitAccessRequest.mockResolvedValue({ id: 42, status: 'PENDING' });
+
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    await fillRequiredFields();
+    submitForm();
+    await waitFor(() => screen.getByRole('button', { name: /Request Extension until/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Request Extension until/i }));
+
+    await waitFor(() => expect(api.resubmitAccessRequest).toHaveBeenCalledWith(42, expect.any(Object)));
+    expect(api.submitAccessRequest).toHaveBeenCalledTimes(1); // only the original attempt
+  });
+
+  it('shows Request Extension button even when the existing record was created by a different requestor', async () => {
+    // Simulates: Person A created the record, it expired; Person B gets the 409 and should still see the button
+    api.submitAccessRequest.mockRejectedValue(
+      make409Error({ id: 99, status: 'APPROVED', verdict: 'APPROVED', rejection_reason: null, approval_expiration: PAST_DATE })
+    );
+    render(<AccessRequestForm onLogout={vi.fn()} requestorName="Bob Jones" />);
+    await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), VALID_ID);
+    fireEvent.change(document.querySelector('input[type="date"]'), { target: { value: FUTURE_DATE } });
+    await userEvent.type(screen.getByPlaceholderText('Describe the reason for entry…'), 'Supply run');
+    submitForm();
+    await waitFor(() => expect(screen.getByRole('button', { name: /Request Extension/i })).toBeInTheDocument());
+  });
+
+  it('shows success screen after clicking Request Extension (no extra submit needed)', async () => {
+    api.submitAccessRequest.mockRejectedValue(
+      make409Error({ id: 42, status: 'NOT_APPROVED', verdict: 'NOT_APPROVED', rejection_reason: null, approval_expiration: null })
+    );
+    api.resubmitAccessRequest.mockResolvedValue({ id: 42, status: 'PENDING' });
+
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    await fillRequiredFields();
+    submitForm();
+    await waitFor(() => screen.getByRole('button', { name: /Request Extension until/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Request Extension until/i }));
+
+    await waitFor(() => expect(screen.getByText('Request Submitted')).toBeInTheDocument());
   });
 });

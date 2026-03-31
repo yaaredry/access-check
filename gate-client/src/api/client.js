@@ -49,5 +49,6 @@ export const api = {
   },
 
   submitAccessRequest: (data) => request('POST', '/access-requests', data),
+  resubmitAccessRequest: (id, data) => request('POST', `/access-requests/${id}/resubmit`, data),
   getMySubmissions: () => request('GET', '/access-requests/mine'),
 };

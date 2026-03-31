@@ -126,6 +126,31 @@ async function findByRequesterEmail(email) {
   return rows;
 }
 
+async function resubmitById(id, { approvalExpiration, population, division, escortFullName, escortPhone, reason, requesterName, requesterEmail }) {
+  const { rows } = await db.query(
+    `UPDATE people
+     SET status             = 'PENDING',
+         verdict            = 'NOT_APPROVED',
+         rejection_reason   = NULL,
+         status_changed_at  = NULL,
+         approval_expiration = $2,
+         population         = $3,
+         division           = $4,
+         escort_full_name   = $5,
+         escort_phone       = $6,
+         reason             = $7,
+         requester_name     = $8,
+         requester_email    = $9,
+         updated_at         = NOW()
+     WHERE id = $1
+     RETURNING *`,
+    [id, approvalExpiration || null, population || null, division || null,
+     escortFullName || null, escortPhone || null, reason || null,
+     requesterName || null, requesterEmail || null]
+  );
+  return rows[0] || null;
+}
+
 async function upsertMany(records) {
   const client = await db.connect();
   let inserted = 0;
@@ -171,6 +196,7 @@ module.exports = {
   create,
   update,
   updateStatus,
+  resubmitById,
   remove,
   upsertMany,
   touchLastSeen,

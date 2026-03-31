@@ -120,17 +120,18 @@ async function getVerdictCounts() {
 async function getAvgTimeToVerdict() {
   const { rows } = await db.query(`
     SELECT
-      ROUND(
-        CAST(PERCENTILE_CONT(0.5) WITHIN GROUP (
+      ROUND(CAST(median AS numeric), 1) AS median_hours_7d,
+      ROUND(CAST(avg    AS numeric), 1) AS avg_hours_7d
+    FROM (
+      SELECT
+        PERCENTILE_CONT(0.5) WITHIN GROUP (
           ORDER BY EXTRACT(EPOCH FROM (status_changed_at - created_at)) / 3600
-        ) FILTER (WHERE created_at > NOW() - INTERVAL '7 days') AS numeric), 1
-      ) AS median_hours_7d,
-      ROUND(
+        ) FILTER (WHERE created_at > NOW() - INTERVAL '7 days') AS median,
         AVG(EXTRACT(EPOCH FROM (status_changed_at - created_at)) / 3600)
-        FILTER (WHERE created_at > NOW() - INTERVAL '7 days'), 1
-      ) AS avg_hours_7d
-    FROM people
-    WHERE status != 'PENDING' AND status_changed_at IS NOT NULL
+          FILTER (WHERE created_at > NOW() - INTERVAL '7 days')  AS avg
+      FROM people
+      WHERE status != 'PENDING' AND status_changed_at IS NOT NULL
+    ) sub
   `);
   return rows[0];
 }
