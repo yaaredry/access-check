@@ -19,7 +19,7 @@ async function findAll({ search, limit = 50, offset = 0 }) {
     query += ` WHERE p.identifier_value ILIKE $${params.length}`;
   }
 
-  query += ` ORDER BY (p.status = 'PENDING') DESC NULLS LAST, p.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+  query += ` ORDER BY (p.status = 'PENDING') DESC NULLS LAST, p.updated_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
   params.push(limit, offset);
 
   const { rows } = await db.query(query, params);
@@ -168,8 +168,7 @@ async function upsertMany(records) {
                        population = COALESCE(EXCLUDED.population, people.population),
                        reason = COALESCE(EXCLUDED.reason, people.reason),
                        escort_full_name = COALESCE(EXCLUDED.escort_full_name, people.escort_full_name),
-                       requester_email = COALESCE(EXCLUDED.requester_email, people.requester_email),
-                       updated_at = NOW()
+                       requester_email = COALESCE(EXCLUDED.requester_email, people.requester_email)
          RETURNING (xmax = 0) AS inserted`,
         [r.identifierType, r.identifierValue, r.verdict, r.approvalExpiration || null, r.population || null, r.reason || null, r.escortName || null, r.requesterEmail || null]
       );
