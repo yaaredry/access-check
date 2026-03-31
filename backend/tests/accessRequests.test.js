@@ -7,6 +7,7 @@ const jwt = require('jsonwebtoken');
 
 const requestorToken = jwt.sign({ sub: 99, username: 'requestor', role: 'access_requestor' }, process.env.JWT_SECRET || 'dev-secret');
 const namedRequestorToken = jwt.sign({ sub: 98, username: 'jane@example.com', role: 'access_requestor', name: 'Jane Smith' }, process.env.JWT_SECRET || 'dev-secret');
+const namedRequestorBToken = jwt.sign({ sub: 97, username: 'bob@example.com', role: 'access_requestor', name: 'Bob Jones' }, process.env.JWT_SECRET || 'dev-secret');
 const adminToken = jwt.sign({ sub: 1, username: 'admin', role: 'admin' }, process.env.JWT_SECRET || 'dev-secret');
 
 const tomorrow = new Date();
@@ -249,6 +250,249 @@ describe('POST /access-requests', () => {
     const { rows } = await db.query('SELECT * FROM people WHERE identifier_value = $1', ['000000018']);
     expect(rows[0].requester_name).toBe('Jane Smith');
     expect(rows[0].requester_email).toBeNull();
+  });
+});
+
+describe('POST /access-requests/:id/resubmit', () => {
+  async function insertPerson(overrides = {}) {
+    const { rows } = await db.query(
+      `INSERT INTO people (identifier_type, identifier_value, verdict, status, approval_expiration, rejection_reason, requester_name, requester_email)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+      [
+        overrides.identifier_type ?? 'IL_ID',
+        overrides.identifier_value ?? '000000018',
+        overrides.verdict ?? 'NOT_APPROVED',
+        overrides.status ?? 'NOT_APPROVED',
+        overrides.approval_expiration ?? null,
+        overrides.rejection_reason ?? null,
+        overrides.requester_name ?? 'Original Name',
+        overrides.requester_email ?? null,
+      ]
+    );
+    return rows[0].id;
+  }
+
+  const RESUBMIT_PAYLOAD = {
+    population: 'IL_MILITARY',
+    approvalExpiration: TOMORROW,
+    reason: 'Extended visit',
+    requesterName: 'New Requestor',
+  };
+
+  // ── Happy path ────────────────────────────────────────────────────────────
+
+  it('resubmits a NOT_APPROVED record → status becomes PENDING', async () => {
+    const id = await insertPerson({ status: 'NOT_APPROVED', verdict: 'NOT_APPROVED', rejection_reason: 'Denied' });
+
+    const res = await request(app)
+      .post(`/access-requests/${id}/resubmit`)
+      .set('Authorization', `Bearer ${requestorToken}`)
+      .send(RESUBMIT_PAYLOAD);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ id, status: 'PENDING' });
+
+    const { rows } = await db.query('SELECT * FROM people WHERE id = $1', [id]);
+    expect(rows[0].status).toBe('PENDING');
+    expect(rows[0].verdict).toBe('NOT_APPROVED');
+    expect(rows[0].rejection_reason).toBeNull();
+    expect(rows[0].status_changed_at).toBeNull();
+  });
+
+  it('resubmits an APPROVED record with past expiration (expired) → status becomes PENDING', async () => {
+    const id = await insertPerson({ status: 'APPROVED', verdict: 'APPROVED', approval_expiration: '2020-01-01' });
+
+    const res = await request(app)
+      .post(`/access-requests/${id}/resubmit`)
+      .set('Authorization', `Bearer ${requestorToken}`)
+      .send(RESUBMIT_PAYLOAD);
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('PENDING');
+
+    const { rows } = await db.query('SELECT * FROM people WHERE id = $1', [id]);
+    expect(rows[0].status).toBe('PENDING');
+    expect(rows[0].status_changed_at).toBeNull();
+  });
+
+  it('updates form fields on resubmit', async () => {
+    const id = await insertPerson({ status: 'NOT_APPROVED' });
+
+    await request(app)
+      .post(`/access-requests/${id}/resubmit`)
+      .set('Authorization', `Bearer ${requestorToken}`)
+      .send({ ...RESUBMIT_PAYLOAD, reason: 'Updated reason', population: 'CIVILIAN', escortFullName: 'Guard', escortPhone: '+972501234567' });
+
+    const { rows } = await db.query('SELECT * FROM people WHERE id = $1', [id]);
+    expect(rows[0].reason).toBe('Updated reason');
+    expect(rows[0].population).toBe('CIVILIAN');
+    expect(rows[0].escort_full_name).toBe('Guard');
+  });
+
+  it('overwrites requester fields with the new submitter identity', async () => {
+    const id = await insertPerson({ status: 'NOT_APPROVED', requester_name: 'Old Name' });
+
+    await request(app)
+      .post(`/access-requests/${id}/resubmit`)
+      .set('Authorization', `Bearer ${requestorToken}`)
+      .send({ ...RESUBMIT_PAYLOAD, requesterName: 'New Person' });
+
+    const { rows } = await db.query('SELECT * FROM people WHERE id = $1', [id]);
+    expect(rows[0].requester_name).toBe('New Person');
+    expect(rows[0].requester_email).toBeNull();
+  });
+
+  it('named requestor: derives requester identity from JWT on resubmit', async () => {
+    const id = await insertPerson({ status: 'NOT_APPROVED', requester_name: 'Old Name' });
+    const { requesterName: _, ...payloadWithoutName } = RESUBMIT_PAYLOAD; // eslint-disable-line no-unused-vars
+
+    await request(app)
+      .post(`/access-requests/${id}/resubmit`)
+      .set('Authorization', `Bearer ${namedRequestorToken}`)
+      .send(payloadWithoutName);
+
+    const { rows } = await db.query('SELECT * FROM people WHERE id = $1', [id]);
+    expect(rows[0].requester_name).toBe('Jane Smith');
+    expect(rows[0].requester_email).toBe('jane@example.com');
+  });
+
+  it('writes an ACCESS_REQUEST_RESUBMIT audit log entry', async () => {
+    const id = await insertPerson({ status: 'NOT_APPROVED' });
+
+    await request(app)
+      .post(`/access-requests/${id}/resubmit`)
+      .set('Authorization', `Bearer ${requestorToken}`)
+      .send(RESUBMIT_PAYLOAD);
+
+    const { rows } = await db.query("SELECT * FROM audit_logs WHERE action = 'ACCESS_REQUEST_RESUBMIT'");
+    expect(rows).toHaveLength(1);
+    expect(rows[0].identifier_value).toBe('000000018');
+  });
+
+  // ── Blocked states ────────────────────────────────────────────────────────
+
+  it('returns 409 when record is PENDING', async () => {
+    const id = await insertPerson({ status: 'PENDING', verdict: 'NOT_APPROVED' });
+
+    const res = await request(app)
+      .post(`/access-requests/${id}/resubmit`)
+      .set('Authorization', `Bearer ${requestorToken}`)
+      .send(RESUBMIT_PAYLOAD);
+
+    expect(res.status).toBe(409);
+  });
+
+  it('returns 409 when record is APPROVED with future expiration (still active)', async () => {
+    const id = await insertPerson({ status: 'APPROVED', verdict: 'APPROVED', approval_expiration: TOMORROW });
+
+    const res = await request(app)
+      .post(`/access-requests/${id}/resubmit`)
+      .set('Authorization', `Bearer ${requestorToken}`)
+      .send(RESUBMIT_PAYLOAD);
+
+    expect(res.status).toBe(409);
+  });
+
+  it('returns 409 when record is APPROVED with no expiration', async () => {
+    const id = await insertPerson({ status: 'APPROVED', verdict: 'APPROVED', approval_expiration: null });
+
+    const res = await request(app)
+      .post(`/access-requests/${id}/resubmit`)
+      .set('Authorization', `Bearer ${requestorToken}`)
+      .send(RESUBMIT_PAYLOAD);
+
+    expect(res.status).toBe(409);
+  });
+
+  // ── Not found / auth ──────────────────────────────────────────────────────
+
+  it('returns 404 for unknown id', async () => {
+    const res = await request(app)
+      .post('/access-requests/99999/resubmit')
+      .set('Authorization', `Bearer ${requestorToken}`)
+      .send(RESUBMIT_PAYLOAD);
+
+    expect(res.status).toBe(404);
+  });
+
+  it('returns 401 without token', async () => {
+    const res = await request(app)
+      .post('/access-requests/1/resubmit')
+      .send(RESUBMIT_PAYLOAD);
+
+    expect(res.status).toBe(401);
+  });
+
+  // ── Cross-requestor scenarios ─────────────────────────────────────────────
+
+  it('Person B can resubmit an expired record originally submitted by Person A', async () => {
+    // Person A submits
+    await request(app)
+      .post('/access-requests')
+      .set('Authorization', `Bearer ${namedRequestorToken}`)
+      .send({ ...VALID_PAYLOAD, requesterName: undefined });
+
+    // Admin approves, record then expires (simulate by direct DB update)
+    await db.query(
+      "UPDATE people SET status = 'APPROVED', verdict = 'APPROVED', approval_expiration = '2020-01-01' WHERE identifier_value = '000000018'"
+    );
+
+    // Person B submits same ID → 409
+    const conflictRes = await request(app)
+      .post('/access-requests')
+      .set('Authorization', `Bearer ${namedRequestorBToken}`)
+      .send({ ...VALID_PAYLOAD, requesterName: undefined });
+
+    expect(conflictRes.status).toBe(409);
+    const { id } = conflictRes.body.existing;
+
+    // Person B resubmits using the id from the 409
+    const resubmitRes = await request(app)
+      .post(`/access-requests/${id}/resubmit`)
+      .set('Authorization', `Bearer ${namedRequestorBToken}`)
+      .send(RESUBMIT_PAYLOAD);
+
+    expect(resubmitRes.status).toBe(200);
+    expect(resubmitRes.body.status).toBe('PENDING');
+
+    const { rows } = await db.query('SELECT * FROM people WHERE id = $1', [id]);
+    expect(rows[0].requester_name).toBe('Bob Jones');
+    expect(rows[0].requester_email).toBe('bob@example.com');
+  });
+
+  it('Person B can resubmit a rejected record originally submitted by Person A', async () => {
+    // Person A submits
+    await request(app)
+      .post('/access-requests')
+      .set('Authorization', `Bearer ${namedRequestorToken}`)
+      .send({ ...VALID_PAYLOAD, requesterName: undefined });
+
+    // Admin rejects
+    await db.query(
+      "UPDATE people SET status = 'NOT_APPROVED', verdict = 'NOT_APPROVED', rejection_reason = 'Denied by security' WHERE identifier_value = '000000018'"
+    );
+
+    // Person B submits same ID → 409
+    const conflictRes = await request(app)
+      .post('/access-requests')
+      .set('Authorization', `Bearer ${requestorToken}`)
+      .send(VALID_PAYLOAD);
+
+    expect(conflictRes.status).toBe(409);
+    const { id } = conflictRes.body.existing;
+
+    // Person B resubmits
+    const resubmitRes = await request(app)
+      .post(`/access-requests/${id}/resubmit`)
+      .set('Authorization', `Bearer ${requestorToken}`)
+      .send(RESUBMIT_PAYLOAD);
+
+    expect(resubmitRes.status).toBe(200);
+    const { rows } = await db.query('SELECT * FROM people WHERE id = $1', [id]);
+    expect(rows[0].requester_name).toBe('New Requestor');
+    expect(rows[0].requester_email).toBeNull();
+    expect(rows[0].rejection_reason).toBeNull(); // cleared
+    expect(rows[0].status).toBe('PENDING');
   });
 });
 

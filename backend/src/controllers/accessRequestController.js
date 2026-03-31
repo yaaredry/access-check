@@ -62,6 +62,7 @@ async function create(req, res, next) {
       return res.status(409).json({
         error: 'A record for this ID already exists.',
         existing: {
+          id: existing.id,
           status: existing.status,
           verdict: existing.verdict,
           rejection_reason: existing.rejection_reason || null,
@@ -99,6 +100,86 @@ async function create(req, res, next) {
   }
 }
 
+const resubmitBodyValidation = [
+  body('population')
+    .isIn(POPULATIONS).withMessage(`population must be one of: ${POPULATIONS.join(', ')}`),
+  body('division')
+    .optional({ nullable: true }).trim(),
+  body('escortFullName')
+    .if(body('population').equals('CIVILIAN'))
+    .notEmpty().withMessage('escortFullName is required for CIVILIAN population'),
+  body('escortPhone')
+    .if(body('population').equals('CIVILIAN'))
+    .notEmpty().withMessage('escortPhone is required for CIVILIAN population')
+    .matches(/^\+?[\d]+$/).withMessage('escortPhone must contain digits and optional leading +'),
+  body('approvalExpiration')
+    .isISO8601().withMessage('approvalExpiration must be a valid date')
+    .custom((value) => {
+      const date = new Date(value);
+      if (date <= new Date()) throw new Error('approvalExpiration must be a future date');
+      const max = new Date();
+      max.setDate(max.getDate() + 7);
+      if (date > max) throw new Error('approvalExpiration cannot be more than 7 days from today');
+      return true;
+    }),
+  body('reason')
+    .trim()
+    .notEmpty().withMessage('reason is required'),
+  body('requesterName')
+    .if((value, { req }) => !req.user?.name)
+    .trim()
+    .notEmpty().withMessage('requesterName is required'),
+  validate,
+];
+
+function isResubmittable(record) {
+  if (record.status === 'NOT_APPROVED') return true;
+  if (['APPROVED', 'ADMIN_APPROVED', 'APPROVED_WITH_ESCORT'].includes(record.verdict)) {
+    return !!(record.approval_expiration && new Date(record.approval_expiration) < new Date());
+  }
+  return false;
+}
+
+async function resubmit(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { population, division, escortFullName, escortPhone, approvalExpiration, reason, requesterName: requesterNameFromBody } = req.body;
+
+    const record = await peopleRepo.findById(id);
+    if (!record) return res.status(404).json({ error: 'Record not found.' });
+
+    if (!isResubmittable(record)) {
+      return res.status(409).json({ error: 'This record cannot be resubmitted in its current state.' });
+    }
+
+    const requesterName = req.user.name || requesterNameFromBody;
+    const requesterEmail = req.user.name ? req.user.username : null;
+
+    const updated = await peopleRepo.resubmitById(id, {
+      approvalExpiration,
+      population,
+      division: division || null,
+      escortFullName: population === 'CIVILIAN' ? escortFullName : null,
+      escortPhone: population === 'CIVILIAN' ? escortPhone : null,
+      reason,
+      requesterName,
+      requesterEmail,
+    });
+
+    await auditRepo.log({
+      action: 'ACCESS_REQUEST_RESUBMIT',
+      identifierType: updated.identifier_type,
+      identifierValue: updated.identifier_value,
+      verdict: 'PENDING',
+      source: 'request_form',
+    });
+
+    return res.json({ id: updated.id, status: updated.status });
+  } catch (err) {
+    return next(err);
+  }
+}
+
 async function mine(req, res, next) {
   try {
     const rows = await peopleRepo.findByRequesterEmail(req.user.username);
@@ -108,4 +189,4 @@ async function mine(req, res, next) {
   }
 }
 
-module.exports = { create, mine, requestBodyValidation };
+module.exports = { create, resubmit, mine, requestBodyValidation, resubmitBodyValidation };
