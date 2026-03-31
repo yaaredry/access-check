@@ -136,14 +136,27 @@ describe('AccessRequestForm', () => {
     expect(api.submitAccessRequest).toHaveBeenCalled();
   });
 
-  it('Submit Another resets form back to empty state', async () => {
+  it('Start Fresh resets form back to empty state', async () => {
     api.submitAccessRequest.mockResolvedValue({});
     render(<AccessRequestForm onLogout={vi.fn()} />);
     await fillRequiredFields();
     submitForm();
-    await waitFor(() => screen.getByText('Submit Another'));
-    fireEvent.click(screen.getByText('Submit Another'));
+    await waitFor(() => screen.getByText('Start Fresh'));
+    fireEvent.click(screen.getByText('Start Fresh'));
     expect(screen.getByPlaceholderText('9-digit Israeli ID')).toHaveValue('');
+    expect(screen.getByPlaceholderText('Your full name')).toHaveValue('');
+  });
+
+  it('Add Another Person keeps details but clears ID', async () => {
+    api.submitAccessRequest.mockResolvedValue({});
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    await fillRequiredFields();
+    submitForm();
+    await waitFor(() => screen.getByText('Add Another Person (Same Details)'));
+    fireEvent.click(screen.getByText('Add Another Person (Same Details)'));
+    expect(screen.getByPlaceholderText('9-digit Israeli ID')).toHaveValue('');
+    expect(screen.getByPlaceholderText('Your full name')).toHaveValue('Jane Smith');
+    expect(screen.getByPlaceholderText('Describe the reason for entry…')).toHaveValue('Supply run');
   });
 
   it('shows general error message on non-field API failure', async () => {
@@ -189,15 +202,15 @@ describe('AccessRequestForm', () => {
     await waitFor(() => expect(screen.queryByText(/Please enter your name/i)).not.toBeInTheDocument());
   });
 
-  it('retains the locked name after Submit Another', async () => {
+  it('retains the locked name after Start Fresh', async () => {
     api.submitAccessRequest.mockResolvedValue({});
     render(<AccessRequestForm onLogout={vi.fn()} requestorName="Dana Levi" />);
     await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), VALID_ID);
     fireEvent.change(getExpirationInput(), { target: { value: FUTURE_DATE } });
     await userEvent.type(screen.getByPlaceholderText('Describe the reason for entry…'), 'Supply run');
     submitForm();
-    await waitFor(() => screen.getByText('Submit Another'));
-    fireEvent.click(screen.getByText('Submit Another'));
+    await waitFor(() => screen.getByText('Start Fresh'));
+    fireEvent.click(screen.getByText('Start Fresh'));
     expect(screen.getByPlaceholderText('Your full name')).toHaveValue('Dana Levi');
   });
 

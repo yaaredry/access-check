@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 
 function validateIlId(value) {
   if (!/^\d{9}$/.test(value)) return false;
@@ -47,6 +47,7 @@ export default function PersonForm({ initial, onSubmit, onCancel, loading }) {
   );
   const [fieldErrors, setFieldErrors] = useState({});
   const [error, setError] = useState('');
+  const addAnotherRef = useRef(false);
 
   function set(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -89,6 +90,11 @@ export default function PersonForm({ initial, onSubmit, onCancel, loading }) {
         reason: form.reason || null,
         requesterName: form.requesterName || null,
       });
+      if (addAnotherRef.current) {
+        setForm(prev => ({ ...prev, identifierValue: '', approvalStartDate: '', approvalExpiration: '' }));
+        setFieldErrors({});
+        setError('');
+      }
     } catch (err) {
       setError(err.message);
     }
@@ -229,7 +235,10 @@ export default function PersonForm({ initial, onSubmit, onCancel, loading }) {
 
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
         <button type="button" className="secondary" onClick={onCancel} disabled={loading}>Cancel</button>
-        <button type="submit" className="primary" disabled={loading}>
+        <button type="submit" className="secondary" disabled={loading} onClick={() => { addAnotherRef.current = true; }}>
+          {loading ? 'Saving…' : 'Save & Add Another'}
+        </button>
+        <button type="submit" className="primary" disabled={loading} onClick={() => { addAnotherRef.current = false; }}>
           {loading ? 'Saving…' : 'Save'}
         </button>
       </div>

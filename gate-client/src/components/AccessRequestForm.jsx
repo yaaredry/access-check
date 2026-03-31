@@ -152,6 +152,22 @@ export default function AccessRequestForm({ onLogout, requestorName, hideLogout 
     }
   }
 
+  function resetFull() {
+    setSubmitted(false);
+    setForm({ ...EMPTY, requesterName: requestorName || '' });
+    setFieldErrors({});
+    setGeneralError('');
+    setExistingRecord(null);
+  }
+
+  function resetKeepDetails() {
+    setSubmitted(false);
+    setForm(prev => ({ ...prev, ilId: '', approvalStartDate: '', approvalExpiration: '' }));
+    setFieldErrors({});
+    setGeneralError('');
+    setExistingRecord(null);
+  }
+
   if (submitted) {
     return (
       <div style={containerStyle}>
@@ -161,8 +177,11 @@ export default function AccessRequestForm({ onLogout, requestorName, hideLogout 
           <p style={{ color: 'var(--text-muted)', marginBottom: 32 }}>
             Your access request has been submitted and is pending review.
           </p>
-          <button className="scan" onClick={() => { setSubmitted(false); setForm({ ...EMPTY, requesterName: requestorName || '' }); }}>
-            Submit Another
+          <button className="scan" onClick={resetKeepDetails} style={{ marginBottom: 12 }}>
+            Add Another Person (Same Details)
+          </button>
+          <button className="secondary" onClick={resetFull} style={{ width: '100%' }}>
+            Start Fresh
           </button>
         </div>
       </div>
