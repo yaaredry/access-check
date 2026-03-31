@@ -188,6 +188,31 @@ describe('GET /people', () => {
     expect(res.body.total).toBe(1);
   });
 
+  it('sorts PENDING records first, then by updated_at DESC', async () => {
+    // oldest updated_at
+    await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict, status, updated_at) VALUES ('IL_ID', '000000018', 'APPROVED', 'APPROVED', NOW() - INTERVAL '2 hours')"
+    );
+    // most recently updated — should be first among non-pending
+    await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict, status, updated_at) VALUES ('IDF_ID', '1234567', 'NOT_APPROVED', 'NOT_APPROVED', NOW() - INTERVAL '1 hour')"
+    );
+    // PENDING — must always be first regardless of updated_at
+    await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict, status, updated_at) VALUES ('IL_ID', '000000026', 'NOT_APPROVED', 'PENDING', NOW() - INTERVAL '3 hours')"
+    );
+
+    const res = await request(app)
+      .get('/people')
+      .set('Authorization', `Bearer ${authToken}`);
+
+    expect(res.status).toBe(200);
+    const ids = res.body.rows.map(r => r.identifier_value);
+    expect(ids[0]).toBe('000000026'); // PENDING first
+    expect(ids[1]).toBe('1234567');   // most recently updated non-pending
+    expect(ids[2]).toBe('000000018'); // oldest updated_at last
+  });
+
   it('supports search by identifier_value', async () => {
     await db.query(
       "INSERT INTO people (identifier_type, identifier_value, verdict) VALUES ('IL_ID', '000000018', 'APPROVED'), ('IDF_ID', '1234567', 'NOT_APPROVED')"
@@ -504,6 +529,20 @@ describe('peopleRepository direct', () => {
     const second = await peopleRepo.upsertMany([{ ...record, verdict: 'NOT_APPROVED' }]);
     expect(second.inserted).toBe(0);
     expect(second.updated).toBe(1);
+  });
+
+  it('upsertMany does not update updated_at on conflict (GSheet import preserves timestamp)', async () => {
+    const record = { identifierType: 'IL_ID', identifierValue: '000000018', verdict: 'APPROVED', approvalExpiration: null };
+    await peopleRepo.upsertMany([record]);
+
+    const { rows: [before] } = await db.query("SELECT updated_at FROM people WHERE identifier_value = '000000018'");
+
+    // Small delay to ensure clock would advance if updated_at were touched
+    await new Promise(r => setTimeout(r, 20));
+    await peopleRepo.upsertMany([{ ...record, verdict: 'NOT_APPROVED' }]);
+
+    const { rows: [after] } = await db.query("SELECT updated_at FROM people WHERE identifier_value = '000000018'");
+    expect(after.updated_at.getTime()).toBe(before.updated_at.getTime());
   });
 
   it('upsertMany rolls back the entire batch and throws on DB error', async () => {
