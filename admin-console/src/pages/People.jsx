@@ -85,6 +85,18 @@ export default function People() {
     }
   }
 
+  async function handleCreateAndAddAnother(formData) {
+    setFormLoading(true);
+    try {
+      await api.createPerson(formData);
+      setOffset(0);
+      load();
+      // modal stays open; PersonForm resets identifierValue/dates itself
+    } finally {
+      setFormLoading(false);
+    }
+  }
+
   async function handleUpdate(formData) {
     setFormLoading(true);
     try {
@@ -241,6 +253,7 @@ export default function People() {
             <PersonForm
               initial={editTarget}
               onSubmit={modal === MODAL_CREATE ? handleCreate : handleUpdate}
+              onSaveAndAddAnother={modal === MODAL_CREATE ? handleCreateAndAddAnother : undefined}
               onCancel={() => { setModal(MODAL_NONE); setEditTarget(null); }}
               loading={formLoading}
             />
