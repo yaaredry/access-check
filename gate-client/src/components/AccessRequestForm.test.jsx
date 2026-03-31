@@ -13,6 +13,9 @@ const tomorrow = new Date();
 tomorrow.setDate(tomorrow.getDate() + 1);
 const FUTURE_DATE = tomorrow.toISOString().split('T')[0];
 
+const TODAY = new Date().toISOString().split('T')[0];
+const PAST_DATE_RECENT = (() => { const d = new Date(); d.setDate(d.getDate() - 1); return d.toISOString().split('T')[0]; })();
+
 const FAR_FUTURE_DATE = '2099-12-31';
 const VALID_ID = '000000018';
 
@@ -94,6 +97,55 @@ describe('AccessRequestForm', () => {
     await userEvent.type(screen.getByPlaceholderText('Describe the reason for entry…'), 'Supply run');
     submitForm();
     await waitFor(() => expect(screen.getByText(/cannot be more than 7 days/i)).toBeInTheDocument());
+  });
+
+  it('shows validation error when start date is in the past', async () => {
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    await userEvent.type(screen.getByPlaceholderText('Your full name'), 'Jane Smith');
+    await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), VALID_ID);
+    fireEvent.change(document.querySelectorAll('input[type="date"]')[0], { target: { value: PAST_DATE_RECENT } });
+    fireEvent.change(getExpirationInput(), { target: { value: FUTURE_DATE } });
+    await userEvent.type(screen.getByPlaceholderText('Describe the reason for entry…'), 'Supply run');
+    submitForm();
+    await waitFor(() => expect(screen.getByText(/Start date cannot be in the past/i)).toBeInTheDocument());
+  });
+
+  it('accepts today as a valid start date', async () => {
+    api.submitAccessRequest.mockResolvedValue({});
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    await userEvent.type(screen.getByPlaceholderText('Your full name'), 'Jane Smith');
+    await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), VALID_ID);
+    fireEvent.change(document.querySelectorAll('input[type="date"]')[0], { target: { value: TODAY } });
+    fireEvent.change(getExpirationInput(), { target: { value: FUTURE_DATE } });
+    await userEvent.type(screen.getByPlaceholderText('Describe the reason for entry…'), 'Supply run');
+    submitForm();
+    await waitFor(() => expect(screen.getByText('Request Submitted')).toBeInTheDocument());
+    expect(screen.queryByText(/Start date cannot be in the past/i)).not.toBeInTheDocument();
+  });
+
+  it('shows expiry error when expiration is before start date', async () => {
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    await userEvent.type(screen.getByPlaceholderText('Your full name'), 'Jane Smith');
+    await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), VALID_ID);
+    // start date = day after tomorrow, expiry = tomorrow (before start)
+    const dayAfterTomorrow = new Date(); dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2);
+    const DAY_AFTER_TOMORROW = dayAfterTomorrow.toISOString().split('T')[0];
+    fireEvent.change(document.querySelectorAll('input[type="date"]')[0], { target: { value: DAY_AFTER_TOMORROW } });
+    fireEvent.change(getExpirationInput(), { target: { value: FUTURE_DATE } }); // tomorrow < day after tomorrow
+    await userEvent.type(screen.getByPlaceholderText('Describe the reason for entry…'), 'Supply run');
+    submitForm();
+    await waitFor(() => expect(screen.getByText(/Expiration date cannot be before the start date/i)).toBeInTheDocument());
+  });
+
+  it('shows expiry error when expiration is more than 7 days from start date', async () => {
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    await userEvent.type(screen.getByPlaceholderText('Your full name'), 'Jane Smith');
+    await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), VALID_ID);
+    fireEvent.change(document.querySelectorAll('input[type="date"]')[0], { target: { value: FUTURE_DATE } });
+    fireEvent.change(getExpirationInput(), { target: { value: FAR_FUTURE_DATE } });
+    await userEvent.type(screen.getByPlaceholderText('Describe the reason for entry…'), 'Supply run');
+    submitForm();
+    await waitFor(() => expect(screen.getByText(/cannot be more than 7 days from the start date/i)).toBeInTheDocument());
   });
 
   it('shows validation error when reason is missing', async () => {

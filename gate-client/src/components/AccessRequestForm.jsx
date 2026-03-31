@@ -64,6 +64,7 @@ export default function AccessRequestForm({ onLogout, requestorName, hideLogout 
   }
 
   const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
   const minDate = new Date(today);
   minDate.setDate(minDate.getDate() + 1);
   const minDateStr = minDate.toISOString().split('T')[0];
@@ -82,17 +83,23 @@ export default function AccessRequestForm({ onLogout, requestorName, hideLogout 
     if (!validateIlId(form.ilId)) {
       errors.ilId = 'This ID number is not valid. Please double-check and try again.';
     }
+    if (form.approvalStartDate && form.approvalStartDate < todayStr) {
+      errors.approvalStartDate = 'Start date cannot be in the past.';
+    }
     if (!form.approvalExpiration) {
       errors.approvalExpiration = 'Expiration date is required.';
-    } else if (form.approvalExpiration <= today.toISOString().split('T')[0]) {
-      errors.approvalExpiration = 'The expiration date must be in the future.';
-    } else if (form.approvalExpiration > maxDateStr) {
-      errors.approvalExpiration = form.approvalStartDate
-        ? 'Expiration date cannot be more than 7 days from the start date.'
-        : 'Expiration date cannot be more than 7 days from today.';
-    }
-    if (form.approvalStartDate && form.approvalExpiration && form.approvalStartDate > form.approvalExpiration) {
-      errors.approvalStartDate = 'Start date cannot be after the expiration date.';
+    } else if (form.approvalStartDate) {
+      if (form.approvalExpiration < form.approvalStartDate) {
+        errors.approvalExpiration = 'Expiration date cannot be before the start date.';
+      } else if (form.approvalExpiration > maxDateStr) {
+        errors.approvalExpiration = 'Expiration date cannot be more than 7 days from the start date.';
+      }
+    } else {
+      if (form.approvalExpiration <= todayStr) {
+        errors.approvalExpiration = 'The expiration date must be in the future.';
+      } else if (form.approvalExpiration > maxDateStr) {
+        errors.approvalExpiration = 'Expiration date cannot be more than 7 days from today.';
+      }
     }
     if (!form.reason.trim()) {
       errors.reason = 'Please explain the reason for this visit.';
@@ -266,8 +273,7 @@ export default function AccessRequestForm({ onLogout, requestorName, hideLogout 
           <input
             type="date"
             value={form.approvalStartDate}
-            min={minDateStr}
-            max={form.approvalExpiration || maxDateStr}
+            min={todayStr}
             onChange={e => set('approvalStartDate', e.target.value)}
             style={{ ...inputStyle, ...(fieldErrors.approvalStartDate ? errorInputStyle : {}) }}
           />
