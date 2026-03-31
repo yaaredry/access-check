@@ -147,6 +147,16 @@ describe('AccessRequestForm', () => {
     expect(screen.getByPlaceholderText('Your full name')).toHaveValue('');
   });
 
+  it('success screen shows both Add Another and Start Fresh buttons', async () => {
+    api.submitAccessRequest.mockResolvedValue({});
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    await fillRequiredFields();
+    submitForm();
+    await waitFor(() => screen.getByText('Request Submitted'));
+    expect(screen.getByText('Add Another Person (Same Details)')).toBeInTheDocument();
+    expect(screen.getByText('Start Fresh')).toBeInTheDocument();
+  });
+
   it('Add Another Person keeps details but clears ID', async () => {
     api.submitAccessRequest.mockResolvedValue({});
     render(<AccessRequestForm onLogout={vi.fn()} />);
@@ -157,6 +167,98 @@ describe('AccessRequestForm', () => {
     expect(screen.getByPlaceholderText('9-digit Israeli ID')).toHaveValue('');
     expect(screen.getByPlaceholderText('Your full name')).toHaveValue('Jane Smith');
     expect(screen.getByPlaceholderText('Describe the reason for entry…')).toHaveValue('Supply run');
+  });
+
+  it('Add Another Person clears expiration date', async () => {
+    api.submitAccessRequest.mockResolvedValue({});
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    await fillRequiredFields(); // sets FUTURE_DATE on expiration
+    submitForm();
+    await waitFor(() => screen.getByText('Add Another Person (Same Details)'));
+    fireEvent.click(screen.getByText('Add Another Person (Same Details)'));
+    expect(getExpirationInput()).toHaveValue('');
+  });
+
+  it('Add Another Person clears start date when it was set', async () => {
+    api.submitAccessRequest.mockResolvedValue({});
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    await fillRequiredFields();
+    // Also set the start date (index 0)
+    const startInput = document.querySelectorAll('input[type="date"]')[0];
+    fireEvent.change(startInput, { target: { value: FUTURE_DATE } });
+    // Adjust expiration to same day so start <= end
+    fireEvent.change(getExpirationInput(), { target: { value: FUTURE_DATE } });
+    submitForm();
+    await waitFor(() => screen.getByText('Add Another Person (Same Details)'));
+    fireEvent.click(screen.getByText('Add Another Person (Same Details)'));
+    expect(document.querySelectorAll('input[type="date"]')[0]).toHaveValue('');
+  });
+
+  it('Add Another Person keeps CIVILIAN population and escort details', async () => {
+    api.submitAccessRequest.mockResolvedValue({});
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    await userEvent.type(screen.getByPlaceholderText('Your full name'), 'Jane Smith');
+    await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), VALID_ID);
+    await userEvent.selectOptions(screen.getByDisplayValue('IL Military'), 'CIVILIAN');
+    await userEvent.type(screen.getByPlaceholderText("Escort's full name"), 'Guard One');
+    await userEvent.type(screen.getByPlaceholderText('+972501234567'), '+972501234567');
+    fireEvent.change(getExpirationInput(), { target: { value: FUTURE_DATE } });
+    await userEvent.type(screen.getByPlaceholderText('Describe the reason for entry…'), 'Group tour');
+    submitForm();
+    await waitFor(() => screen.getByText('Add Another Person (Same Details)'));
+    fireEvent.click(screen.getByText('Add Another Person (Same Details)'));
+    expect(screen.getByDisplayValue('Civilian')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Escort's full name")).toHaveValue('Guard One');
+    expect(screen.getByPlaceholderText('+972501234567')).toHaveValue('+972501234567');
+    expect(screen.getByPlaceholderText('Describe the reason for entry…')).toHaveValue('Group tour');
+  });
+
+  it('Add Another Person clears field errors', async () => {
+    // Trigger a field error first, then succeed, then Add Another — errors are gone
+    api.submitAccessRequest.mockRejectedValueOnce(
+      Object.assign(new Error('Validation failed'), {
+        data: { errors: [{ path: 'ilId', msg: 'Invalid IL_ID' }] },
+      })
+    ).mockResolvedValue({});
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    await fillRequiredFields();
+    submitForm();
+    await waitFor(() => expect(screen.getByText(/not valid/i)).toBeInTheDocument());
+    // Fix and resubmit to success
+    submitForm();
+    await waitFor(() => screen.getByText('Add Another Person (Same Details)'));
+    fireEvent.click(screen.getByText('Add Another Person (Same Details)'));
+    expect(screen.queryByText(/not valid/i)).not.toBeInTheDocument();
+  });
+
+  it('Add Another Person with locked requestorName keeps name locked and clears ID', async () => {
+    api.submitAccessRequest.mockResolvedValue({});
+    render(<AccessRequestForm onLogout={vi.fn()} requestorName="Dana Levi" />);
+    await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), VALID_ID);
+    fireEvent.change(getExpirationInput(), { target: { value: FUTURE_DATE } });
+    await userEvent.type(screen.getByPlaceholderText('Describe the reason for entry…'), 'Delivery');
+    submitForm();
+    await waitFor(() => screen.getByText('Add Another Person (Same Details)'));
+    fireEvent.click(screen.getByText('Add Another Person (Same Details)'));
+    const nameInput = screen.getByPlaceholderText('Your full name');
+    expect(nameInput).toHaveValue('Dana Levi');
+    expect(nameInput).toBeDisabled();
+    expect(screen.getByPlaceholderText('9-digit Israeli ID')).toHaveValue('');
+  });
+
+  it('can successfully submit a new ID after clicking Add Another Person', async () => {
+    api.submitAccessRequest.mockResolvedValue({});
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    await fillRequiredFields();
+    submitForm();
+    await waitFor(() => screen.getByText('Add Another Person (Same Details)'));
+    fireEvent.click(screen.getByText('Add Another Person (Same Details)'));
+    // Submit a new ID with the pre-filled details
+    await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), '000000018');
+    fireEvent.change(getExpirationInput(), { target: { value: FUTURE_DATE } });
+    submitForm();
+    await waitFor(() => expect(screen.getByText('Request Submitted')).toBeInTheDocument());
+    expect(api.submitAccessRequest).toHaveBeenCalledTimes(2);
   });
 
   it('shows general error message on non-field API failure', async () => {
