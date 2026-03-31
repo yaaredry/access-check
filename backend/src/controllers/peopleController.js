@@ -22,6 +22,14 @@ const personBodyValidation = [
     }),
   body('verdict').isIn(VERDICTS).withMessage(`verdict must be one of ${VERDICTS.join(', ')}`),
   body('approvalExpiration').optional({ nullable: true }).isISO8601().withMessage('approvalExpiration must be a valid date'),
+  body('approvalStartDate').optional({ nullable: true }).isISO8601().withMessage('approvalStartDate must be a valid date')
+    .custom((value, { req }) => {
+      if (!value) return true;
+      if (req.body.approvalExpiration && value > req.body.approvalExpiration) {
+        throw new Error('approvalStartDate must not be after approvalExpiration');
+      }
+      return true;
+    }),
   body('requesterName').optional({ nullable: true }).trim(),
   body('escortFullName').if(body('verdict').equals('APPROVED_WITH_ESCORT'))
     .notEmpty().withMessage('escortFullName is required when verdict is APPROVED_WITH_ESCORT'),

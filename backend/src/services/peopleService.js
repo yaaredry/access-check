@@ -25,8 +25,8 @@ async function getPerson(id) {
 }
 
 async function createPerson(data) {
-  const { identifierType, identifierValue, verdict, approvalExpiration, population, division, escortFullName, escortPhone, reason, status, requesterName } = data;
-  const person = await peopleRepo.create({ identifierType, identifierValue, verdict, approvalExpiration, population, division, escortFullName, escortPhone, reason, status, requesterName });
+  const { identifierType, identifierValue, verdict, approvalExpiration, approvalStartDate, population, division, escortFullName, escortPhone, reason, status, requesterName } = data;
+  const person = await peopleRepo.create({ identifierType, identifierValue, verdict, approvalExpiration, approvalStartDate, population, division, escortFullName, escortPhone, reason, status, requesterName });
   await auditRepo.log({
     action: 'CREATE',
     identifierType,

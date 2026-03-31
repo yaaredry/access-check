@@ -31,6 +31,7 @@ const EMPTY = {
   identifierType: 'IL_ID',
   identifierValue: '',
   uiStatus: 'APPROVED',
+  approvalStartDate: '',
   approvalExpiration: '',
   population: 'IL_MILITARY',
   division: '',
@@ -60,6 +61,9 @@ export default function PersonForm({ initial, onSubmit, onCancel, loading }) {
     if (form.identifierType === 'IL_ID' && !validateIlId(form.identifierValue)) {
       errors.identifierValue = 'Invalid Israeli ID';
     }
+    if (form.approvalStartDate && form.approvalExpiration && form.approvalStartDate > form.approvalExpiration) {
+      errors.approvalStartDate = 'Start date cannot be after the expiration date.';
+    }
     const escortRequired = form.uiStatus === 'APPROVED_WITH_ESCORT' || form.population === 'CIVILIAN';
     if (escortRequired) {
       if (!form.escortFullName?.trim()) errors.escortFullName = 'Escort full name is required.';
@@ -77,6 +81,7 @@ export default function PersonForm({ initial, onSubmit, onCancel, loading }) {
         ...form,
         verdict,
         status,
+        approvalStartDate: form.approvalStartDate || null,
         approvalExpiration: form.approvalExpiration || null,
         escortFullName: form.escortFullName || null,
         escortPhone: form.escortPhone || null,
@@ -123,11 +128,25 @@ export default function PersonForm({ initial, onSubmit, onCancel, loading }) {
       </div>
 
       <div>
+        <label htmlFor="pf-approvalStartDate" style={labelStyle}>Start Date (optional)</label>
+        <input
+          id="pf-approvalStartDate"
+          type="date"
+          value={form.approvalStartDate || ''}
+          max={form.approvalExpiration || undefined}
+          onChange={(e) => set('approvalStartDate', e.target.value)}
+          style={fieldErrors.approvalStartDate ? errorInputStyle : undefined}
+        />
+        {fieldErrors.approvalStartDate && <p style={fieldErrorStyle}>⚠ {fieldErrors.approvalStartDate}</p>}
+      </div>
+
+      <div>
         <label htmlFor="pf-approvalExpiration" style={labelStyle}>Approval Expiration (optional)</label>
         <input
           id="pf-approvalExpiration"
           type="date"
           value={form.approvalExpiration || ''}
+          min={form.approvalStartDate || undefined}
           onChange={(e) => set('approvalExpiration', e.target.value)}
         />
       </div>

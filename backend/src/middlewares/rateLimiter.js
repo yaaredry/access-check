@@ -3,7 +3,9 @@
 const rateLimit = require('express-rate-limit');
 
 const windowMs = parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000', 10);
-const max = parseInt(process.env.RATE_LIMIT_MAX || '60', 10);
+const max = process.env.NODE_ENV === 'test'
+  ? 10000
+  : parseInt(process.env.RATE_LIMIT_MAX || '60', 10);
 
 // General API limit — defense-in-depth behind nginx
 const apiLimiter = rateLimit({
@@ -17,7 +19,7 @@ const apiLimiter = rateLimit({
 // Verify endpoints — OCR is expensive
 const verifyLimiter = rateLimit({
   windowMs: 60000,
-  max: 20,
+  max: process.env.NODE_ENV === 'test' ? 10000 : 20,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many verification requests, please try again later.' },
