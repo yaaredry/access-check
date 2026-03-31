@@ -20,10 +20,15 @@ function submitForm() {
   fireEvent.submit(document.querySelector('form'));
 }
 
+function getExpirationInput() {
+  // Start Date is index 0; Expiration Date is index 1
+  return document.querySelectorAll('input[type="date"]')[1];
+}
+
 async function fillRequiredFields() {
   await userEvent.type(screen.getByPlaceholderText('Your full name'), 'Jane Smith');
   await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), VALID_ID);
-  fireEvent.change(document.querySelector('input[type="date"]'), { target: { value: FUTURE_DATE } });
+  fireEvent.change(getExpirationInput(), { target: { value: FUTURE_DATE } });
   await userEvent.type(screen.getByPlaceholderText('Describe the reason for entry…'), 'Supply run');
 }
 
@@ -60,7 +65,7 @@ describe('AccessRequestForm', () => {
   it('shows validation error when Your Name is missing', async () => {
     render(<AccessRequestForm onLogout={vi.fn()} />);
     await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), VALID_ID);
-    fireEvent.change(document.querySelector('input[type="date"]'), { target: { value: FUTURE_DATE } });
+    fireEvent.change(getExpirationInput(), { target: { value: FUTURE_DATE } });
     await userEvent.type(screen.getByPlaceholderText('Describe the reason for entry…'), 'Supply run');
     submitForm();
     await waitFor(() => expect(screen.getByText(/Please enter your name/i)).toBeInTheDocument());
@@ -85,7 +90,7 @@ describe('AccessRequestForm', () => {
     render(<AccessRequestForm onLogout={vi.fn()} />);
     await userEvent.type(screen.getByPlaceholderText('Your full name'), 'Jane Smith');
     await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), VALID_ID);
-    fireEvent.change(document.querySelector('input[type="date"]'), { target: { value: FAR_FUTURE_DATE } });
+    fireEvent.change(getExpirationInput(), { target: { value: FAR_FUTURE_DATE } });
     await userEvent.type(screen.getByPlaceholderText('Describe the reason for entry…'), 'Supply run');
     submitForm();
     await waitFor(() => expect(screen.getByText(/cannot be more than 7 days/i)).toBeInTheDocument());
@@ -94,7 +99,7 @@ describe('AccessRequestForm', () => {
   it('shows validation error when reason is missing', async () => {
     render(<AccessRequestForm onLogout={vi.fn()} />);
     await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), VALID_ID);
-    fireEvent.change(document.querySelector('input[type="date"]'), { target: { value: FUTURE_DATE } });
+    fireEvent.change(getExpirationInput(), { target: { value: FUTURE_DATE } });
     submitForm();
     await waitFor(() => expect(screen.getByText(/reason for this visit/i)).toBeInTheDocument());
   });
@@ -104,7 +109,7 @@ describe('AccessRequestForm', () => {
     await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), VALID_ID);
     await userEvent.selectOptions(screen.getByDisplayValue('IL Military'), 'CIVILIAN');
     await userEvent.type(screen.getByPlaceholderText('+972501234567'), '+972501234567');
-    fireEvent.change(document.querySelector('input[type="date"]'), { target: { value: FUTURE_DATE } });
+    fireEvent.change(getExpirationInput(), { target: { value: FUTURE_DATE } });
     await userEvent.type(screen.getByPlaceholderText('Describe the reason for entry…'), 'Visit');
     submitForm();
     await waitFor(() => expect(screen.getByText(/escort full name is required/i)).toBeInTheDocument());
@@ -116,7 +121,7 @@ describe('AccessRequestForm', () => {
     await userEvent.selectOptions(screen.getByDisplayValue('IL Military'), 'CIVILIAN');
     await userEvent.type(screen.getByPlaceholderText("Escort's full name"), 'Jane');
     await userEvent.type(screen.getByPlaceholderText('+972501234567'), 'not-a-phone');
-    fireEvent.change(document.querySelector('input[type="date"]'), { target: { value: FUTURE_DATE } });
+    fireEvent.change(getExpirationInput(), { target: { value: FUTURE_DATE } });
     await userEvent.type(screen.getByPlaceholderText('Describe the reason for entry…'), 'Visit');
     submitForm();
     await waitFor(() => expect(screen.getByText(/only contain digits/i)).toBeInTheDocument());
@@ -178,7 +183,7 @@ describe('AccessRequestForm', () => {
     render(<AccessRequestForm onLogout={vi.fn()} requestorName="Dana Levi" />);
     // Don't fill name (it's locked), fill everything else
     await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), VALID_ID);
-    fireEvent.change(document.querySelector('input[type="date"]'), { target: { value: FUTURE_DATE } });
+    fireEvent.change(getExpirationInput(), { target: { value: FUTURE_DATE } });
     await userEvent.type(screen.getByPlaceholderText('Describe the reason for entry…'), 'Supply run');
     submitForm();
     await waitFor(() => expect(screen.queryByText(/Please enter your name/i)).not.toBeInTheDocument());
@@ -188,7 +193,7 @@ describe('AccessRequestForm', () => {
     api.submitAccessRequest.mockResolvedValue({});
     render(<AccessRequestForm onLogout={vi.fn()} requestorName="Dana Levi" />);
     await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), VALID_ID);
-    fireEvent.change(document.querySelector('input[type="date"]'), { target: { value: FUTURE_DATE } });
+    fireEvent.change(getExpirationInput(), { target: { value: FUTURE_DATE } });
     await userEvent.type(screen.getByPlaceholderText('Describe the reason for entry…'), 'Supply run');
     submitForm();
     await waitFor(() => screen.getByText('Submit Another'));
@@ -298,7 +303,7 @@ describe('AccessRequestForm — resubmit flow', () => {
     );
     render(<AccessRequestForm onLogout={vi.fn()} requestorName="Bob Jones" />);
     await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), VALID_ID);
-    fireEvent.change(document.querySelector('input[type="date"]'), { target: { value: FUTURE_DATE } });
+    fireEvent.change(getExpirationInput(), { target: { value: FUTURE_DATE } });
     await userEvent.type(screen.getByPlaceholderText('Describe the reason for entry…'), 'Supply run');
     submitForm();
     await waitFor(() => expect(screen.getByRole('button', { name: /Request Extension/i })).toBeInTheDocument());
