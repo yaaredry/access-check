@@ -158,6 +158,7 @@ async function upsertMany(records) {
 
   try {
     await client.query('BEGIN');
+    await client.query("SET LOCAL app.suppress_updated_at = 'true'");
     for (const r of records) {
       const { rows } = await client.query(
         `INSERT INTO people (identifier_type, identifier_value, verdict, approval_expiration, population, reason, escort_full_name, requester_email)
