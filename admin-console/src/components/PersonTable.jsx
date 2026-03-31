@@ -32,6 +32,7 @@ const COLUMNS = [
 ];
 
 function sortRows(rows, key, dir) {
+  if (!key) return rows; // no client sort → preserve server order
   const pending = rows.filter(r => r.status === 'PENDING');
   const rest = rows.filter(r => r.status !== 'PENDING');
   const sorted = [...rest].sort((a, b) => {
@@ -56,7 +57,7 @@ function SortIcon({ active, dir }) {
 }
 
 export default function PersonTable({ rows, onEdit, onDelete, onApprove, onReject }) {
-  const [sortKey, setSortKey] = useState('id');
+  const [sortKey, setSortKey] = useState(null);
   const [sortDir, setSortDir] = useState('asc');
 
   if (!rows || rows.length === 0) {
