@@ -131,6 +131,7 @@ export default function People() {
     await api.updatePersonStatus(approveTarget.id, 'APPROVED', undefined, verdict);
     setModal(MODAL_NONE);
     setApproveTarget(null);
+    setOffset(0);
     load();
   }
 
@@ -143,6 +144,7 @@ export default function People() {
     await api.updatePersonStatus(rejectTarget.id, 'NOT_APPROVED', reason);
     setModal(MODAL_NONE);
     setRejectTarget(null);
+    setOffset(0);
     load();
   }
 

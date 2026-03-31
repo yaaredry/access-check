@@ -213,6 +213,44 @@ describe('GET /people', () => {
     expect(ids[2]).toBe('000000018'); // oldest updated_at last
   });
 
+  it('approved record (via PATCH /status) appears before null-status admin-created records', async () => {
+    // Simulate admin-created records (status = NULL) — typical bulk import or manual entry
+    await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict, updated_at) VALUES ('IDF_ID', '1111111', 'APPROVED', NOW() - INTERVAL '30 minutes')"
+    );
+    await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict, updated_at) VALUES ('IDF_ID', '2222222', 'APPROVED', NOW() - INTERVAL '1 hour')"
+    );
+
+    // PENDING record submitted by a gate requestor (older than the admin-created records)
+    const { rows: [pending] } = await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict, status, updated_at) VALUES ('IL_ID', '000000026', 'NOT_APPROVED', 'PENDING', NOW() - INTERVAL '2 hours') RETURNING id, updated_at"
+    );
+    const updatedAtBefore = pending.updated_at;
+
+    // Admin approves the PENDING record
+    await request(app)
+      .patch(`/people/${pending.id}/status`)
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({ status: 'APPROVED', verdict: 'APPROVED' });
+
+    // Confirm the trigger actually bumped updated_at
+    const { rows: [after] } = await db.query('SELECT updated_at, status FROM people WHERE id = $1', [pending.id]);
+    expect(after.status).toBe('APPROVED');
+    expect(after.updated_at.getTime()).toBeGreaterThan(updatedAtBefore.getTime());
+
+    const res = await request(app)
+      .get('/people')
+      .set('Authorization', `Bearer ${authToken}`);
+
+    expect(res.status).toBe(200);
+    const ids = res.body.rows.map(r => r.identifier_value);
+    // Newly approved record must appear before the null-status admin-created records
+    expect(ids[0]).toBe('000000026'); // just approved — top of non-pending section
+    expect(ids[1]).toBe('1111111');   // null-status, more recently updated
+    expect(ids[2]).toBe('2222222');   // null-status, older
+  });
+
   it('supports search by identifier_value', async () => {
     await db.query(
       "INSERT INTO people (identifier_type, identifier_value, verdict) VALUES ('IL_ID', '000000018', 'APPROVED'), ('IDF_ID', '1234567', 'NOT_APPROVED')"
