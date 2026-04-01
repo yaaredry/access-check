@@ -228,6 +228,12 @@ describe('PersonForm', () => {
     render(<PersonForm onSubmit={noop} onCancel={noop} />);
     expect(screen.queryByText('Save & Add Another')).not.toBeInTheDocument();
   });
+
+  it('does not render Save & Add Another button in edit mode (initial prop provided, no onSaveAndAddAnother)', () => {
+    const initial = { identifierType: 'IL_ID', identifierValue: '000000018', verdict: 'APPROVED', status: 'APPROVED' };
+    render(<PersonForm initial={initial} onSubmit={noop} onCancel={noop} />);
+    expect(screen.queryByText('Save & Add Another')).not.toBeInTheDocument();
+  });
 });
 
 describe('PersonForm — Save & Add Another', () => {
