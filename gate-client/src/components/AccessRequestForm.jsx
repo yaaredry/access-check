@@ -64,6 +64,7 @@ export default function AccessRequestForm({ onLogout, requestorName, hideLogout 
   }
 
   const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
   const minDate = new Date(today);
   minDate.setDate(minDate.getDate() + 1);
   const minDateStr = minDate.toISOString().split('T')[0];
@@ -82,17 +83,23 @@ export default function AccessRequestForm({ onLogout, requestorName, hideLogout 
     if (!validateIlId(form.ilId)) {
       errors.ilId = 'This ID number is not valid. Please double-check and try again.';
     }
+    if (form.approvalStartDate && form.approvalStartDate < todayStr) {
+      errors.approvalStartDate = 'Start date cannot be in the past.';
+    }
     if (!form.approvalExpiration) {
       errors.approvalExpiration = 'Expiration date is required.';
-    } else if (form.approvalExpiration <= today.toISOString().split('T')[0]) {
-      errors.approvalExpiration = 'The expiration date must be in the future.';
-    } else if (form.approvalExpiration > maxDateStr) {
-      errors.approvalExpiration = form.approvalStartDate
-        ? 'Expiration date cannot be more than 7 days from the start date.'
-        : 'Expiration date cannot be more than 7 days from today.';
-    }
-    if (form.approvalStartDate && form.approvalExpiration && form.approvalStartDate > form.approvalExpiration) {
-      errors.approvalStartDate = 'Start date cannot be after the expiration date.';
+    } else if (form.approvalStartDate) {
+      if (form.approvalExpiration < form.approvalStartDate) {
+        errors.approvalExpiration = 'Expiration date cannot be before the start date.';
+      } else if (form.approvalExpiration > maxDateStr) {
+        errors.approvalExpiration = 'Expiration date cannot be more than 7 days from the start date.';
+      }
+    } else {
+      if (form.approvalExpiration <= todayStr) {
+        errors.approvalExpiration = 'The expiration date must be in the future.';
+      } else if (form.approvalExpiration > maxDateStr) {
+        errors.approvalExpiration = 'Expiration date cannot be more than 7 days from today.';
+      }
     }
     if (!form.reason.trim()) {
       errors.reason = 'Please explain the reason for this visit.';
@@ -152,6 +159,22 @@ export default function AccessRequestForm({ onLogout, requestorName, hideLogout 
     }
   }
 
+  function resetFull() {
+    setSubmitted(false);
+    setForm({ ...EMPTY, requesterName: requestorName || '' });
+    setFieldErrors({});
+    setGeneralError('');
+    setExistingRecord(null);
+  }
+
+  function resetKeepDetails() {
+    setSubmitted(false);
+    setForm(prev => ({ ...prev, ilId: '', approvalStartDate: '', approvalExpiration: '' }));
+    setFieldErrors({});
+    setGeneralError('');
+    setExistingRecord(null);
+  }
+
   if (submitted) {
     return (
       <div style={containerStyle}>
@@ -161,8 +184,11 @@ export default function AccessRequestForm({ onLogout, requestorName, hideLogout 
           <p style={{ color: 'var(--text-muted)', marginBottom: 32 }}>
             Your access request has been submitted and is pending review.
           </p>
-          <button className="scan" onClick={() => { setSubmitted(false); setForm({ ...EMPTY, requesterName: requestorName || '' }); }}>
-            Submit Another
+          <button className="scan" onClick={resetKeepDetails} style={{ marginBottom: 12 }}>
+            Add Another Person (Same Details)
+          </button>
+          <button className="secondary" onClick={resetFull} style={{ width: '100%' }}>
+            Start Fresh
           </button>
         </div>
       </div>
@@ -247,8 +273,7 @@ export default function AccessRequestForm({ onLogout, requestorName, hideLogout 
           <input
             type="date"
             value={form.approvalStartDate}
-            min={minDateStr}
-            max={form.approvalExpiration || maxDateStr}
+            min={todayStr}
             onChange={e => set('approvalStartDate', e.target.value)}
             style={{ ...inputStyle, ...(fieldErrors.approvalStartDate ? errorInputStyle : {}) }}
           />
@@ -332,6 +357,7 @@ function existingStatusConfig(record) {
 
 function ExistingRecordCard({ record, onResubmit, approvalExpiration, loading }) {
   const cfg = existingStatusConfig(record);
+  const isRejected = record.status === 'NOT_APPROVED';
   const dateLabel = approvalExpiration
     ? new Date(approvalExpiration + 'T12:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
     : null;
@@ -365,7 +391,7 @@ function ExistingRecordCard({ record, onResubmit, approvalExpiration, loading })
           disabled={loading}
           style={{ marginTop: 14, width: '100%' }}
         >
-          {loading ? 'Submitting…' : dateLabel ? `Request Extension until ${dateLabel}` : 'Request Extension'}
+          {loading ? 'Submitting…' : isRejected ? 'Resubmit Request' : dateLabel ? `Request Extension until ${dateLabel}` : 'Request Extension'}
         </button>
       ) : (
         <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 10 }}>

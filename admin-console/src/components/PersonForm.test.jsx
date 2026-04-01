@@ -210,9 +210,150 @@ describe('PersonForm', () => {
     expect(onCancel).toHaveBeenCalled();
   });
 
-  it('disables buttons while loading', () => {
+  it('disables Save and Cancel buttons while loading', () => {
     render(<PersonForm onSubmit={noop} onCancel={noop} loading={true} />);
     expect(screen.getByText('Saving…')).toBeDisabled();
     expect(screen.getByText('Cancel')).toBeDisabled();
+  });
+
+  it('disables all three buttons while loading when onSaveAndAddAnother is provided', () => {
+    render(<PersonForm onSubmit={noop} onSaveAndAddAnother={noop} onCancel={noop} loading={true} />);
+    const savingBtns = screen.getAllByText('Saving…');
+    expect(savingBtns).toHaveLength(2);
+    savingBtns.forEach(btn => expect(btn).toBeDisabled());
+    expect(screen.getByText('Cancel')).toBeDisabled();
+  });
+
+  it('does not render Save & Add Another button without onSaveAndAddAnother prop', () => {
+    render(<PersonForm onSubmit={noop} onCancel={noop} />);
+    expect(screen.queryByText('Save & Add Another')).not.toBeInTheDocument();
+  });
+
+  it('does not render Save & Add Another button in edit mode (initial prop provided, no onSaveAndAddAnother)', () => {
+    const initial = { identifierType: 'IL_ID', identifierValue: '000000018', verdict: 'APPROVED', status: 'APPROVED' };
+    render(<PersonForm initial={initial} onSubmit={noop} onCancel={noop} />);
+    expect(screen.queryByText('Save & Add Another')).not.toBeInTheDocument();
+  });
+});
+
+describe('PersonForm — Save & Add Another', () => {
+  it('renders a "Save & Add Another" button when onSaveAndAddAnother prop is provided', () => {
+    render(<PersonForm onSubmit={noop} onSaveAndAddAnother={noop} onCancel={noop} />);
+    expect(screen.getByText('Save & Add Another')).toBeInTheDocument();
+  });
+
+  it('Save & Add Another calls onSaveAndAddAnother (not onSubmit) and keeps form open', async () => {
+    const onSaveAndAddAnother = vi.fn().mockResolvedValue();
+    const onSubmit = vi.fn().mockResolvedValue();
+    render(<PersonForm onSubmit={onSubmit} onSaveAndAddAnother={onSaveAndAddAnother} onCancel={noop} />);
+    await userEvent.type(screen.getByLabelText(/Identifier Value/i), '000000018');
+    fireEvent.click(screen.getByText('Save & Add Another'));
+    await waitFor(() => expect(onSaveAndAddAnother).toHaveBeenCalled());
+    expect(onSubmit).not.toHaveBeenCalled();
+    // Form is still open (identifierValue field is visible, not closed)
+    expect(screen.getByLabelText(/Identifier Value/i)).toBeInTheDocument();
+  });
+
+  it('Save & Add Another clears identifierValue after save', async () => {
+    const onSaveAndAddAnother = vi.fn().mockResolvedValue();
+    render(<PersonForm onSubmit={noop} onSaveAndAddAnother={onSaveAndAddAnother} onCancel={noop} />);
+    await userEvent.type(screen.getByLabelText(/Identifier Value/i), '000000018');
+    fireEvent.click(screen.getByText('Save & Add Another'));
+    await waitFor(() => expect(onSaveAndAddAnother).toHaveBeenCalled());
+    expect(screen.getByLabelText(/Identifier Value/i)).toHaveValue('');
+  });
+
+  it('Save & Add Another clears approvalExpiration after save', async () => {
+    const onSaveAndAddAnother = vi.fn().mockResolvedValue();
+    render(<PersonForm onSubmit={noop} onSaveAndAddAnother={onSaveAndAddAnother} onCancel={noop} />);
+    await userEvent.type(screen.getByLabelText(/Identifier Value/i), '000000018');
+    fireEvent.change(screen.getByLabelText(/Approval Expiration/i), { target: { value: '2099-12-31' } });
+    fireEvent.click(screen.getByText('Save & Add Another'));
+    await waitFor(() => expect(onSaveAndAddAnother).toHaveBeenCalled());
+    expect(screen.getByLabelText(/Approval Expiration/i)).toHaveValue('');
+  });
+
+  it('Save & Add Another clears approvalStartDate after save', async () => {
+    const onSaveAndAddAnother = vi.fn().mockResolvedValue();
+    render(<PersonForm onSubmit={noop} onSaveAndAddAnother={onSaveAndAddAnother} onCancel={noop} />);
+    await userEvent.type(screen.getByLabelText(/Identifier Value/i), '000000018');
+    fireEvent.change(screen.getByLabelText(/Start Date/i), { target: { value: '2099-01-01' } });
+    fireEvent.click(screen.getByText('Save & Add Another'));
+    await waitFor(() => expect(onSaveAndAddAnother).toHaveBeenCalled());
+    expect(screen.getByLabelText(/Start Date/i)).toHaveValue('');
+  });
+
+  it('Save & Add Another keeps population, division, reason, and requesterName', async () => {
+    const onSaveAndAddAnother = vi.fn().mockResolvedValue();
+    render(<PersonForm onSubmit={noop} onSaveAndAddAnother={onSaveAndAddAnother} onCancel={noop} />);
+    await userEvent.type(screen.getByLabelText(/Identifier Value/i), '000000018');
+    await userEvent.selectOptions(screen.getByLabelText(/Population/i), 'CIVILIAN');
+    await userEvent.type(screen.getByLabelText(/Division/i), 'Alpha');
+    await userEvent.type(screen.getByLabelText(/Escort Full Name/i), 'Jane Doe');
+    await userEvent.type(screen.getByLabelText(/Escort Phone/i), '+972501234567');
+    await userEvent.type(screen.getByLabelText(/Reason for Visit/i), 'Group visit');
+    await userEvent.type(screen.getByLabelText(/Requester Name/i), 'Bob');
+    fireEvent.click(screen.getByText('Save & Add Another'));
+    await waitFor(() => expect(onSaveAndAddAnother).toHaveBeenCalled());
+    expect(screen.getByLabelText(/Population/i)).toHaveValue('CIVILIAN');
+    expect(screen.getByLabelText(/Division/i)).toHaveValue('Alpha');
+    expect(screen.getByLabelText(/Escort Full Name/i)).toHaveValue('Jane Doe');
+    expect(screen.getByLabelText(/Escort Phone/i)).toHaveValue('+972501234567');
+    expect(screen.getByLabelText(/Reason for Visit/i)).toHaveValue('Group visit');
+    expect(screen.getByLabelText(/Requester Name/i)).toHaveValue('Bob');
+  });
+
+  it('Save & Add Another keeps verdict/status selection', async () => {
+    const onSaveAndAddAnother = vi.fn().mockResolvedValue();
+    render(<PersonForm onSubmit={noop} onSaveAndAddAnother={onSaveAndAddAnother} onCancel={noop} />);
+    await userEvent.selectOptions(screen.getByLabelText(/Status/i), 'ADMIN_APPROVED');
+    await userEvent.type(screen.getByLabelText(/Identifier Value/i), '000000018');
+    fireEvent.click(screen.getByText('Save & Add Another'));
+    await waitFor(() => expect(onSaveAndAddAnother).toHaveBeenCalled());
+    expect(screen.getByLabelText(/Status/i)).toHaveValue('ADMIN_APPROVED');
+  });
+
+  it('Save & Add Another clears validation errors from previous submission attempt', async () => {
+    const onSaveAndAddAnother = vi.fn().mockResolvedValue();
+    render(<PersonForm onSubmit={noop} onSaveAndAddAnother={onSaveAndAddAnother} onCancel={noop} />);
+    // Trigger a validation error — CIVILIAN population with missing escort
+    await userEvent.selectOptions(screen.getByLabelText(/Population/i), 'CIVILIAN');
+    await userEvent.type(screen.getByLabelText(/Identifier Value/i), '000000018');
+    fireEvent.click(screen.getByText('Save'));
+    await waitFor(() => expect(screen.getByText(/Escort full name is required/i)).toBeInTheDocument());
+    // Fix escort and use Save & Add Another
+    await userEvent.type(screen.getByLabelText(/Escort Full Name/i), 'Jane Doe');
+    await userEvent.type(screen.getByLabelText(/Escort Phone/i), '+972501234567');
+    fireEvent.click(screen.getByText('Save & Add Another'));
+    await waitFor(() => expect(onSaveAndAddAnother).toHaveBeenCalled());
+    expect(screen.queryByText(/Escort full name is required/i)).not.toBeInTheDocument();
+  });
+
+  it('Save & Add Another clears submission error when save eventually succeeds', async () => {
+    const onSaveAndAddAnother = vi.fn()
+      .mockRejectedValueOnce(new Error('Server error'))
+      .mockResolvedValue();
+    render(<PersonForm onSubmit={noop} onSaveAndAddAnother={onSaveAndAddAnother} onCancel={noop} />);
+    await userEvent.type(screen.getByLabelText(/Identifier Value/i), '000000018');
+    fireEvent.click(screen.getByText('Save & Add Another'));
+    await waitFor(() => expect(screen.getByText('Server error')).toBeInTheDocument());
+    // Retry with Save & Add Another (field still has valid value from first attempt)
+    fireEvent.click(screen.getByText('Save & Add Another'));
+    await waitFor(() => expect(onSaveAndAddAnother).toHaveBeenCalledTimes(2));
+    expect(screen.queryByText('Server error')).not.toBeInTheDocument();
+  });
+
+  it('regular Save calls onSubmit (not onSaveAndAddAnother) and does NOT reset the form', async () => {
+    const onSubmit = vi.fn().mockResolvedValue();
+    const onSaveAndAddAnother = vi.fn().mockResolvedValue();
+    render(<PersonForm onSubmit={onSubmit} onSaveAndAddAnother={onSaveAndAddAnother} onCancel={noop} />);
+    await userEvent.type(screen.getByLabelText(/Identifier Value/i), '000000018');
+    await userEvent.type(screen.getByLabelText(/Reason for Visit/i), 'Delivery');
+    fireEvent.click(screen.getByText('Save'));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled());
+    expect(onSaveAndAddAnother).not.toHaveBeenCalled();
+    // identifierValue and reason should still be present (parent closes the modal)
+    expect(screen.getByLabelText(/Identifier Value/i)).toHaveValue('000000018');
+    expect(screen.getByLabelText(/Reason for Visit/i)).toHaveValue('Delivery');
   });
 });

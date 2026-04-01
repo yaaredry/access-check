@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 
 function validateIlId(value) {
   if (!/^\d{9}$/.test(value)) return false;
@@ -41,12 +41,13 @@ const EMPTY = {
   requesterName: '',
 };
 
-export default function PersonForm({ initial, onSubmit, onCancel, loading }) {
+export default function PersonForm({ initial, onSubmit, onSaveAndAddAnother, onCancel, loading }) {
   const [form, setForm] = useState(
     initial ? { ...EMPTY, ...initial, uiStatus: resolveUiStatus(initial) } : EMPTY
   );
   const [fieldErrors, setFieldErrors] = useState({});
   const [error, setError] = useState('');
+  const addAnotherRef = useRef(false);
 
   function set(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -77,7 +78,7 @@ export default function PersonForm({ initial, onSubmit, onCancel, loading }) {
 
     try {
       const { verdict, status } = STATUS_OPTIONS.find(o => o.value === form.uiStatus);
-      await onSubmit({
+      const payload = {
         ...form,
         verdict,
         status,
@@ -88,7 +89,15 @@ export default function PersonForm({ initial, onSubmit, onCancel, loading }) {
         division: form.division || null,
         reason: form.reason || null,
         requesterName: form.requesterName || null,
-      });
+      };
+      if (addAnotherRef.current && onSaveAndAddAnother) {
+        await onSaveAndAddAnother(payload);
+        setForm(prev => ({ ...prev, identifierValue: '', approvalStartDate: '', approvalExpiration: '' }));
+        setFieldErrors({});
+        setError('');
+      } else {
+        await onSubmit(payload);
+      }
     } catch (err) {
       setError(err.message);
     }
@@ -229,7 +238,12 @@ export default function PersonForm({ initial, onSubmit, onCancel, loading }) {
 
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
         <button type="button" className="secondary" onClick={onCancel} disabled={loading}>Cancel</button>
-        <button type="submit" className="primary" disabled={loading}>
+        {onSaveAndAddAnother && (
+          <button type="submit" className="secondary" disabled={loading} onClick={() => { addAnotherRef.current = true; }}>
+            {loading ? 'Saving…' : 'Save & Add Another'}
+          </button>
+        )}
+        <button type="submit" className="primary" disabled={loading} onClick={() => { addAnotherRef.current = false; }}>
           {loading ? 'Saving…' : 'Save'}
         </button>
       </div>
