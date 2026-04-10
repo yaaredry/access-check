@@ -596,6 +596,184 @@ describe('peopleRepository direct', () => {
   });
 });
 
+describe('GET /people/:id/visits', () => {
+  it('returns empty array when person has no visits', async () => {
+    const { rows } = await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict) VALUES ('IL_ID', '000000018', 'APPROVED') RETURNING id"
+    );
+    const id = rows[0].id;
+
+    const res = await request(app)
+      .get(`/people/${id}/visits`)
+      .set('Authorization', `Bearer ${authToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([]);
+  });
+
+  it('returns visits for a person ordered newest first', async () => {
+    const { rows } = await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict) VALUES ('IL_ID', '000000018', 'APPROVED') RETURNING id"
+    );
+    const id = rows[0].id;
+
+    await db.query(
+      "INSERT INTO audit_logs (action, identifier_value, verdict, source, created_at) VALUES ('VERIFY', '000000018', 'APPROVED', 'manual', NOW() - INTERVAL '2 hours')"
+    );
+    await db.query(
+      "INSERT INTO audit_logs (action, identifier_value, verdict, source, created_at) VALUES ('VERIFY', '000000018', 'APPROVED', 'image', NOW() - INTERVAL '1 hour')"
+    );
+
+    const res = await request(app)
+      .get(`/people/${id}/visits`)
+      .set('Authorization', `Bearer ${authToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(2);
+    // newest first
+    expect(res.body[0].source).toBe('image');
+    expect(res.body[1].source).toBe('manual');
+  });
+
+  it('returns 404 when person does not exist', async () => {
+    const res = await request(app)
+      .get('/people/99999/visits')
+      .set('Authorization', `Bearer ${authToken}`);
+
+    expect(res.status).toBe(404);
+    expect(res.body.error).toMatch(/not found/i);
+  });
+
+  it('returns 401 without auth token', async () => {
+    const res = await request(app).get('/people/1/visits');
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 400 for non-integer id', async () => {
+    const res = await request(app)
+      .get('/people/abc/visits')
+      .set('Authorization', `Bearer ${authToken}`);
+
+    expect(res.status).toBe(400);
+  });
+
+  it('only returns VERIFY actions, not CREATE or UPDATE', async () => {
+    const { rows } = await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict) VALUES ('IL_ID', '000000018', 'APPROVED') RETURNING id"
+    );
+    const id = rows[0].id;
+
+    await db.query(
+      "INSERT INTO audit_logs (action, identifier_value, verdict, source) VALUES ('VERIFY', '000000018', 'APPROVED', 'manual')"
+    );
+    await db.query(
+      "INSERT INTO audit_logs (action, identifier_value, verdict, source) VALUES ('CREATE', '000000018', 'APPROVED', 'admin')"
+    );
+    await db.query(
+      "INSERT INTO audit_logs (action, identifier_value, verdict, source) VALUES ('UPDATE', '000000018', 'APPROVED', 'admin')"
+    );
+
+    const res = await request(app)
+      .get(`/people/${id}/visits`)
+      .set('Authorization', `Bearer ${authToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].source).toBe('manual');
+  });
+
+  it('does not return visits for a different person with a different identifier', async () => {
+    const { rows: [personA] } = await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict) VALUES ('IL_ID', '000000018', 'APPROVED') RETURNING id"
+    );
+    await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict) VALUES ('IDF_ID', '1234567', 'APPROVED')"
+    );
+
+    await db.query(
+      "INSERT INTO audit_logs (action, identifier_value, verdict, source) VALUES ('VERIFY', '000000018', 'APPROVED', 'manual')"
+    );
+    await db.query(
+      "INSERT INTO audit_logs (action, identifier_value, verdict, source) VALUES ('VERIFY', '1234567', 'APPROVED', 'image')"
+    );
+
+    const res = await request(app)
+      .get(`/people/${personA.id}/visits`)
+      .set('Authorization', `Bearer ${authToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].source).toBe('manual');
+  });
+
+  it('response includes id, verdict, source, and created_at fields', async () => {
+    const { rows } = await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict) VALUES ('IL_ID', '000000018', 'APPROVED') RETURNING id"
+    );
+    const id = rows[0].id;
+
+    await db.query(
+      "INSERT INTO audit_logs (action, identifier_value, verdict, source) VALUES ('VERIFY', '000000018', 'NOT_FOUND', 'image')"
+    );
+
+    const res = await request(app)
+      .get(`/people/${id}/visits`)
+      .set('Authorization', `Bearer ${authToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body[0]).toHaveProperty('id');
+    expect(res.body[0]).toHaveProperty('verdict', 'NOT_FOUND');
+    expect(res.body[0]).toHaveProperty('source', 'image');
+    expect(res.body[0]).toHaveProperty('created_at');
+  });
+});
+
+describe('auditRepository.getVisitsByIdentifierValue', () => {
+  it('returns only VERIFY entries for the given identifier', async () => {
+    await db.query(
+      "INSERT INTO audit_logs (action, identifier_value, verdict, source) VALUES ('VERIFY', '000000018', 'APPROVED', 'manual')"
+    );
+    await db.query(
+      "INSERT INTO audit_logs (action, identifier_value, verdict, source) VALUES ('CREATE', '000000018', 'APPROVED', 'admin')"
+    );
+    await db.query(
+      "INSERT INTO audit_logs (action, identifier_value, verdict, source) VALUES ('VERIFY', '9999999', 'NOT_FOUND', 'manual')"
+    );
+
+    const rows = await auditRepo.getVisitsByIdentifierValue('000000018');
+    expect(rows).toHaveLength(1);
+    expect(rows[0].source).toBe('manual');
+  });
+
+  it('returns empty array when no VERIFY entries exist', async () => {
+    const rows = await auditRepo.getVisitsByIdentifierValue('000000018');
+    expect(rows).toEqual([]);
+  });
+
+  it('respects the limit parameter', async () => {
+    for (let i = 0; i < 5; i++) {
+      await db.query(
+        "INSERT INTO audit_logs (action, identifier_value, verdict, source) VALUES ('VERIFY', '000000018', 'APPROVED', 'manual')"
+      );
+    }
+    const rows = await auditRepo.getVisitsByIdentifierValue('000000018', 3);
+    expect(rows).toHaveLength(3);
+  });
+
+  it('returns results ordered newest first', async () => {
+    await db.query(
+      "INSERT INTO audit_logs (action, identifier_value, verdict, source, created_at) VALUES ('VERIFY', '000000018', 'APPROVED', 'manual', NOW() - INTERVAL '2 hours')"
+    );
+    await db.query(
+      "INSERT INTO audit_logs (action, identifier_value, verdict, source, created_at) VALUES ('VERIFY', '000000018', 'NOT_APPROVED', 'image', NOW() - INTERVAL '1 hour')"
+    );
+
+    const rows = await auditRepo.getVisitsByIdentifierValue('000000018');
+    expect(rows[0].source).toBe('image');   // newer
+    expect(rows[1].source).toBe('manual');  // older
+  });
+});
+
 describe('auditRepository.recent', () => {
   it('returns recent audit log entries', async () => {
     await db.query(

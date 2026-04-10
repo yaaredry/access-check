@@ -3,6 +3,7 @@
 const { body, param, query } = require('express-validator');
 const { validate } = require('../middlewares/validate');
 const peopleService = require('../services/peopleService');
+const auditRepo = require('../repositories/auditRepository');
 
 const IDENTIFIER_TYPES = ['IL_ID', 'IDF_ID'];
 const VERDICTS = ['APPROVED', 'ADMIN_APPROVED', 'APPROVED_WITH_ESCORT', 'NOT_APPROVED'];
@@ -116,6 +117,17 @@ async function remove(req, res, next) {
   }
 }
 
+async function getVisits(req, res, next) {
+  try {
+    const person = await peopleService.getPerson(parseInt(req.params.id, 10));
+    if (!person) return res.status(404).json({ error: 'Person not found' });
+    const visits = await auditRepo.getVisitsByIdentifierValue(person.identifier_value);
+    return res.json(visits);
+  } catch (err) {
+    return next(err);
+  }
+}
+
 async function importGSheet(req, res, next) {
   try {
     const { url } = req.body;
@@ -155,6 +167,7 @@ const listQueryValidation = [
 module.exports = {
   list,
   getOne,
+  getVisits,
   create,
   update,
   updateStatus,

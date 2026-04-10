@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { api } from '../api/client';
+import VisitHistoryModal from './VisitHistoryModal';
 
 function verdictBadge(verdict, expiration, status, startDate) {
   if (status === 'PENDING') return <span className="badge pending">Pending</span>;
@@ -59,6 +61,31 @@ function SortIcon({ active, dir }) {
 export default function PersonTable({ rows, onEdit, onDelete, onApprove, onReject }) {
   const [sortKey, setSortKey] = useState(null);
   const [sortDir, setSortDir] = useState('asc');
+  const [selectedPerson, setSelectedPerson] = useState(null);
+  const [visits, setVisits] = useState([]);
+  const [visitsLoading, setVisitsLoading] = useState(false);
+  const [visitsError, setVisitsError] = useState(null);
+
+  async function handleRowClick(person) {
+    setSelectedPerson(person);
+    setVisits([]);
+    setVisitsError(null);
+    setVisitsLoading(true);
+    try {
+      const data = await api.getPersonVisits(person.id);
+      setVisits(data);
+    } catch (err) {
+      setVisitsError(err.message || 'Failed to load visit history');
+    } finally {
+      setVisitsLoading(false);
+    }
+  }
+
+  function handleCloseModal() {
+    setSelectedPerson(null);
+    setVisits([]);
+    setVisitsError(null);
+  }
 
   if (!rows || rows.length === 0) {
     return <p style={{ color: 'var(--text-muted)', padding: '24px 0' }}>No records found.</p>;
@@ -76,6 +103,16 @@ export default function PersonTable({ rows, onEdit, onDelete, onApprove, onRejec
   const sorted = sortRows(rows, sortKey, sortDir);
 
   return (
+    <>
+    {selectedPerson && (
+      <VisitHistoryModal
+        person={selectedPerson}
+        visits={visits}
+        loading={visitsLoading}
+        error={visitsError}
+        onClose={handleCloseModal}
+      />
+    )}
     <div style={{ overflowX: 'auto' }}>
       <table>
         <thead>
@@ -100,7 +137,14 @@ export default function PersonTable({ rows, onEdit, onDelete, onApprove, onRejec
         </thead>
         <tbody>
           {sorted.map((p) => (
-            <tr key={p.id} style={p.status === 'PENDING' ? { background: 'rgba(234,179,8,.07)' } : undefined}>
+            <tr
+              key={p.id}
+              onClick={() => handleRowClick(p)}
+              style={{
+                cursor: 'pointer',
+                ...(p.status === 'PENDING' ? { background: 'rgba(234,179,8,.07)' } : {}),
+              }}
+            >
               <td style={{ color: 'var(--text-muted)' }}>{p.id}</td>
               <td><code>{p.identifier_type}</code></td>
               <td><strong>{p.identifier_value}</strong></td>
@@ -139,17 +183,17 @@ export default function PersonTable({ rows, onEdit, onDelete, onApprove, onRejec
               <td>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                   {p.status === 'PENDING' && (
-                    <button className="primary" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => onApprove(p)}>Approve</button>
+                    <button className="primary" style={{ padding: '4px 10px', fontSize: 12 }} onClick={(e) => { e.stopPropagation(); onApprove(p); }}>Approve</button>
                   )}
                   <button
                     className="danger"
                     style={{ padding: '4px 10px', fontSize: 12, opacity: p.status === 'NOT_APPROVED' ? 0.35 : 1, cursor: p.status === 'NOT_APPROVED' ? 'not-allowed' : 'pointer' }}
                     disabled={p.status === 'NOT_APPROVED'}
                     title={p.status === 'NOT_APPROVED' ? 'Already rejected' : undefined}
-                    onClick={() => onReject(p)}
+                    onClick={(e) => { e.stopPropagation(); onReject(p); }}
                   >Reject</button>
-                  <button className="secondary" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => onEdit(p)}>Edit</button>
-                  <button className="danger" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => onDelete(p)}>Delete</button>
+                  <button className="secondary" style={{ padding: '4px 10px', fontSize: 12 }} onClick={(e) => { e.stopPropagation(); onEdit(p); }}>Edit</button>
+                  <button className="danger" style={{ padding: '4px 10px', fontSize: 12 }} onClick={(e) => { e.stopPropagation(); onDelete(p); }}>Delete</button>
                 </div>
               </td>
             </tr>
@@ -157,5 +201,6 @@ export default function PersonTable({ rows, onEdit, onDelete, onApprove, onRejec
         </tbody>
       </table>
     </div>
+    </>
   );
 }
