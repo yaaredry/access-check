@@ -94,7 +94,7 @@ describe('POST /users', () => {
     expect(res.body.name).toBe('New User');
     expect(res.body.role).toBe('access_requestor');
     expect(typeof res.body.plainPassword).toBe('string');
-    expect(res.body.plainPassword).toHaveLength(5);
+    expect(res.body.plainPassword.length).toBeGreaterThanOrEqual(16);
     expect(res.body.password).toBeUndefined();
   });
 
@@ -219,7 +219,7 @@ describe('POST /users/:id/regenerate-password', () => {
 
     expect(res.status).toBe(200);
     expect(typeof res.body.plainPassword).toBe('string');
-    expect(res.body.plainPassword).toHaveLength(5);
+    expect(res.body.plainPassword.length).toBeGreaterThanOrEqual(16);
 
     const { rows } = await db.query('SELECT password FROM users WHERE id = $1', [user.id]);
     const oldStillValid = await bcrypt.compare('oldpw', rows[0].password);

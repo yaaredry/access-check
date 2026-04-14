@@ -3,16 +3,11 @@
 const { body, param } = require('express-validator');
 const { validate } = require('../middlewares/validate');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const userRepo = require('../repositories/userRepository');
 
-const CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789';
-
 function generatePassword() {
-  let pw = '';
-  for (let i = 0; i < 5; i++) {
-    pw += CHARS[Math.floor(Math.random() * CHARS.length)];
-  }
-  return pw;
+  return crypto.randomBytes(12).toString('base64url').slice(0, 16);
 }
 
 const userBodyValidation = [
