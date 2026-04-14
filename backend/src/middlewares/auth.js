@@ -11,7 +11,7 @@ async function authenticate(req, res, next) {
 
   const token = header.slice(7);
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET || 'dev-secret');
+    const payload = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
 
     // Verify the user still exists in the DB — guards against deleted-account tokens
     const { rows } = await db.query('SELECT id FROM users WHERE id = $1', [payload.sub]);
