@@ -141,6 +141,7 @@ const idParamValidation = [
 const listQueryValidation = [
   query('limit').optional().isInt({ min: 1, max: 200 }).withMessage('limit must be 1-200'),
   query('offset').optional().isInt({ min: 0 }).withMessage('offset must be >= 0'),
+  query('search').optional().trim().isLength({ max: 100 }).withMessage('search must be 100 characters or fewer'),
   validate,
 ];
 

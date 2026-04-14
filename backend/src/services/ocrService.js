@@ -3,6 +3,7 @@
 const path = require('path');
 const os = require('os');
 const fs = require('fs');
+const crypto = require('crypto');
 const tesseract = require('node-tesseract-ocr');
 const sharp = require('sharp');
 
@@ -49,7 +50,7 @@ const DIGITS_ONLY = '0123456789-';
 async function ocr(imageBuffer, { psm, lang = 'eng+heb', whitelist = null }) {
   const tmpPath = path.join(
     os.tmpdir(),
-    `ocr_${Date.now()}_${Math.random().toString(36).slice(2)}.png`
+    `ocr_${crypto.randomBytes(8).toString('hex')}.png`
   );
   try {
     fs.writeFileSync(tmpPath, imageBuffer);
