@@ -117,7 +117,8 @@ async function remove(id) {
 
 async function findByRequesterEmail(email) {
   const { rows } = await db.query(
-    `SELECT id, identifier_value, status, verdict, approval_expiration, rejection_reason, created_at
+    `SELECT id, identifier_value, status, verdict, approval_expiration, rejection_reason, created_at,
+            population, division, escort_full_name, escort_phone, reason
      FROM people
      WHERE requester_email = $1
      ORDER BY created_at DESC`,
