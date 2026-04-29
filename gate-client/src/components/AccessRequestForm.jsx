@@ -77,10 +77,34 @@ export default function AccessRequestForm({ onLogout, requestorName, hideLogout,
   );
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [activeDurationChip, setActiveDurationChip] = useState(null);
 
   function set(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }));
     if (fieldErrors[field]) setFieldErrors((prev) => ({ ...prev, [field]: '' }));
+    if (field === 'approvalStartDate' || field === 'approvalExpiration') {
+      setActiveDurationChip(null);
+    }
+  }
+
+  function selectDuration(chip) {
+    const base = new Date();
+    const t = base.toISOString().split('T')[0];
+    const offset = (days) => {
+      const d = new Date(base);
+      d.setDate(d.getDate() + days);
+      return d.toISOString().split('T')[0];
+    };
+    const updates = {
+      today:     { approvalStartDate: t,  approvalExpiration: t },
+      tomorrow:  { approvalStartDate: '', approvalExpiration: offset(1) },
+      '3days':   { approvalStartDate: '', approvalExpiration: offset(3) },
+      '7days':   { approvalStartDate: '', approvalExpiration: offset(7) },
+    }[chip];
+    if (!updates) return;
+    setForm(prev => ({ ...prev, ...updates }));
+    setActiveDurationChip(chip);
+    setFieldErrors(prev => ({ ...prev, approvalStartDate: '', approvalExpiration: '' }));
   }
 
   const today = new Date();
@@ -185,6 +209,7 @@ export default function AccessRequestForm({ onLogout, requestorName, hideLogout,
     setFieldErrors({});
     setGeneralError('');
     setExistingRecord(null);
+    setActiveDurationChip(null);
     if (onExtendDone) onExtendDone();
   }
 
@@ -194,6 +219,7 @@ export default function AccessRequestForm({ onLogout, requestorName, hideLogout,
     setFieldErrors({});
     setGeneralError('');
     setExistingRecord(null);
+    setActiveDurationChip(null);
   }
 
   if (submitted) {
@@ -290,6 +316,28 @@ export default function AccessRequestForm({ onLogout, requestorName, hideLogout,
             style={{ ...inputStyle, ...(fieldErrors.escortPhone ? errorInputStyle : {}) }}
           />
         </Field>
+
+        <div>
+          <label style={{ display: 'block', fontWeight: 600, marginBottom: 8, fontSize: 15 }}>Duration</label>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {[
+              { key: 'today',    label: 'Today' },
+              { key: 'tomorrow', label: 'Tomorrow' },
+              { key: '3days',    label: '3 days' },
+              { key: '7days',    label: '7 days' },
+            ].map(({ key, label }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => selectDuration(key)}
+                aria-pressed={activeDurationChip === key}
+                style={durationChipStyle(activeDurationChip === key)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
 
         <Field label="Start Date (optional)" error={fieldErrors.approvalStartDate}>
           <input
@@ -463,3 +511,22 @@ const lockedInputStyle = {
   color: 'var(--text-muted)',
   cursor: 'not-allowed',
 };
+
+function durationChipStyle(active) {
+  return {
+    flex: 1,
+    minWidth: 72,
+    padding: '12px 8px',
+    borderRadius: 10,
+    fontSize: 14,
+    fontWeight: active ? 700 : 500,
+    border: active ? '2px solid var(--primary)' : '1.5px solid var(--border)',
+    background: active ? 'var(--primary)' : 'transparent',
+    color: active ? '#fff' : 'var(--text-muted)',
+    cursor: 'pointer',
+    textAlign: 'center',
+    letterSpacing: 0,
+    transition: 'background .12s, color .12s, border-color .12s',
+    width: 'auto',
+  };
+}

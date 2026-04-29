@@ -120,7 +120,7 @@ async function remove(id) {
 async function findByRequesterEmail(email) {
   const { rows } = await db.query(
     `SELECT id, identifier_value, status, verdict, approval_expiration, approval_start_date, rejection_reason, created_at,
-            population, division, escort_full_name, escort_phone, reason
+            last_resubmitted_at, population, division, escort_full_name, escort_phone, reason
      FROM people
      WHERE requester_email = $1
      ORDER BY created_at DESC`,
@@ -145,6 +145,7 @@ async function resubmitById(id, { approvalExpiration, approvalStartDate, populat
          reason             = $8,
          requester_name     = $9,
          requester_email    = $10,
+         last_resubmitted_at = NOW(),
          updated_at         = NOW()
      WHERE id = $1
      RETURNING *`,

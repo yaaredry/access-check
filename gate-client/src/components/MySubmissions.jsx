@@ -59,12 +59,17 @@ function matchesFilter(row, filter) {
   return true;
 }
 
+function matchesSearch(row, search) {
+  if (!search.trim()) return true;
+  return row.identifier_value.includes(search.trim());
+}
+
 function sortRows(rows) {
   return [...rows].sort((a, b) => {
     const aExp = isExpired(a) ? 0 : 1;
     const bExp = isExpired(b) ? 0 : 1;
     if (aExp !== bExp) return aExp - bExp;
-    return 0; // preserve API order (created_at DESC) within each group
+    return 0;
   });
 }
 
@@ -80,6 +85,7 @@ export default function MySubmissions({ onExtend }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeFilter, setActiveFilter] = useState('all');
+  const [search, setSearch] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -97,10 +103,24 @@ export default function MySubmissions({ onExtend }) {
   useEffect(() => { load(); }, [load]);
 
   const sorted = sortRows(rows);
-  const filtered = sorted.filter(r => matchesFilter(r, activeFilter));
+  const filtered = sorted.filter(r => matchesFilter(r, activeFilter) && matchesSearch(r, search));
+
+  const noResults = !loading && !error && rows.length > 0 && filtered.length === 0;
 
   return (
     <div style={containerStyle}>
+      {/* Search */}
+      <div style={searchBarStyle}>
+        <input
+          type="search"
+          placeholder="Search by ID…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          style={searchInputStyle}
+          aria-label="Search by ID"
+        />
+      </div>
+
       {/* Filter chips */}
       <div style={filterBarStyle}>
         <div style={filterScrollStyle}>
@@ -135,7 +155,13 @@ export default function MySubmissions({ onExtend }) {
           </p>
         )}
 
-        {!loading && !error && rows.length > 0 && filtered.length === 0 && (
+        {noResults && search.trim() && (
+          <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px 0' }}>
+            No results for &ldquo;{search.trim()}&rdquo;.
+          </p>
+        )}
+
+        {noResults && !search.trim() && (
           <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px 0' }}>
             No {FILTER_LABEL[activeFilter]} submissions.
           </p>
@@ -158,20 +184,37 @@ export default function MySubmissions({ onExtend }) {
                     ...(expired && onExtend ? expiredClickableStyle : {}),
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  {/* ID + status badge */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                     <span style={{ fontWeight: 700, fontSize: 18, letterSpacing: 1 }}>
                       {row.identifier_value}
                     </span>
                     <span style={{
                       fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 12,
-                      color: cfg.color, background: cfg.bg,
+                      color: cfg.color, background: cfg.bg, flexShrink: 0, marginLeft: 8,
                     }}>
                       {cfg.label}
                     </span>
                   </div>
+
+                  {/* Division */}
+                  {row.division && (
+                    <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 4 }}>
+                      {row.division}
+                    </div>
+                  )}
+
+                  {/* Submitted / Extended dates */}
                   <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
                     Submitted {new Date(row.created_at).toLocaleDateString()}
                   </div>
+                  {row.last_resubmitted_at && (
+                    <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+                      Extended {new Date(row.last_resubmitted_at).toLocaleDateString()}
+                    </div>
+                  )}
+
+                  {/* Active window */}
                   {row.approval_start_date && row.approval_expiration && (
                     <div style={{ fontSize: 13, color: expiringSoon ? '#d97706' : 'var(--text-muted)', marginTop: 2 }}>
                       Active {new Date(row.approval_start_date + 'T00:00:00').toLocaleDateString()} – {new Date(row.approval_expiration + 'T00:00:00').toLocaleDateString()}
@@ -182,6 +225,8 @@ export default function MySubmissions({ onExtend }) {
                       Expires {new Date(row.approval_expiration + 'T00:00:00').toLocaleDateString()}
                     </div>
                   )}
+
+                  {/* Expiring soon warning */}
                   {expiringSoon && (
                     <div style={{
                       marginTop: 8, padding: '6px 10px', borderRadius: 8,
@@ -191,11 +236,15 @@ export default function MySubmissions({ onExtend }) {
                       Expires in {expiresInDays === 1 ? '1 day' : `${expiresInDays} days`}
                     </div>
                   )}
+
+                  {/* Rejection reason */}
                   {row.rejection_reason && (
                     <div style={{ fontSize: 13, color: 'var(--not-approved)', marginTop: 6, fontStyle: 'italic' }}>
                       {row.rejection_reason}
                     </div>
                   )}
+
+                  {/* Extend hint */}
                   {expired && onExtend && (
                     <div style={{
                       marginTop: 10, fontSize: 12, fontWeight: 600,
@@ -228,8 +277,24 @@ const containerStyle = {
   margin: '0 auto',
 };
 
+const searchBarStyle = {
+  padding: '12px 20px 8px',
+};
+
+const searchInputStyle = {
+  width: '100%',
+  boxSizing: 'border-box',
+  fontSize: 15,
+  padding: '10px 14px',
+  borderRadius: 10,
+  border: '1.5px solid var(--border)',
+  background: 'var(--surface)',
+  color: 'inherit',
+  outline: 'none',
+};
+
 const filterBarStyle = {
-  padding: '12px 20px 0',
+  padding: '0 20px 4px',
   overflowX: 'auto',
 };
 
