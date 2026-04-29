@@ -75,6 +75,16 @@ export default function App() {
 
 function RequestorView({ onLogout, requestorName }) {
   const [tab, setTab] = useState('form');
+  const [extendRecord, setExtendRecord] = useState(null);
+
+  function handleExtend(row) {
+    setExtendRecord(row);
+    setTab('form');
+  }
+
+  function handleExtendDone() {
+    setExtendRecord(null);
+  }
 
   return (
     <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', maxWidth: 480, margin: '0 auto' }}>
@@ -106,7 +116,7 @@ function RequestorView({ onLogout, requestorName }) {
       {/* Segmented control */}
       <div style={{ padding: '12px 16px', background: 'var(--surface)', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
         <div style={{ display: 'flex', background: 'var(--bg)', borderRadius: 12, padding: 4, gap: 4 }}>
-          <button onClick={() => setTab('form')} style={segmentStyle(tab === 'form')}>
+          <button onClick={() => { setTab('form'); setExtendRecord(null); }} style={segmentStyle(tab === 'form')}>
             📋 New Request
           </button>
           <button onClick={() => setTab('submissions')} style={segmentStyle(tab === 'submissions')}>
@@ -118,8 +128,8 @@ function RequestorView({ onLogout, requestorName }) {
       {/* Content */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {tab === 'form'
-          ? <AccessRequestForm onLogout={onLogout} requestorName={requestorName} hideLogout />
-          : <MySubmissions requestorName={requestorName} />
+          ? <AccessRequestForm onLogout={onLogout} requestorName={requestorName} hideLogout extendRecord={extendRecord} onExtendDone={handleExtendDone} />
+          : <MySubmissions requestorName={requestorName} onExtend={handleExtend} />
         }
       </div>
     </div>

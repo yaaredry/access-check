@@ -30,15 +30,26 @@ vi.mock('./components/CameraCheck', () => ({
 }));
 
 vi.mock('./components/AccessRequestForm', () => ({
-  default: ({ onLogout }) => (
+  default: ({ onLogout, extendRecord, onExtendDone }) => (
     <div data-testid="access-request-form">
       <button onClick={onLogout}>RequestorLogout</button>
+      {extendRecord && <span data-testid="extend-record-id">{extendRecord.identifier_value}</span>}
+      {onExtendDone && <button onClick={onExtendDone}>ExtendDone</button>}
     </div>
   ),
 }));
 
 vi.mock('./components/MySubmissions', () => ({
-  default: () => <div data-testid="my-submissions">My Submissions Content</div>,
+  default: ({ onExtend }) => (
+    <div data-testid="my-submissions">
+      My Submissions Content
+      {onExtend && (
+        <button onClick={() => onExtend({ id: 7, identifier_value: '000000075', status: 'APPROVED', verdict: 'APPROVED', approval_expiration: '2000-01-01', rejection_reason: null, population: 'IL_MILITARY', division: null, escort_full_name: null, escort_phone: null, reason: 'Test' })}>
+          SimulateExtend
+        </button>
+      )}
+    </div>
+  ),
 }));
 
 describe('App', () => {
@@ -111,6 +122,42 @@ describe('App', () => {
     fireEvent.click(screen.getByText('📄 My Submissions'));
     fireEvent.click(screen.getByText('📋 New Request'));
     expect(screen.getByTestId('access-request-form')).toBeInTheDocument();
+  });
+
+  it('switching to My Submissions and clicking extend navigates to form with extendRecord', async () => {
+    render(<App />);
+    fireEvent.click(screen.getByText('Login as requestor'));
+    await waitFor(() => screen.getByText('📄 My Submissions'));
+    fireEvent.click(screen.getByText('📄 My Submissions'));
+    await waitFor(() => screen.getByText('SimulateExtend'));
+    fireEvent.click(screen.getByText('SimulateExtend'));
+    await waitFor(() => expect(screen.getByTestId('access-request-form')).toBeInTheDocument());
+    expect(screen.getByTestId('extend-record-id')).toHaveTextContent('000000075');
+  });
+
+  it('clears extendRecord when New Request tab is clicked manually', async () => {
+    render(<App />);
+    fireEvent.click(screen.getByText('Login as requestor'));
+    await waitFor(() => screen.getByText('📄 My Submissions'));
+    fireEvent.click(screen.getByText('📄 My Submissions'));
+    await waitFor(() => screen.getByText('SimulateExtend'));
+    fireEvent.click(screen.getByText('SimulateExtend'));
+    await waitFor(() => screen.getByTestId('extend-record-id'));
+    // Click the tab manually — should clear the extendRecord
+    fireEvent.click(screen.getByText('📋 New Request'));
+    expect(screen.queryByTestId('extend-record-id')).not.toBeInTheDocument();
+  });
+
+  it('clears extendRecord when onExtendDone is called (Submit Another)', async () => {
+    render(<App />);
+    fireEvent.click(screen.getByText('Login as requestor'));
+    await waitFor(() => screen.getByText('📄 My Submissions'));
+    fireEvent.click(screen.getByText('📄 My Submissions'));
+    await waitFor(() => screen.getByText('SimulateExtend'));
+    fireEvent.click(screen.getByText('SimulateExtend'));
+    await waitFor(() => screen.getByTestId('extend-record-id'));
+    fireEvent.click(screen.getByText('ExtendDone'));
+    expect(screen.queryByTestId('extend-record-id')).not.toBeInTheDocument();
   });
 
   it('restores authenticated state from localStorage', () => {

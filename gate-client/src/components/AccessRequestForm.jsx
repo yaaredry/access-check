@@ -50,11 +50,31 @@ function friendlyMessage(msg, field) {
   return msg;
 }
 
-export default function AccessRequestForm({ onLogout, requestorName, hideLogout }) {
-  const [form, setForm] = useState({ ...EMPTY, requesterName: requestorName || '' });
+function extendRecordToForm(extendRecord, requestorName) {
+  return {
+    requesterName: requestorName || '',
+    ilId: extendRecord.identifier_value || '',
+    population: extendRecord.population || 'IL_MILITARY',
+    division: extendRecord.division || '',
+    escortFullName: extendRecord.escort_full_name || '',
+    escortPhone: extendRecord.escort_phone || '',
+    approvalStartDate: '',
+    approvalExpiration: '',
+    reason: extendRecord.reason || '',
+  };
+}
+
+export default function AccessRequestForm({ onLogout, requestorName, hideLogout, extendRecord, onExtendDone }) {
+  const [form, setForm] = useState(
+    extendRecord
+      ? extendRecordToForm(extendRecord, requestorName)
+      : { ...EMPTY, requesterName: requestorName || '' }
+  );
   const [fieldErrors, setFieldErrors] = useState({});
   const [generalError, setGeneralError] = useState('');
-  const [existingRecord, setExistingRecord] = useState(null);
+  const [existingRecord, setExistingRecord] = useState(
+    extendRecord ? { id: extendRecord.id, status: extendRecord.status, verdict: extendRecord.verdict, rejection_reason: extendRecord.rejection_reason || null, approval_expiration: extendRecord.approval_expiration || null } : null
+  );
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -165,6 +185,7 @@ export default function AccessRequestForm({ onLogout, requestorName, hideLogout 
     setFieldErrors({});
     setGeneralError('');
     setExistingRecord(null);
+    if (onExtendDone) onExtendDone();
   }
 
   function resetKeepDetails() {
@@ -224,7 +245,8 @@ export default function AccessRequestForm({ onLogout, requestorName, hideLogout 
             onChange={e => set('ilId', e.target.value.trim())}
             required
             inputMode="numeric"
-            style={{ ...inputStyle, ...(fieldErrors.ilId ? errorInputStyle : {}) }}
+            disabled={!!extendRecord}
+            style={{ ...inputStyle, ...(fieldErrors.ilId ? errorInputStyle : {}), ...(extendRecord ? lockedInputStyle : {}) }}
           />
         </Field>
 
