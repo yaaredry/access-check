@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 
 function validateIlId(value) {
   if (!/^\d{9}$/.test(value)) return false;
@@ -31,6 +31,7 @@ const EMPTY = {
   identifierType: 'IL_ID',
   identifierValue: '',
   uiStatus: 'APPROVED',
+  approvalStartDate: '',
   approvalExpiration: '',
   population: 'IL_MILITARY',
   division: '',
@@ -40,12 +41,13 @@ const EMPTY = {
   requesterName: '',
 };
 
-export default function PersonForm({ initial, onSubmit, onCancel, loading }) {
+export default function PersonForm({ initial, onSubmit, onSaveAndAddAnother, onCancel, loading }) {
   const [form, setForm] = useState(
     initial ? { ...EMPTY, ...initial, uiStatus: resolveUiStatus(initial) } : EMPTY
   );
   const [fieldErrors, setFieldErrors] = useState({});
   const [error, setError] = useState('');
+  const addAnotherRef = useRef(false);
 
   function set(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -60,6 +62,9 @@ export default function PersonForm({ initial, onSubmit, onCancel, loading }) {
     if (form.identifierType === 'IL_ID' && !validateIlId(form.identifierValue)) {
       errors.identifierValue = 'Invalid Israeli ID';
     }
+    if (form.approvalStartDate && form.approvalExpiration && form.approvalStartDate > form.approvalExpiration) {
+      errors.approvalStartDate = 'Start date cannot be after the expiration date.';
+    }
     const escortRequired = form.uiStatus === 'APPROVED_WITH_ESCORT' || form.population === 'CIVILIAN';
     if (escortRequired) {
       if (!form.escortFullName?.trim()) errors.escortFullName = 'Escort full name is required.';
@@ -73,17 +78,26 @@ export default function PersonForm({ initial, onSubmit, onCancel, loading }) {
 
     try {
       const { verdict, status } = STATUS_OPTIONS.find(o => o.value === form.uiStatus);
-      await onSubmit({
+      const payload = {
         ...form,
         verdict,
         status,
+        approvalStartDate: form.approvalStartDate || null,
         approvalExpiration: form.approvalExpiration || null,
         escortFullName: form.escortFullName || null,
         escortPhone: form.escortPhone || null,
         division: form.division || null,
         reason: form.reason || null,
         requesterName: form.requesterName || null,
-      });
+      };
+      if (addAnotherRef.current && onSaveAndAddAnother) {
+        await onSaveAndAddAnother(payload);
+        setForm(prev => ({ ...prev, identifierValue: '', approvalStartDate: '', approvalExpiration: '' }));
+        setFieldErrors({});
+        setError('');
+      } else {
+        await onSubmit(payload);
+      }
     } catch (err) {
       setError(err.message);
     }
@@ -123,11 +137,25 @@ export default function PersonForm({ initial, onSubmit, onCancel, loading }) {
       </div>
 
       <div>
+        <label htmlFor="pf-approvalStartDate" style={labelStyle}>Start Date (optional)</label>
+        <input
+          id="pf-approvalStartDate"
+          type="date"
+          value={form.approvalStartDate || ''}
+          max={form.approvalExpiration || undefined}
+          onChange={(e) => set('approvalStartDate', e.target.value)}
+          style={fieldErrors.approvalStartDate ? errorInputStyle : undefined}
+        />
+        {fieldErrors.approvalStartDate && <p style={fieldErrorStyle}>⚠ {fieldErrors.approvalStartDate}</p>}
+      </div>
+
+      <div>
         <label htmlFor="pf-approvalExpiration" style={labelStyle}>Approval Expiration (optional)</label>
         <input
           id="pf-approvalExpiration"
           type="date"
           value={form.approvalExpiration || ''}
+          min={form.approvalStartDate || undefined}
           onChange={(e) => set('approvalExpiration', e.target.value)}
         />
       </div>
@@ -210,7 +238,12 @@ export default function PersonForm({ initial, onSubmit, onCancel, loading }) {
 
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
         <button type="button" className="secondary" onClick={onCancel} disabled={loading}>Cancel</button>
-        <button type="submit" className="primary" disabled={loading}>
+        {onSaveAndAddAnother && (
+          <button type="submit" className="secondary" disabled={loading} onClick={() => { addAnotherRef.current = true; }}>
+            {loading ? 'Saving…' : 'Save & Add Another'}
+          </button>
+        )}
+        <button type="submit" className="primary" disabled={loading} onClick={() => { addAnotherRef.current = false; }}>
           {loading ? 'Saving…' : 'Save'}
         </button>
       </div>

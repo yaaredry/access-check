@@ -18,4 +18,16 @@ async function recent(limit = 100) {
   return rows;
 }
 
-module.exports = { log, recent };
+async function getVisitsByIdentifierValue(identifierValue, limit = 100) {
+  const { rows } = await db.query(
+    `SELECT id, verdict, source, created_at
+     FROM audit_logs
+     WHERE action = 'VERIFY' AND identifier_value = $1
+     ORDER BY created_at DESC
+     LIMIT $2`,
+    [identifierValue, limit]
+  );
+  return rows;
+}
+
+module.exports = { log, recent, getVisitsByIdentifierValue };

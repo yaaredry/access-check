@@ -172,9 +172,14 @@ export default function MySubmissions({ onExtend }) {
                   <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
                     Submitted {new Date(row.created_at).toLocaleDateString()}
                   </div>
-                  {row.approval_expiration && (
+                  {row.approval_start_date && row.approval_expiration && (
                     <div style={{ fontSize: 13, color: expiringSoon ? '#d97706' : 'var(--text-muted)', marginTop: 2 }}>
-                      Expires {new Date(row.approval_expiration).toLocaleDateString()}
+                      Active {new Date(row.approval_start_date + 'T00:00:00').toLocaleDateString()} – {new Date(row.approval_expiration + 'T00:00:00').toLocaleDateString()}
+                    </div>
+                  )}
+                  {!row.approval_start_date && row.approval_expiration && (
+                    <div style={{ fontSize: 13, color: expiringSoon ? '#d97706' : 'var(--text-muted)', marginTop: 2 }}>
+                      Expires {new Date(row.approval_expiration + 'T00:00:00').toLocaleDateString()}
                     </div>
                   )}
                   {expiringSoon && (

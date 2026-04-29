@@ -3,6 +3,7 @@
 const { body, param, query } = require('express-validator');
 const { validate } = require('../middlewares/validate');
 const peopleService = require('../services/peopleService');
+const auditRepo = require('../repositories/auditRepository');
 
 const IDENTIFIER_TYPES = ['IL_ID', 'IDF_ID'];
 const VERDICTS = ['APPROVED', 'ADMIN_APPROVED', 'APPROVED_WITH_ESCORT', 'NOT_APPROVED'];
@@ -22,6 +23,14 @@ const personBodyValidation = [
     }),
   body('verdict').isIn(VERDICTS).withMessage(`verdict must be one of ${VERDICTS.join(', ')}`),
   body('approvalExpiration').optional({ nullable: true }).isISO8601().withMessage('approvalExpiration must be a valid date'),
+  body('approvalStartDate').optional({ nullable: true }).isISO8601().withMessage('approvalStartDate must be a valid date')
+    .custom((value, { req }) => {
+      if (!value) return true;
+      if (req.body.approvalExpiration && value > req.body.approvalExpiration) {
+        throw new Error('approvalStartDate must not be after approvalExpiration');
+      }
+      return true;
+    }),
   body('requesterName').optional({ nullable: true }).trim(),
   body('escortFullName').if(body('verdict').equals('APPROVED_WITH_ESCORT'))
     .notEmpty().withMessage('escortFullName is required when verdict is APPROVED_WITH_ESCORT'),
@@ -108,6 +117,17 @@ async function remove(req, res, next) {
   }
 }
 
+async function getVisits(req, res, next) {
+  try {
+    const person = await peopleService.getPerson(parseInt(req.params.id, 10));
+    if (!person) return res.status(404).json({ error: 'Person not found' });
+    const visits = await auditRepo.getVisitsByIdentifierValue(person.identifier_value);
+    return res.json(visits);
+  } catch (err) {
+    return next(err);
+  }
+}
+
 async function importGSheet(req, res, next) {
   try {
     const { url } = req.body;
@@ -147,6 +167,7 @@ const listQueryValidation = [
 module.exports = {
   list,
   getOne,
+  getVisits,
   create,
   update,
   updateStatus,

@@ -1,6 +1,14 @@
-import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import PersonTable from './PersonTable';
+
+vi.mock('../api/client', () => ({
+  api: {
+    getPersonVisits: vi.fn(),
+  },
+}));
+
+import { api } from '../api/client';
 
 const BASE = {
   id: 1,
@@ -13,6 +21,11 @@ const BASE = {
 };
 
 describe('PersonTable', () => {
+  beforeEach(() => {
+    api.getPersonVisits.mockReset();
+    api.getPersonVisits.mockResolvedValue([]);
+  });
+
   it('shows empty state when rows is empty', () => {
     render(<PersonTable rows={[]} onEdit={vi.fn()} onDelete={vi.fn()} />);
     expect(screen.getByText('No records found.')).toBeInTheDocument();
@@ -133,5 +146,97 @@ describe('PersonTable', () => {
     const cells = screen.getAllByRole('cell');
     const lastSeenCell = cells.find(c => c.textContent !== '—' && c.textContent.includes('24'));
     expect(lastSeenCell).toBeDefined();
+  });
+
+  it('clicking a row opens the visit history modal', async () => {
+    api.getPersonVisits.mockResolvedValue([]);
+    render(<PersonTable rows={[BASE]} onEdit={vi.fn()} onDelete={vi.fn()} onReject={vi.fn()} />);
+    fireEvent.click(screen.getByText('000000018'));
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
+    expect(screen.getByText('Visit History')).toBeInTheDocument();
+  });
+
+  it('clicking a row calls getPersonVisits with the correct person id', async () => {
+    api.getPersonVisits.mockResolvedValue([]);
+    render(<PersonTable rows={[BASE]} onEdit={vi.fn()} onDelete={vi.fn()} onReject={vi.fn()} />);
+    fireEvent.click(screen.getByText('000000018'));
+    await waitFor(() => expect(api.getPersonVisits).toHaveBeenCalledWith(BASE.id));
+  });
+
+  it('modal shows visits returned from the API', async () => {
+    api.getPersonVisits.mockResolvedValue([
+      { id: 10, verdict: 'APPROVED', source: 'manual', created_at: '2024-06-15T09:30:00Z' },
+    ]);
+    render(<PersonTable rows={[BASE]} onEdit={vi.fn()} onDelete={vi.fn()} onReject={vi.fn()} />);
+    fireEvent.click(screen.getByText('000000018'));
+    await waitFor(() => expect(screen.getByText('Approved')).toBeInTheDocument());
+  });
+
+  it('modal shows empty state when person has no visits', async () => {
+    api.getPersonVisits.mockResolvedValue([]);
+    render(<PersonTable rows={[BASE]} onEdit={vi.fn()} onDelete={vi.fn()} onReject={vi.fn()} />);
+    fireEvent.click(screen.getByText('000000018'));
+    await waitFor(() => expect(screen.getByText('No visits recorded.')).toBeInTheDocument());
+  });
+
+  it('modal shows error when API call fails', async () => {
+    api.getPersonVisits.mockRejectedValue(new Error('Server error'));
+    render(<PersonTable rows={[BASE]} onEdit={vi.fn()} onDelete={vi.fn()} onReject={vi.fn()} />);
+    fireEvent.click(screen.getByText('000000018'));
+    await waitFor(() => expect(screen.getByText('Server error')).toBeInTheDocument());
+  });
+
+  it('modal closes when Close button is clicked', async () => {
+    api.getPersonVisits.mockResolvedValue([]);
+    render(<PersonTable rows={[BASE]} onEdit={vi.fn()} onDelete={vi.fn()} onReject={vi.fn()} />);
+    fireEvent.click(screen.getByText('000000018'));
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('modal closes when Escape is pressed', async () => {
+    api.getPersonVisits.mockResolvedValue([]);
+    render(<PersonTable rows={[BASE]} onEdit={vi.fn()} onDelete={vi.fn()} onReject={vi.fn()} />);
+    fireEvent.click(screen.getByText('000000018'));
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('clicking Edit button does not open the modal', async () => {
+    render(<PersonTable rows={[BASE]} onEdit={vi.fn()} onDelete={vi.fn()} onReject={vi.fn()} />);
+    fireEvent.click(screen.getByText('Edit'));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(api.getPersonVisits).not.toHaveBeenCalled();
+  });
+
+  it('clicking Delete button does not open the modal', async () => {
+    render(<PersonTable rows={[BASE]} onEdit={vi.fn()} onDelete={vi.fn()} onReject={vi.fn()} />);
+    fireEvent.click(screen.getByText('Delete'));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(api.getPersonVisits).not.toHaveBeenCalled();
+  });
+
+  it('clicking Reject button does not open the modal', async () => {
+    render(<PersonTable rows={[BASE]} onEdit={vi.fn()} onDelete={vi.fn()} onReject={vi.fn()} />);
+    fireEvent.click(screen.getByText('Reject'));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(api.getPersonVisits).not.toHaveBeenCalled();
+  });
+
+  it('clicking Approve button on PENDING row does not open the modal', async () => {
+    const pending = { ...BASE, status: 'PENDING', verdict: 'NOT_APPROVED' };
+    render(<PersonTable rows={[pending]} onEdit={vi.fn()} onDelete={vi.fn()} onReject={vi.fn()} onApprove={vi.fn()} />);
+    fireEvent.click(screen.getByText('Approve'));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(api.getPersonVisits).not.toHaveBeenCalled();
+  });
+
+  it('row has pointer cursor style', () => {
+    render(<PersonTable rows={[BASE]} onEdit={vi.fn()} onDelete={vi.fn()} onReject={vi.fn()} />);
+    const rows = screen.getAllByRole('row');
+    const dataRow = rows[1]; // first is header
+    expect(dataRow).toHaveStyle({ cursor: 'pointer' });
   });
 });

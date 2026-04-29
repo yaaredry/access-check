@@ -43,6 +43,7 @@ export const api = {
     return request('GET', `/people${qs ? `?${qs}` : ''}`);
   },
   getPerson: (id) => request('GET', `/people/${id}`),
+  getPersonVisits: (id) => request('GET', `/people/${id}/visits`),
   createPerson: (data) => request('POST', '/people', data),
   updatePerson: (id, data) => request('PUT', `/people/${id}`, data),
   deletePerson: (id) => request('DELETE', `/people/${id}`),

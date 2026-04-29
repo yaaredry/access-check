@@ -188,6 +188,69 @@ describe('GET /people', () => {
     expect(res.body.total).toBe(1);
   });
 
+  it('sorts PENDING records first, then by updated_at DESC', async () => {
+    // oldest updated_at
+    await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict, status, updated_at) VALUES ('IL_ID', '000000018', 'APPROVED', 'APPROVED', NOW() - INTERVAL '2 hours')"
+    );
+    // most recently updated — should be first among non-pending
+    await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict, status, updated_at) VALUES ('IDF_ID', '1234567', 'NOT_APPROVED', 'NOT_APPROVED', NOW() - INTERVAL '1 hour')"
+    );
+    // PENDING — must always be first regardless of updated_at
+    await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict, status, updated_at) VALUES ('IL_ID', '000000026', 'NOT_APPROVED', 'PENDING', NOW() - INTERVAL '3 hours')"
+    );
+
+    const res = await request(app)
+      .get('/people')
+      .set('Authorization', `Bearer ${authToken}`);
+
+    expect(res.status).toBe(200);
+    const ids = res.body.rows.map(r => r.identifier_value);
+    expect(ids[0]).toBe('000000026'); // PENDING first
+    expect(ids[1]).toBe('1234567');   // most recently updated non-pending
+    expect(ids[2]).toBe('000000018'); // oldest updated_at last
+  });
+
+  it('approved record (via PATCH /status) appears before null-status admin-created records', async () => {
+    // Simulate admin-created records (status = NULL) — typical bulk import or manual entry
+    await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict, updated_at) VALUES ('IDF_ID', '1111111', 'APPROVED', NOW() - INTERVAL '30 minutes')"
+    );
+    await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict, updated_at) VALUES ('IDF_ID', '2222222', 'APPROVED', NOW() - INTERVAL '1 hour')"
+    );
+
+    // PENDING record submitted by a gate requestor (older than the admin-created records)
+    const { rows: [pending] } = await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict, status, updated_at) VALUES ('IL_ID', '000000026', 'NOT_APPROVED', 'PENDING', NOW() - INTERVAL '2 hours') RETURNING id, updated_at"
+    );
+    const updatedAtBefore = pending.updated_at;
+
+    // Admin approves the PENDING record
+    await request(app)
+      .patch(`/people/${pending.id}/status`)
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({ status: 'APPROVED', verdict: 'APPROVED' });
+
+    // Confirm the trigger actually bumped updated_at
+    const { rows: [after] } = await db.query('SELECT updated_at, status FROM people WHERE id = $1', [pending.id]);
+    expect(after.status).toBe('APPROVED');
+    expect(after.updated_at.getTime()).toBeGreaterThan(updatedAtBefore.getTime());
+
+    const res = await request(app)
+      .get('/people')
+      .set('Authorization', `Bearer ${authToken}`);
+
+    expect(res.status).toBe(200);
+    const ids = res.body.rows.map(r => r.identifier_value);
+    // Newly approved record must appear before the null-status admin-created records
+    expect(ids[0]).toBe('000000026'); // just approved — top of non-pending section
+    expect(ids[1]).toBe('1111111');   // null-status, more recently updated
+    expect(ids[2]).toBe('2222222');   // null-status, older
+  });
+
   it('supports search by identifier_value', async () => {
     await db.query(
       "INSERT INTO people (identifier_type, identifier_value, verdict) VALUES ('IL_ID', '000000018', 'APPROVED'), ('IDF_ID', '1234567', 'NOT_APPROVED')"
@@ -506,6 +569,20 @@ describe('peopleRepository direct', () => {
     expect(second.updated).toBe(1);
   });
 
+  it('upsertMany does not update updated_at on conflict (GSheet import preserves timestamp)', async () => {
+    const record = { identifierType: 'IL_ID', identifierValue: '000000018', verdict: 'APPROVED', approvalExpiration: null };
+    await peopleRepo.upsertMany([record]);
+
+    const { rows: [before] } = await db.query("SELECT updated_at FROM people WHERE identifier_value = '000000018'");
+
+    // Small delay to ensure clock would advance if updated_at were touched
+    await new Promise(r => setTimeout(r, 20));
+    await peopleRepo.upsertMany([{ ...record, verdict: 'NOT_APPROVED' }]);
+
+    const { rows: [after] } = await db.query("SELECT updated_at FROM people WHERE identifier_value = '000000018'");
+    expect(after.updated_at.getTime()).toBe(before.updated_at.getTime());
+  });
+
   it('upsertMany rolls back the entire batch and throws on DB error', async () => {
     const valid = { identifierType: 'IL_ID', identifierValue: '000000018', verdict: 'APPROVED', approvalExpiration: null };
     // identifier_value is VARCHAR(50) — 51 chars triggers a DB error mid-transaction
@@ -516,6 +593,184 @@ describe('peopleRepository direct', () => {
     // Rollback should have undone the valid insert too
     const { rows } = await db.query("SELECT * FROM people WHERE identifier_value = '000000018'");
     expect(rows).toHaveLength(0);
+  });
+});
+
+describe('GET /people/:id/visits', () => {
+  it('returns empty array when person has no visits', async () => {
+    const { rows } = await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict) VALUES ('IL_ID', '000000018', 'APPROVED') RETURNING id"
+    );
+    const id = rows[0].id;
+
+    const res = await request(app)
+      .get(`/people/${id}/visits`)
+      .set('Authorization', `Bearer ${authToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([]);
+  });
+
+  it('returns visits for a person ordered newest first', async () => {
+    const { rows } = await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict) VALUES ('IL_ID', '000000018', 'APPROVED') RETURNING id"
+    );
+    const id = rows[0].id;
+
+    await db.query(
+      "INSERT INTO audit_logs (action, identifier_value, verdict, source, created_at) VALUES ('VERIFY', '000000018', 'APPROVED', 'manual', NOW() - INTERVAL '2 hours')"
+    );
+    await db.query(
+      "INSERT INTO audit_logs (action, identifier_value, verdict, source, created_at) VALUES ('VERIFY', '000000018', 'APPROVED', 'image', NOW() - INTERVAL '1 hour')"
+    );
+
+    const res = await request(app)
+      .get(`/people/${id}/visits`)
+      .set('Authorization', `Bearer ${authToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(2);
+    // newest first
+    expect(res.body[0].source).toBe('image');
+    expect(res.body[1].source).toBe('manual');
+  });
+
+  it('returns 404 when person does not exist', async () => {
+    const res = await request(app)
+      .get('/people/99999/visits')
+      .set('Authorization', `Bearer ${authToken}`);
+
+    expect(res.status).toBe(404);
+    expect(res.body.error).toMatch(/not found/i);
+  });
+
+  it('returns 401 without auth token', async () => {
+    const res = await request(app).get('/people/1/visits');
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 400 for non-integer id', async () => {
+    const res = await request(app)
+      .get('/people/abc/visits')
+      .set('Authorization', `Bearer ${authToken}`);
+
+    expect(res.status).toBe(400);
+  });
+
+  it('only returns VERIFY actions, not CREATE or UPDATE', async () => {
+    const { rows } = await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict) VALUES ('IL_ID', '000000018', 'APPROVED') RETURNING id"
+    );
+    const id = rows[0].id;
+
+    await db.query(
+      "INSERT INTO audit_logs (action, identifier_value, verdict, source) VALUES ('VERIFY', '000000018', 'APPROVED', 'manual')"
+    );
+    await db.query(
+      "INSERT INTO audit_logs (action, identifier_value, verdict, source) VALUES ('CREATE', '000000018', 'APPROVED', 'admin')"
+    );
+    await db.query(
+      "INSERT INTO audit_logs (action, identifier_value, verdict, source) VALUES ('UPDATE', '000000018', 'APPROVED', 'admin')"
+    );
+
+    const res = await request(app)
+      .get(`/people/${id}/visits`)
+      .set('Authorization', `Bearer ${authToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].source).toBe('manual');
+  });
+
+  it('does not return visits for a different person with a different identifier', async () => {
+    const { rows: [personA] } = await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict) VALUES ('IL_ID', '000000018', 'APPROVED') RETURNING id"
+    );
+    await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict) VALUES ('IDF_ID', '1234567', 'APPROVED')"
+    );
+
+    await db.query(
+      "INSERT INTO audit_logs (action, identifier_value, verdict, source) VALUES ('VERIFY', '000000018', 'APPROVED', 'manual')"
+    );
+    await db.query(
+      "INSERT INTO audit_logs (action, identifier_value, verdict, source) VALUES ('VERIFY', '1234567', 'APPROVED', 'image')"
+    );
+
+    const res = await request(app)
+      .get(`/people/${personA.id}/visits`)
+      .set('Authorization', `Bearer ${authToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].source).toBe('manual');
+  });
+
+  it('response includes id, verdict, source, and created_at fields', async () => {
+    const { rows } = await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict) VALUES ('IL_ID', '000000018', 'APPROVED') RETURNING id"
+    );
+    const id = rows[0].id;
+
+    await db.query(
+      "INSERT INTO audit_logs (action, identifier_value, verdict, source) VALUES ('VERIFY', '000000018', 'NOT_FOUND', 'image')"
+    );
+
+    const res = await request(app)
+      .get(`/people/${id}/visits`)
+      .set('Authorization', `Bearer ${authToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body[0]).toHaveProperty('id');
+    expect(res.body[0]).toHaveProperty('verdict', 'NOT_FOUND');
+    expect(res.body[0]).toHaveProperty('source', 'image');
+    expect(res.body[0]).toHaveProperty('created_at');
+  });
+});
+
+describe('auditRepository.getVisitsByIdentifierValue', () => {
+  it('returns only VERIFY entries for the given identifier', async () => {
+    await db.query(
+      "INSERT INTO audit_logs (action, identifier_value, verdict, source) VALUES ('VERIFY', '000000018', 'APPROVED', 'manual')"
+    );
+    await db.query(
+      "INSERT INTO audit_logs (action, identifier_value, verdict, source) VALUES ('CREATE', '000000018', 'APPROVED', 'admin')"
+    );
+    await db.query(
+      "INSERT INTO audit_logs (action, identifier_value, verdict, source) VALUES ('VERIFY', '9999999', 'NOT_FOUND', 'manual')"
+    );
+
+    const rows = await auditRepo.getVisitsByIdentifierValue('000000018');
+    expect(rows).toHaveLength(1);
+    expect(rows[0].source).toBe('manual');
+  });
+
+  it('returns empty array when no VERIFY entries exist', async () => {
+    const rows = await auditRepo.getVisitsByIdentifierValue('000000018');
+    expect(rows).toEqual([]);
+  });
+
+  it('respects the limit parameter', async () => {
+    for (let i = 0; i < 5; i++) {
+      await db.query(
+        "INSERT INTO audit_logs (action, identifier_value, verdict, source) VALUES ('VERIFY', '000000018', 'APPROVED', 'manual')"
+      );
+    }
+    const rows = await auditRepo.getVisitsByIdentifierValue('000000018', 3);
+    expect(rows).toHaveLength(3);
+  });
+
+  it('returns results ordered newest first', async () => {
+    await db.query(
+      "INSERT INTO audit_logs (action, identifier_value, verdict, source, created_at) VALUES ('VERIFY', '000000018', 'APPROVED', 'manual', NOW() - INTERVAL '2 hours')"
+    );
+    await db.query(
+      "INSERT INTO audit_logs (action, identifier_value, verdict, source, created_at) VALUES ('VERIFY', '000000018', 'NOT_APPROVED', 'image', NOW() - INTERVAL '1 hour')"
+    );
+
+    const rows = await auditRepo.getVisitsByIdentifierValue('000000018');
+    expect(rows[0].source).toBe('image');   // newer
+    expect(rows[1].source).toBe('manual');  // older
   });
 });
 
