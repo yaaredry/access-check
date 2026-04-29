@@ -267,7 +267,6 @@ describe('MySubmissions — sort order', () => {
     render(<MySubmissions />);
     await waitFor(() => screen.getByText('000000018'));
 
-    const cards = screen.getAllByText(/00000007[0-9]|00000001[0-9]/);
     // The expired row (000000075) must appear before the pending row (000000018)
     const allText = document.body.textContent;
     expect(allText.indexOf('000000075')).toBeLessThan(allText.indexOf('000000018'));
