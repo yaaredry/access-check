@@ -205,6 +205,93 @@ describe('AccessRequestForm', () => {
   });
 });
 
+// ── extendRecord prop (extend-from-submissions flow) ─────────────────────────
+
+const EXPIRED_SUBMISSION = {
+  id: 7,
+  identifier_value: '000000018',
+  status: 'APPROVED',
+  verdict: 'APPROVED',
+  approval_expiration: '2000-01-01T00:00:00.000Z',
+  rejection_reason: null,
+  population: 'IL_MILITARY',
+  division: 'Alpha Unit',
+  escort_full_name: null,
+  escort_phone: null,
+  reason: 'Supply run',
+};
+
+describe('AccessRequestForm — extendRecord prop', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('pre-fills ilId from extendRecord and locks the field', () => {
+    render(<AccessRequestForm onLogout={vi.fn()} requestorName="Dana" extendRecord={EXPIRED_SUBMISSION} />);
+    const idInput = screen.getByPlaceholderText('9-digit Israeli ID');
+    expect(idInput).toHaveValue('000000018');
+    expect(idInput).toBeDisabled();
+  });
+
+  it('pre-fills reason from extendRecord', () => {
+    render(<AccessRequestForm onLogout={vi.fn()} requestorName="Dana" extendRecord={EXPIRED_SUBMISSION} />);
+    expect(screen.getByPlaceholderText('Describe the reason for entry…')).toHaveValue('Supply run');
+  });
+
+  it('pre-fills division from extendRecord', () => {
+    render(<AccessRequestForm onLogout={vi.fn()} requestorName="Dana" extendRecord={EXPIRED_SUBMISSION} />);
+    expect(screen.getByPlaceholderText('Unit or division')).toHaveValue('Alpha Unit');
+  });
+
+  it('shows the extension UI immediately without requiring a form submit', () => {
+    render(<AccessRequestForm onLogout={vi.fn()} requestorName="Dana" extendRecord={EXPIRED_SUBMISSION} />);
+    expect(screen.getByRole('button', { name: /Request Extension/i })).toBeInTheDocument();
+  });
+
+  it('approval expiration field starts empty so user must pick a new date', () => {
+    render(<AccessRequestForm onLogout={vi.fn()} requestorName="Dana" extendRecord={EXPIRED_SUBMISSION} />);
+    expect(document.querySelector('input[type="date"]')).toHaveValue('');
+  });
+
+  it('calls resubmitAccessRequest with correct id when Request Extension is clicked', async () => {
+    api.resubmitAccessRequest.mockResolvedValue({ id: 7, status: 'PENDING' });
+    render(<AccessRequestForm onLogout={vi.fn()} requestorName="Dana" extendRecord={EXPIRED_SUBMISSION} />);
+    // Set a valid expiration date first
+    fireEvent.change(document.querySelector('input[type="date"]'), { target: { value: FUTURE_DATE } });
+    fireEvent.click(screen.getByRole('button', { name: /Request Extension/i }));
+    await waitFor(() => expect(api.resubmitAccessRequest).toHaveBeenCalledWith(7, expect.any(Object)));
+  });
+
+  it('shows success screen after clicking Request Extension', async () => {
+    api.resubmitAccessRequest.mockResolvedValue({ id: 7, status: 'PENDING' });
+    render(<AccessRequestForm onLogout={vi.fn()} requestorName="Dana" extendRecord={EXPIRED_SUBMISSION} />);
+    fireEvent.change(document.querySelector('input[type="date"]'), { target: { value: FUTURE_DATE } });
+    fireEvent.click(screen.getByRole('button', { name: /Request Extension/i }));
+    await waitFor(() => expect(screen.getByText('Request Submitted')).toBeInTheDocument());
+  });
+
+  it('calls onExtendDone when Submit Another is clicked after extension success', async () => {
+    const onExtendDone = vi.fn();
+    api.resubmitAccessRequest.mockResolvedValue({ id: 7, status: 'PENDING' });
+    render(<AccessRequestForm onLogout={vi.fn()} requestorName="Dana" extendRecord={EXPIRED_SUBMISSION} onExtendDone={onExtendDone} />);
+    fireEvent.change(document.querySelector('input[type="date"]'), { target: { value: FUTURE_DATE } });
+    fireEvent.click(screen.getByRole('button', { name: /Request Extension/i }));
+    await waitFor(() => screen.getByText('Submit Another'));
+    fireEvent.click(screen.getByText('Submit Another'));
+    expect(onExtendDone).toHaveBeenCalled();
+  });
+
+  it('pre-fills escort fields from extendRecord for CIVILIAN population', () => {
+    const civilianRecord = {
+      ...EXPIRED_SUBMISSION,
+      population: 'CIVILIAN',
+      escort_full_name: 'John Guard',
+      escort_phone: '+972501234567',
+    };
+    render(<AccessRequestForm onLogout={vi.fn()} requestorName="Dana" extendRecord={civilianRecord} />);
+    expect(screen.getByPlaceholderText("Escort's full name")).toHaveValue('John Guard');
+    expect(screen.getByPlaceholderText('+972501234567')).toHaveValue('+972501234567');
+  });
+});
+
 // ── helpers for 409 conflict scenarios ───────────────────────────────────────
 
 function make409Error(existing) {

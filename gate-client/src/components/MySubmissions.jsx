@@ -11,6 +11,11 @@ function daysUntilExpiry(dateStr) {
   return days === 0 ? 1 : days;
 }
 
+function isExpired(row) {
+  if (!['APPROVED', 'ADMIN_APPROVED', 'APPROVED_WITH_ESCORT'].includes(row.verdict)) return false;
+  return !!(row.approval_expiration && new Date(row.approval_expiration) < new Date());
+}
+
 function statusConfig(row) {
   if (row.status === 'PENDING') {
     return { label: 'Pending Review', color: '#d97706', bg: 'rgba(245,158,11,.12)' };
@@ -19,7 +24,7 @@ function statusConfig(row) {
     return { label: 'Rejected', color: 'var(--not-approved)', bg: 'rgba(239,68,68,.1)' };
   }
   if (row.status === 'APPROVED' || ['APPROVED', 'ADMIN_APPROVED', 'APPROVED_WITH_ESCORT'].includes(row.verdict)) {
-    if (row.approval_expiration && new Date(row.approval_expiration) < new Date()) {
+    if (isExpired(row)) {
       return { label: 'Expired', color: 'var(--text-muted)', bg: 'rgba(100,116,139,.1)' };
     }
     if (row.verdict === 'APPROVED_WITH_ESCORT') {
@@ -33,10 +38,48 @@ function statusConfig(row) {
   return { label: 'Unknown', color: 'var(--text-muted)', bg: 'rgba(100,116,139,.1)' };
 }
 
-export default function MySubmissions() {
+const FILTERS = [
+  { key: 'all',      label: 'All' },
+  { key: 'expired',  label: 'Expired' },
+  { key: 'pending',  label: 'Pending' },
+  { key: 'approved', label: 'Approved' },
+  { key: 'rejected', label: 'Rejected' },
+];
+
+function matchesFilter(row, filter) {
+  if (filter === 'all') return true;
+  if (filter === 'expired') return isExpired(row);
+  if (filter === 'pending') return row.status === 'PENDING';
+  if (filter === 'rejected') {
+    return (row.status === 'NOT_APPROVED' || row.verdict === 'NOT_APPROVED') && row.status !== 'PENDING';
+  }
+  if (filter === 'approved') {
+    return ['APPROVED', 'ADMIN_APPROVED', 'APPROVED_WITH_ESCORT'].includes(row.verdict) && !isExpired(row);
+  }
+  return true;
+}
+
+function sortRows(rows) {
+  return [...rows].sort((a, b) => {
+    const aExp = isExpired(a) ? 0 : 1;
+    const bExp = isExpired(b) ? 0 : 1;
+    if (aExp !== bExp) return aExp - bExp;
+    return 0; // preserve API order (created_at DESC) within each group
+  });
+}
+
+const FILTER_LABEL = {
+  expired: 'expired',
+  pending: 'pending',
+  approved: 'approved',
+  rejected: 'rejected',
+};
+
+export default function MySubmissions({ onExtend }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [activeFilter, setActiveFilter] = useState('all');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -53,9 +96,28 @@ export default function MySubmissions() {
 
   useEffect(() => { load(); }, [load]);
 
+  const sorted = sortRows(rows);
+  const filtered = sorted.filter(r => matchesFilter(r, activeFilter));
+
   return (
     <div style={containerStyle}>
-      <div style={{ padding: '20px 20px 0' }}>
+      {/* Filter chips */}
+      <div style={filterBarStyle}>
+        <div style={filterScrollStyle}>
+          {FILTERS.map(f => (
+            <button
+              key={f.key}
+              onClick={() => setActiveFilter(f.key)}
+              style={chipStyle(activeFilter === f.key)}
+              aria-pressed={activeFilter === f.key}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ padding: '16px 20px 0' }}>
         {loading && (
           <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px 0' }}>Loading…</p>
         )}
@@ -73,14 +135,29 @@ export default function MySubmissions() {
           </p>
         )}
 
-        {!loading && !error && rows.length > 0 && (
+        {!loading && !error && rows.length > 0 && filtered.length === 0 && (
+          <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px 0' }}>
+            No {FILTER_LABEL[activeFilter]} submissions.
+          </p>
+        )}
+
+        {!loading && !error && filtered.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {rows.map(row => {
+            {filtered.map(row => {
               const cfg = statusConfig(row);
               const expiresInDays = daysUntilExpiry(row.approval_expiration);
               const expiringSoon = expiresInDays !== null && expiresInDays <= 2;
+              const expired = isExpired(row);
               return (
-                <div key={row.id} style={{ ...cardStyle, borderLeft: `4px solid ${cfg.color}` }}>
+                <div
+                  key={row.id}
+                  onClick={expired && onExtend ? () => onExtend(row) : undefined}
+                  style={{
+                    ...cardStyle,
+                    borderLeft: `4px solid ${cfg.color}`,
+                    ...(expired && onExtend ? expiredClickableStyle : {}),
+                  }}
+                >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                     <span style={{ fontWeight: 700, fontSize: 18, letterSpacing: 1 }}>
                       {row.identifier_value}
@@ -106,12 +183,20 @@ export default function MySubmissions() {
                       background: 'rgba(245,158,11,.12)', color: '#d97706',
                       fontSize: 12, fontWeight: 600,
                     }}>
-                      ⚠ Expires in {expiresInDays === 1 ? '1 day' : `${expiresInDays} days`}
+                      Expires in {expiresInDays === 1 ? '1 day' : `${expiresInDays} days`}
                     </div>
                   )}
                   {row.rejection_reason && (
                     <div style={{ fontSize: 13, color: 'var(--not-approved)', marginTop: 6, fontStyle: 'italic' }}>
                       {row.rejection_reason}
+                    </div>
+                  )}
+                  {expired && onExtend && (
+                    <div style={{
+                      marginTop: 10, fontSize: 12, fontWeight: 600,
+                      color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: 4,
+                    }}>
+                      Tap to request extension →
                     </div>
                   )}
                 </div>
@@ -122,7 +207,7 @@ export default function MySubmissions() {
 
         {!loading && (
           <button className="secondary" onClick={load} style={{ width: '100%', marginTop: 20 }}>
-            ↻ Refresh
+            Refresh
           </button>
         )}
       </div>
@@ -138,9 +223,42 @@ const containerStyle = {
   margin: '0 auto',
 };
 
+const filterBarStyle = {
+  padding: '12px 20px 0',
+  overflowX: 'auto',
+};
+
+const filterScrollStyle = {
+  display: 'flex',
+  gap: 8,
+  paddingBottom: 4,
+};
+
+function chipStyle(active) {
+  return {
+    flexShrink: 0,
+    padding: '6px 16px',
+    borderRadius: 20,
+    fontSize: 13,
+    fontWeight: active ? 700 : 500,
+    border: active ? '1.5px solid var(--primary)' : '1.5px solid var(--border)',
+    background: active ? 'var(--primary)' : 'transparent',
+    color: active ? '#fff' : 'var(--text-muted)',
+    cursor: 'pointer',
+    width: 'auto',
+    letterSpacing: 0,
+    transition: 'background .12s, color .12s, border-color .12s',
+  };
+}
+
 const cardStyle = {
   background: 'var(--surface)',
   border: '1px solid var(--border)',
   borderRadius: 12,
   padding: '14px 16px',
+};
+
+const expiredClickableStyle = {
+  cursor: 'pointer',
+  userSelect: 'none',
 };
