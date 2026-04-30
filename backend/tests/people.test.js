@@ -796,3 +796,174 @@ describe('auditRepository.recent', () => {
     expect(rows).toHaveLength(3);
   });
 });
+
+// ── Stale expired record filtering (GET /access-requests/mine) ───────────────
+// Approved records that expired more than 3 calendar days ago are hidden from
+// the requestor's My Submissions view. They remain visible in the admin panel.
+
+describe('GET /access-requests/mine — stale expired record filtering', () => {
+  const requestorToken = jwt.sign(
+    { sub: 2, username: 'requestor@test.com', role: 'access_requestor' },
+    process.env.JWT_SECRET || 'dev-secret'
+  );
+  const EMAIL = 'requestor@test.com';
+
+  it('returns an approved record that expired 1 day ago', async () => {
+    await db.query(
+      `INSERT INTO people (identifier_type, identifier_value, verdict, approval_expiration, requester_email)
+       VALUES ('IL_ID', '000000018', 'APPROVED', NOW() - INTERVAL '1 day', $1)`,
+      [EMAIL]
+    );
+    const res = await request(app)
+      .get('/access-requests/mine')
+      .set('Authorization', `Bearer ${requestorToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.rows).toHaveLength(1);
+    expect(res.body.rows[0].identifier_value).toBe('000000018');
+  });
+
+  it('returns an approved record that expired exactly 3 days ago (boundary — still visible)', async () => {
+    await db.query(
+      `INSERT INTO people (identifier_type, identifier_value, verdict, approval_expiration, requester_email)
+       VALUES ('IL_ID', '000000018', 'APPROVED', NOW() - INTERVAL '3 days', $1)`,
+      [EMAIL]
+    );
+    const res = await request(app)
+      .get('/access-requests/mine')
+      .set('Authorization', `Bearer ${requestorToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.rows).toHaveLength(1);
+  });
+
+  it('hides an APPROVED record that expired 4 days ago', async () => {
+    await db.query(
+      `INSERT INTO people (identifier_type, identifier_value, verdict, approval_expiration, requester_email)
+       VALUES ('IL_ID', '000000018', 'APPROVED', NOW() - INTERVAL '4 days', $1)`,
+      [EMAIL]
+    );
+    const res = await request(app)
+      .get('/access-requests/mine')
+      .set('Authorization', `Bearer ${requestorToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.rows).toHaveLength(0);
+  });
+
+  it('hides an ADMIN_APPROVED record that expired 4 days ago', async () => {
+    await db.query(
+      `INSERT INTO people (identifier_type, identifier_value, verdict, approval_expiration, requester_email)
+       VALUES ('IL_ID', '000000018', 'ADMIN_APPROVED', NOW() - INTERVAL '4 days', $1)`,
+      [EMAIL]
+    );
+    const res = await request(app)
+      .get('/access-requests/mine')
+      .set('Authorization', `Bearer ${requestorToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.rows).toHaveLength(0);
+  });
+
+  it('hides an APPROVED_WITH_ESCORT record that expired 4 days ago', async () => {
+    await db.query(
+      `INSERT INTO people (identifier_type, identifier_value, verdict, approval_expiration, requester_email)
+       VALUES ('IL_ID', '000000018', 'APPROVED_WITH_ESCORT', NOW() - INTERVAL '4 days', $1)`,
+      [EMAIL]
+    );
+    const res = await request(app)
+      .get('/access-requests/mine')
+      .set('Authorization', `Bearer ${requestorToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.rows).toHaveLength(0);
+  });
+
+  it('always shows a resubmitted (PENDING) record regardless of old expiration date', async () => {
+    // After resubmit, verdict = NOT_APPROVED and status = PENDING — never filtered
+    await db.query(
+      `INSERT INTO people (identifier_type, identifier_value, verdict, status, approval_expiration, requester_email)
+       VALUES ('IL_ID', '000000018', 'NOT_APPROVED', 'PENDING', NOW() - INTERVAL '10 days', $1)`,
+      [EMAIL]
+    );
+    const res = await request(app)
+      .get('/access-requests/mine')
+      .set('Authorization', `Bearer ${requestorToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.rows).toHaveLength(1);
+  });
+
+  it('always shows a NOT_APPROVED (rejected) record — no expiration to filter on', async () => {
+    await db.query(
+      `INSERT INTO people (identifier_type, identifier_value, verdict, status, requester_email)
+       VALUES ('IL_ID', '000000018', 'NOT_APPROVED', 'NOT_APPROVED', $1)`,
+      [EMAIL]
+    );
+    const res = await request(app)
+      .get('/access-requests/mine')
+      .set('Authorization', `Bearer ${requestorToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.rows).toHaveLength(1);
+  });
+
+  it('always shows an approved record with no expiration date', async () => {
+    await db.query(
+      `INSERT INTO people (identifier_type, identifier_value, verdict, approval_expiration, requester_email)
+       VALUES ('IL_ID', '000000018', 'APPROVED', NULL, $1)`,
+      [EMAIL]
+    );
+    const res = await request(app)
+      .get('/access-requests/mine')
+      .set('Authorization', `Bearer ${requestorToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.rows).toHaveLength(1);
+  });
+
+  it('always shows an approved record with a future expiration', async () => {
+    await db.query(
+      `INSERT INTO people (identifier_type, identifier_value, verdict, approval_expiration, requester_email)
+       VALUES ('IL_ID', '000000018', 'APPROVED', NOW() + INTERVAL '2 days', $1)`,
+      [EMAIL]
+    );
+    const res = await request(app)
+      .get('/access-requests/mine')
+      .set('Authorization', `Bearer ${requestorToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.rows).toHaveLength(1);
+  });
+
+  it('returns only the visible records when stale and fresh records are mixed', async () => {
+    await db.query(
+      `INSERT INTO people (identifier_type, identifier_value, verdict, approval_expiration, requester_email)
+       VALUES ('IL_ID', '000000018', 'APPROVED', NOW() - INTERVAL '5 days', $1)`,
+      [EMAIL]
+    );
+    await db.query(
+      `INSERT INTO people (identifier_type, identifier_value, verdict, approval_expiration, requester_email)
+       VALUES ('IDF_ID', '1234567', 'APPROVED', NOW() - INTERVAL '1 day', $1)`,
+      [EMAIL]
+    );
+    await db.query(
+      `INSERT INTO people (identifier_type, identifier_value, verdict, status, requester_email)
+       VALUES ('IL_ID', '000000026', 'NOT_APPROVED', 'PENDING', $1)`,
+      [EMAIL]
+    );
+    const res = await request(app)
+      .get('/access-requests/mine')
+      .set('Authorization', `Bearer ${requestorToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.rows).toHaveLength(2);
+    const ids = res.body.rows.map(r => r.identifier_value);
+    expect(ids).not.toContain('000000018'); // stale — hidden
+    expect(ids).toContain('1234567');       // recent expired — visible
+    expect(ids).toContain('000000026');     // pending — visible
+  });
+
+  it('does not affect admin GET /people — stale expired records remain visible to admins', async () => {
+    await db.query(
+      `INSERT INTO people (identifier_type, identifier_value, verdict, approval_expiration, requester_email)
+       VALUES ('IL_ID', '000000018', 'APPROVED', NOW() - INTERVAL '5 days', $1)`,
+      [EMAIL]
+    );
+    const res = await request(app)
+      .get('/people')
+      .set('Authorization', `Bearer ${authToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.rows).toHaveLength(1);
+  });
+});

@@ -123,6 +123,12 @@ async function findByRequesterEmail(email) {
             last_resubmitted_at, population, division, escort_full_name, escort_phone, reason
      FROM people
      WHERE requester_email = $1
+       AND (
+         verdict NOT IN ('APPROVED', 'ADMIN_APPROVED', 'APPROVED_WITH_ESCORT')
+         OR approval_expiration IS NULL
+         OR approval_expiration >= NOW()
+         OR approval_expiration::date >= CURRENT_DATE - 3
+       )
      ORDER BY created_at DESC`,
     [email]
   );
