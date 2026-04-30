@@ -468,3 +468,68 @@ describe('MySubmissions — search', () => {
     expect(screen.queryByText('000000018')).not.toBeInTheDocument();
   });
 });
+
+// ── Hidden records banner ─────────────────────────────────────────────────────
+
+describe('MySubmissions — hidden records banner', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('does not show the banner when hiddenCount is 0', async () => {
+    api.getMySubmissions.mockResolvedValue({ rows: [PENDING_ROW], hiddenCount: 0 });
+    render(<MySubmissions />);
+    await waitFor(() => screen.getByText('000000018'));
+    expect(screen.queryByText(/not shown/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Show all' })).not.toBeInTheDocument();
+  });
+
+  it('does not show the banner when hiddenCount is absent from the API response', async () => {
+    api.getMySubmissions.mockResolvedValue({ rows: [PENDING_ROW] });
+    render(<MySubmissions />);
+    await waitFor(() => screen.getByText('000000018'));
+    expect(screen.queryByText(/not shown/)).not.toBeInTheDocument();
+  });
+
+  it('shows the banner with the correct count when hiddenCount > 0', async () => {
+    api.getMySubmissions.mockResolvedValue({ rows: [PENDING_ROW], hiddenCount: 3 });
+    render(<MySubmissions />);
+    await waitFor(() => screen.getByText('000000018'));
+    expect(screen.getByText(/3 older records not shown/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Show all' })).toBeInTheDocument();
+  });
+
+  it('uses singular "record" when hiddenCount is 1', async () => {
+    api.getMySubmissions.mockResolvedValue({ rows: [PENDING_ROW], hiddenCount: 1 });
+    render(<MySubmissions />);
+    await waitFor(() => screen.getByText('000000018'));
+    expect(screen.getByText(/1 older record not shown/)).toBeInTheDocument();
+    expect(screen.queryByText(/records not shown/)).not.toBeInTheDocument();
+  });
+
+  it('clicking Show all calls getMySubmissions(true) and shows previously hidden records', async () => {
+    const STALE_ROW = { ...BASE, id: 99, identifier_value: '000000091', status: 'APPROVED', verdict: 'APPROVED', approval_expiration: '2020-01-01' };
+    api.getMySubmissions
+      .mockResolvedValueOnce({ rows: [PENDING_ROW], hiddenCount: 1 })
+      .mockResolvedValueOnce({ rows: [PENDING_ROW, STALE_ROW], hiddenCount: 0 });
+    render(<MySubmissions />);
+    await waitFor(() => screen.getByRole('button', { name: 'Show all' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Show all' }));
+    await waitFor(() => screen.getByText('000000091'));
+    expect(api.getMySubmissions).toHaveBeenCalledWith(true);
+    expect(screen.queryByRole('button', { name: 'Show all' })).not.toBeInTheDocument();
+  });
+
+  it('Refresh resets back to the filtered view', async () => {
+    const STALE_ROW = { ...BASE, id: 99, identifier_value: '000000091', status: 'APPROVED', verdict: 'APPROVED', approval_expiration: '2020-01-01' };
+    api.getMySubmissions
+      .mockResolvedValueOnce({ rows: [PENDING_ROW], hiddenCount: 1 })
+      .mockResolvedValueOnce({ rows: [PENDING_ROW, STALE_ROW], hiddenCount: 0 })
+      .mockResolvedValueOnce({ rows: [PENDING_ROW], hiddenCount: 1 });
+    render(<MySubmissions />);
+    await waitFor(() => screen.getByRole('button', { name: 'Show all' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Show all' }));
+    await waitFor(() => screen.getByText('000000091'));
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+    await waitFor(() => expect(screen.queryByText('000000091')).not.toBeInTheDocument());
+    expect(screen.getByText(/1 older record not shown/)).toBeInTheDocument();
+  });
+});

@@ -117,22 +117,40 @@ async function remove(id) {
   return rowCount > 0;
 }
 
-async function findByRequesterEmail(email) {
+async function findByRequesterEmail(email, { includeStale = false } = {}) {
+  const staleFilter = `
+    AND (
+      verdict NOT IN ('APPROVED', 'ADMIN_APPROVED', 'APPROVED_WITH_ESCORT')
+      OR approval_expiration IS NULL
+      OR approval_expiration >= NOW()
+      OR approval_expiration::date >= CURRENT_DATE - 3
+    )`;
+
   const { rows } = await db.query(
     `SELECT id, identifier_value, status, verdict, approval_expiration, approval_start_date, rejection_reason, created_at,
             last_resubmitted_at, population, division, escort_full_name, escort_phone, reason
      FROM people
      WHERE requester_email = $1
-       AND (
-         verdict NOT IN ('APPROVED', 'ADMIN_APPROVED', 'APPROVED_WITH_ESCORT')
-         OR approval_expiration IS NULL
-         OR approval_expiration >= NOW()
-         OR approval_expiration::date >= CURRENT_DATE - 3
-       )
+     ${includeStale ? '' : staleFilter}
      ORDER BY created_at DESC`,
     [email]
   );
-  return rows;
+
+  let hiddenCount = 0;
+  if (!includeStale) {
+    const { rows: countRows } = await db.query(
+      `SELECT COUNT(*) FROM people
+       WHERE requester_email = $1
+         AND verdict IN ('APPROVED', 'ADMIN_APPROVED', 'APPROVED_WITH_ESCORT')
+         AND approval_expiration IS NOT NULL
+         AND approval_expiration < NOW()
+         AND approval_expiration::date < CURRENT_DATE - 3`,
+      [email]
+    );
+    hiddenCount = parseInt(countRows[0].count, 10);
+  }
+
+  return { rows, hiddenCount };
 }
 
 async function resubmitById(id, { approvalExpiration, approvalStartDate, population, division, escortFullName, escortPhone, reason, requesterName, requesterEmail }) {

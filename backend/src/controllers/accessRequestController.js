@@ -228,8 +228,9 @@ async function resubmit(req, res, next) {
 
 async function mine(req, res, next) {
   try {
-    const rows = await peopleRepo.findByRequesterEmail(req.user.username);
-    return res.json({ rows });
+    const includeStale = req.query.includeStale === 'true';
+    const { rows, hiddenCount } = await peopleRepo.findByRequesterEmail(req.user.username, { includeStale });
+    return res.json({ rows, hiddenCount });
   } catch (err) {
     return next(err);
   }

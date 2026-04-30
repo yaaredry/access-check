@@ -86,13 +86,18 @@ export default function MySubmissions({ onExtend }) {
   const [error, setError] = useState('');
   const [activeFilter, setActiveFilter] = useState('all');
   const [search, setSearch] = useState('');
+  const [hiddenCount, setHiddenCount] = useState(0);
+  const [showingAll, setShowingAll] = useState(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (includeStale = false) => {
     setLoading(true);
     setError('');
+    if (!includeStale) setShowingAll(false);
     try {
-      const data = await api.getMySubmissions();
+      const data = await api.getMySubmissions(includeStale);
       setRows(data.rows);
+      setHiddenCount(data.hiddenCount ?? 0);
+      if (includeStale) setShowingAll(true);
     } catch {
       setError('Could not load submissions. Please try again.');
     } finally {
@@ -259,8 +264,23 @@ export default function MySubmissions({ onExtend }) {
           </div>
         )}
 
+        {!loading && !error && hiddenCount > 0 && !showingAll && (
+          <div style={hiddenBannerStyle}>
+            <span>
+              {hiddenCount} older record{hiddenCount !== 1 ? 's' : ''} not shown
+            </span>
+            <button
+              type="button"
+              onClick={() => load(true)}
+              style={showAllLinkStyle}
+            >
+              Show all
+            </button>
+          </div>
+        )}
+
         {!loading && (
-          <button className="secondary" onClick={load} style={{ width: '100%', marginTop: 20 }}>
+          <button className="secondary" onClick={() => load()} style={{ width: '100%', marginTop: 20 }}>
             Refresh
           </button>
         )}
@@ -331,4 +351,28 @@ const cardStyle = {
 const expiredClickableStyle = {
   cursor: 'pointer',
   userSelect: 'none',
+};
+
+const hiddenBannerStyle = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginTop: 16,
+  padding: '10px 14px',
+  borderRadius: 10,
+  background: 'rgba(100,116,139,.08)',
+  fontSize: 13,
+  color: 'var(--text-muted)',
+};
+
+const showAllLinkStyle = {
+  background: 'none',
+  border: 'none',
+  padding: 0,
+  fontSize: 13,
+  fontWeight: 600,
+  color: 'var(--primary)',
+  cursor: 'pointer',
+  flexShrink: 0,
+  marginLeft: 12,
 };

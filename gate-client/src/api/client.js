@@ -50,5 +50,6 @@ export const api = {
 
   submitAccessRequest: (data) => request('POST', '/access-requests', data),
   resubmitAccessRequest: (id, data) => request('POST', `/access-requests/${id}/resubmit`, data),
-  getMySubmissions: () => request('GET', '/access-requests/mine'),
+  getMySubmissions: (includeStale = false) =>
+    request('GET', includeStale ? '/access-requests/mine?includeStale=true' : '/access-requests/mine'),
 };

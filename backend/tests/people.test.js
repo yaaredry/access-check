@@ -966,4 +966,79 @@ describe('GET /access-requests/mine — stale expired record filtering', () => {
     expect(res.status).toBe(200);
     expect(res.body.rows).toHaveLength(1);
   });
+
+  // hiddenCount metadata
+  it('returns hiddenCount: 0 when no stale records exist', async () => {
+    await db.query(
+      `INSERT INTO people (identifier_type, identifier_value, verdict, approval_expiration, requester_email)
+       VALUES ('IL_ID', '000000018', 'APPROVED', NOW() + INTERVAL '2 days', $1)`,
+      [EMAIL]
+    );
+    const res = await request(app)
+      .get('/access-requests/mine')
+      .set('Authorization', `Bearer ${requestorToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.hiddenCount).toBe(0);
+  });
+
+  it('returns correct hiddenCount when stale records exist', async () => {
+    // 2 stale records
+    await db.query(
+      `INSERT INTO people (identifier_type, identifier_value, verdict, approval_expiration, requester_email)
+       VALUES ('IL_ID', '000000018', 'APPROVED', NOW() - INTERVAL '5 days', $1)`,
+      [EMAIL]
+    );
+    await db.query(
+      `INSERT INTO people (identifier_type, identifier_value, verdict, approval_expiration, requester_email)
+       VALUES ('IDF_ID', '1234567', 'ADMIN_APPROVED', NOW() - INTERVAL '7 days', $1)`,
+      [EMAIL]
+    );
+    // 1 visible record (not stale)
+    await db.query(
+      `INSERT INTO people (identifier_type, identifier_value, verdict, status, requester_email)
+       VALUES ('IL_ID', '000000026', 'NOT_APPROVED', 'PENDING', $1)`,
+      [EMAIL]
+    );
+    const res = await request(app)
+      .get('/access-requests/mine')
+      .set('Authorization', `Bearer ${requestorToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.rows).toHaveLength(1);
+    expect(res.body.hiddenCount).toBe(2);
+  });
+
+  // includeStale=true
+  it('?includeStale=true returns all records including stale ones', async () => {
+    await db.query(
+      `INSERT INTO people (identifier_type, identifier_value, verdict, approval_expiration, requester_email)
+       VALUES ('IL_ID', '000000018', 'APPROVED', NOW() - INTERVAL '5 days', $1)`,
+      [EMAIL]
+    );
+    await db.query(
+      `INSERT INTO people (identifier_type, identifier_value, verdict, status, requester_email)
+       VALUES ('IL_ID', '000000026', 'NOT_APPROVED', 'PENDING', $1)`,
+      [EMAIL]
+    );
+    const res = await request(app)
+      .get('/access-requests/mine?includeStale=true')
+      .set('Authorization', `Bearer ${requestorToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.rows).toHaveLength(2);
+    const ids = res.body.rows.map(r => r.identifier_value);
+    expect(ids).toContain('000000018'); // stale — now visible
+    expect(ids).toContain('000000026');
+  });
+
+  it('?includeStale=true returns hiddenCount: 0', async () => {
+    await db.query(
+      `INSERT INTO people (identifier_type, identifier_value, verdict, approval_expiration, requester_email)
+       VALUES ('IL_ID', '000000018', 'APPROVED', NOW() - INTERVAL '5 days', $1)`,
+      [EMAIL]
+    );
+    const res = await request(app)
+      .get('/access-requests/mine?includeStale=true')
+      .set('Authorization', `Bearer ${requestorToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.hiddenCount).toBe(0);
+  });
 });
