@@ -15,7 +15,8 @@ const FUTURE_DATE = tomorrow.toISOString().split('T')[0];
 
 const TODAY = new Date().toISOString().split('T')[0];
 const PAST_DATE_RECENT = (() => { const d = new Date(); d.setDate(d.getDate() - 1); return d.toISOString().split('T')[0]; })();
-
+const IN_3_DAYS = (() => { const d = new Date(); d.setDate(d.getDate() + 3); return d.toISOString().split('T')[0]; })();
+const IN_7_DAYS = (() => { const d = new Date(); d.setDate(d.getDate() + 7); return d.toISOString().split('T')[0]; })();
 const FAR_FUTURE_DATE = '2099-12-31';
 const VALID_ID = '000000018';
 
@@ -602,5 +603,116 @@ describe('AccessRequestForm — resubmit flow', () => {
     await userEvent.type(screen.getByPlaceholderText('Describe the reason for entry…'), 'Supply run');
     submitForm();
     await waitFor(() => expect(screen.getByRole('button', { name: /Request Extension until/i })).toBeInTheDocument());
+  });
+});
+
+// ── Duration chips ────────────────────────────────────────────────────────────
+
+describe('AccessRequestForm — duration chips', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('renders all four duration chips', () => {
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    expect(screen.getByRole('button', { name: 'Today' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Tomorrow' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '3 days' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '7 days' })).toBeInTheDocument();
+  });
+
+  it('no chip is active by default', () => {
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    expect(screen.getByRole('button', { name: 'Today' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('button', { name: 'Tomorrow' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('button', { name: '3 days' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('button', { name: '7 days' })).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('Today chip sets startDate and expiration both to today', () => {
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Today' }));
+    const dates = document.querySelectorAll('input[type="date"]');
+    // startDate input (first), expiration input (second)
+    expect(dates[0].value).toBe(TODAY);
+    expect(dates[1].value).toBe(TODAY);
+  });
+
+  it('Today chip marks itself as active', () => {
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Today' }));
+    expect(screen.getByRole('button', { name: 'Today' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Tomorrow' })).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('Tomorrow chip sets expiration to tomorrow and clears startDate', () => {
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Tomorrow' }));
+    const dates = document.querySelectorAll('input[type="date"]');
+    expect(dates[0].value).toBe('');     // startDate cleared
+    expect(dates[1].value).toBe(FUTURE_DATE);
+  });
+
+  it('3 days chip sets expiration 3 days from today and clears startDate', () => {
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: '3 days' }));
+    const dates = document.querySelectorAll('input[type="date"]');
+    expect(dates[0].value).toBe('');
+    expect(dates[1].value).toBe(IN_3_DAYS);
+  });
+
+  it('7 days chip sets expiration 7 days from today and clears startDate', () => {
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: '7 days' }));
+    const dates = document.querySelectorAll('input[type="date"]');
+    expect(dates[0].value).toBe('');
+    expect(dates[1].value).toBe(IN_7_DAYS);
+  });
+
+  it('selecting a different chip deactivates the previous one', () => {
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Today' }));
+    fireEvent.click(screen.getByRole('button', { name: '7 days' }));
+    expect(screen.getByRole('button', { name: '7 days' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Today' })).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('manually editing expiration clears the active chip', () => {
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Tomorrow' }));
+    expect(screen.getByRole('button', { name: 'Tomorrow' })).toHaveAttribute('aria-pressed', 'true');
+    // Use IN_3_DAYS (different from FUTURE_DATE that Tomorrow chip set) so onChange actually fires
+    const dates = document.querySelectorAll('input[type="date"]');
+    fireEvent.change(dates[1], { target: { value: IN_3_DAYS } });
+    expect(screen.getByRole('button', { name: 'Tomorrow' })).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('manually editing startDate clears the active chip', () => {
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Today' }));
+    // Use FUTURE_DATE (different from TODAY that Today chip set) so onChange actually fires
+    const dates = document.querySelectorAll('input[type="date"]');
+    fireEvent.change(dates[0], { target: { value: FUTURE_DATE } });
+    expect(screen.getByRole('button', { name: 'Today' })).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('Today chip allows form submit with same-day start and expiration (no validation error)', async () => {
+    api.submitAccessRequest.mockResolvedValue({});
+    render(<AccessRequestForm onLogout={vi.fn()} requestorName="Dana" />);
+    await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), VALID_ID);
+    fireEvent.click(screen.getByRole('button', { name: 'Today' }));
+    await userEvent.type(screen.getByPlaceholderText('Describe the reason for entry…'), 'Supply run');
+    fireEvent.submit(document.querySelector('form'));
+    await waitFor(() => expect(screen.getByText('Request Submitted')).toBeInTheDocument());
+  });
+
+  it('Start Fresh resets active chip to none', async () => {
+    api.submitAccessRequest.mockResolvedValue({});
+    render(<AccessRequestForm onLogout={vi.fn()} requestorName="Dana" />);
+    await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), VALID_ID);
+    fireEvent.click(screen.getByRole('button', { name: '7 days' }));
+    await userEvent.type(screen.getByPlaceholderText('Describe the reason for entry…'), 'Supply run');
+    fireEvent.submit(document.querySelector('form'));
+    await waitFor(() => screen.getByText('Start Fresh'));
+    fireEvent.click(screen.getByText('Start Fresh'));
+    expect(screen.getByRole('button', { name: '7 days' })).toHaveAttribute('aria-pressed', 'false');
   });
 });

@@ -30,24 +30,23 @@ const requestBodyValidation = [
   body('approvalExpiration')
     .isISO8601().withMessage('approvalExpiration must be a valid date')
     .custom((value, { req }) => {
-      const date = new Date(value);
-      if (date <= new Date()) throw new Error('approvalExpiration must be a future date');
-      let max;
+      const expUTC = new Date(value + 'T00:00:00Z');
+      const todayUTC = new Date(new Date().toISOString().split('T')[0] + 'T00:00:00Z');
       if (req.body.approvalStartDate) {
-        // Use UTC midnight for both to avoid timezone drift between date-string parsing and local midnight
-        const base = new Date(req.body.approvalStartDate + 'T00:00:00Z');
-        max = new Date(base);
+        // With a start date: expiration >= start (single-day access allowed)
+        const startUTC = new Date(req.body.approvalStartDate + 'T00:00:00Z');
+        if (expUTC < startUTC) throw new Error('approvalExpiration must not be before approvalStartDate');
+        const max = new Date(startUTC);
         max.setUTCDate(max.getUTCDate() + 7);
         max.setUTCHours(23, 59, 59, 999);
+        if (expUTC > max) throw new Error('approvalExpiration cannot be more than 7 days from approvalStartDate');
       } else {
-        max = new Date();
+        // No start date: must be strictly tomorrow or later
+        if (expUTC <= todayUTC) throw new Error('approvalExpiration must be a future date');
+        const max = new Date();
         max.setDate(max.getDate() + 7);
+        if (expUTC > max) throw new Error('approvalExpiration cannot be more than 7 days from today');
       }
-      if (date > max) throw new Error(
-        req.body.approvalStartDate
-          ? 'approvalExpiration cannot be more than 7 days from approvalStartDate'
-          : 'approvalExpiration cannot be more than 7 days from today'
-      );
       return true;
     }),
   body('approvalStartDate')
@@ -139,24 +138,23 @@ const resubmitBodyValidation = [
   body('approvalExpiration')
     .isISO8601().withMessage('approvalExpiration must be a valid date')
     .custom((value, { req }) => {
-      const date = new Date(value);
-      if (date <= new Date()) throw new Error('approvalExpiration must be a future date');
-      let max;
+      const expUTC = new Date(value + 'T00:00:00Z');
+      const todayUTC = new Date(new Date().toISOString().split('T')[0] + 'T00:00:00Z');
       if (req.body.approvalStartDate) {
-        // Use UTC midnight for both to avoid timezone drift between date-string parsing and local midnight
-        const base = new Date(req.body.approvalStartDate + 'T00:00:00Z');
-        max = new Date(base);
+        // With a start date: expiration >= start (single-day access allowed)
+        const startUTC = new Date(req.body.approvalStartDate + 'T00:00:00Z');
+        if (expUTC < startUTC) throw new Error('approvalExpiration must not be before approvalStartDate');
+        const max = new Date(startUTC);
         max.setUTCDate(max.getUTCDate() + 7);
         max.setUTCHours(23, 59, 59, 999);
+        if (expUTC > max) throw new Error('approvalExpiration cannot be more than 7 days from approvalStartDate');
       } else {
-        max = new Date();
+        // No start date: must be strictly tomorrow or later
+        if (expUTC <= todayUTC) throw new Error('approvalExpiration must be a future date');
+        const max = new Date();
         max.setDate(max.getDate() + 7);
+        if (expUTC > max) throw new Error('approvalExpiration cannot be more than 7 days from today');
       }
-      if (date > max) throw new Error(
-        req.body.approvalStartDate
-          ? 'approvalExpiration cannot be more than 7 days from approvalStartDate'
-          : 'approvalExpiration cannot be more than 7 days from today'
-      );
       return true;
     }),
   body('approvalStartDate')
@@ -230,8 +228,9 @@ async function resubmit(req, res, next) {
 
 async function mine(req, res, next) {
   try {
-    const rows = await peopleRepo.findByRequesterEmail(req.user.username);
-    return res.json({ rows });
+    const includeStale = req.query.includeStale === 'true';
+    const { rows, hiddenCount } = await peopleRepo.findByRequesterEmail(req.user.username, { includeStale });
+    return res.json({ rows, hiddenCount });
   } catch (err) {
     return next(err);
   }
