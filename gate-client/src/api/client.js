@@ -52,4 +52,5 @@ export const api = {
   resubmitAccessRequest: (id, data) => request('POST', `/access-requests/${id}/resubmit`, data),
   getMySubmissions: (includeStale = false) =>
     request('GET', includeStale ? '/access-requests/mine?includeStale=true' : '/access-requests/mine'),
+  getMyConfig: () => request('GET', '/access-requests/mine/config'),
 };

@@ -14,8 +14,8 @@ vi.mock('../api/client', () => ({
 }));
 
 const USERS = [
-  { id: 1, username: 'alice@example.com', name: 'Alice', created_at: '2024-01-01T00:00:00Z' },
-  { id: 2, username: 'bob@example.com',   name: 'Bob',   created_at: '2024-02-01T00:00:00Z' },
+  { id: 1, username: 'alice@example.com', name: 'Alice', max_request_days: 7,  created_at: '2024-01-01T00:00:00Z' },
+  { id: 2, username: 'bob@example.com',   name: 'Bob',   max_request_days: 14, created_at: '2024-02-01T00:00:00Z' },
 ];
 
 beforeEach(() => {
@@ -103,7 +103,7 @@ describe('Users page', () => {
     fireEvent.change(screen.getByDisplayValue('Alice'), { target: { value: 'Alice 2' } });
     fireEvent.click(screen.getByText('Save Changes'));
 
-    await waitFor(() => expect(api.updateUser).toHaveBeenCalledWith(1, { username: 'alice@example.com', name: 'Alice 2' }));
+    await waitFor(() => expect(api.updateUser).toHaveBeenCalledWith(1, { username: 'alice@example.com', name: 'Alice 2', maxRequestDays: 7 }));
     expect(screen.queryByText('Edit User')).not.toBeInTheDocument();
   });
 
@@ -158,5 +158,32 @@ describe('Users page', () => {
 
     expect(screen.queryByText('Add Requestor User')).not.toBeInTheDocument();
     expect(api.createUser).not.toHaveBeenCalled();
+  });
+
+  it('edit modal pre-fills maxRequestDays from user data', async () => {
+    render(<Users />);
+    await waitFor(() => screen.getByText('Alice'));
+    fireEvent.click(screen.getAllByText('Edit')[1]); // Bob has max_request_days=14
+
+    // The max request days field should show Bob's value
+    expect(screen.getByDisplayValue('14')).toBeInTheDocument();
+  });
+
+  it('edit modal sends updated maxRequestDays to api.updateUser', async () => {
+    api.updateUser.mockResolvedValue({ id: 1, username: 'alice@example.com', name: 'Alice', max_request_days: 3 });
+
+    render(<Users />);
+    await waitFor(() => screen.getByText('Alice'));
+    fireEvent.click(screen.getAllByText('Edit')[0]); // Alice
+
+    // Change maxRequestDays to 3
+    fireEvent.change(screen.getByDisplayValue('7'), { target: { value: '3' } });
+    fireEvent.click(screen.getByText('Save Changes'));
+
+    await waitFor(() => expect(api.updateUser).toHaveBeenCalledWith(1, {
+      username: 'alice@example.com',
+      name: 'Alice',
+      maxRequestDays: 3,
+    }));
   });
 });

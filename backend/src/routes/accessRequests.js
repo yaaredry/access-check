@@ -9,5 +9,6 @@ const router = Router();
 router.post('/', authenticate, requireRole('access_requestor'), ctrl.requestBodyValidation, ctrl.create);
 router.post('/:id/resubmit', authenticate, requireRole('access_requestor'), ctrl.resubmitBodyValidation, ctrl.resubmit);
 router.get('/mine', authenticate, requireRole('access_requestor'), ctrl.mine);
+router.get('/mine/config', authenticate, requireRole('access_requestor'), ctrl.myConfig);
 
 module.exports = router;

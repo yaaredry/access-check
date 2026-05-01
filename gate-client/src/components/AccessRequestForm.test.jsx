@@ -716,3 +716,75 @@ describe('AccessRequestForm — duration chips', () => {
     expect(screen.getByRole('button', { name: '7 days' })).toHaveAttribute('aria-pressed', 'false');
   });
 });
+
+describe('AccessRequestForm — maxRequestDays dynamic chips', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  const IN_5_DAYS = (() => { const d = new Date(); d.setDate(d.getDate() + 5); return d.toISOString().split('T')[0]; })();
+
+  it('default (maxRequestDays=7): shows Today, Tomorrow, 3 days, 7 days', () => {
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    expect(screen.getByRole('button', { name: 'Today' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Tomorrow' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '3 days' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '7 days' })).toBeInTheDocument();
+  });
+
+  it('maxRequestDays=5: shows Today, Tomorrow, 3 days, 5 days (no 7 days)', () => {
+    render(<AccessRequestForm onLogout={vi.fn()} maxRequestDays={5} />);
+    expect(screen.getByRole('button', { name: 'Today' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Tomorrow' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '3 days' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '5 days' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '7 days' })).not.toBeInTheDocument();
+  });
+
+  it('maxRequestDays=3: shows Today, Tomorrow, 3 days (no 5 or 7 days)', () => {
+    render(<AccessRequestForm onLogout={vi.fn()} maxRequestDays={3} />);
+    expect(screen.getByRole('button', { name: 'Today' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Tomorrow' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '3 days' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '5 days' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '7 days' })).not.toBeInTheDocument();
+  });
+
+  it('maxRequestDays=2: shows Today, Tomorrow, 2 days (no 3 or 7 days)', () => {
+    render(<AccessRequestForm onLogout={vi.fn()} maxRequestDays={2} />);
+    expect(screen.getByRole('button', { name: 'Today' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Tomorrow' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '2 days' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '3 days' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '7 days' })).not.toBeInTheDocument();
+  });
+
+  it('maxRequestDays=1: shows Today and Tomorrow only (Tomorrow is max)', () => {
+    render(<AccessRequestForm onLogout={vi.fn()} maxRequestDays={1} />);
+    expect(screen.getByRole('button', { name: 'Today' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Tomorrow' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '3 days' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '7 days' })).not.toBeInTheDocument();
+  });
+
+  it('maxRequestDays=10: shows Today, Tomorrow, 3 days, 10 days (no 7 days)', () => {
+    render(<AccessRequestForm onLogout={vi.fn()} maxRequestDays={10} />);
+    expect(screen.getByRole('button', { name: '10 days' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '7 days' })).not.toBeInTheDocument();
+  });
+
+  it('maxRequestDays=5 chip sets expiration 5 days from today', () => {
+    render(<AccessRequestForm onLogout={vi.fn()} maxRequestDays={5} />);
+    fireEvent.click(screen.getByRole('button', { name: '5 days' }));
+    const dates = document.querySelectorAll('input[type="date"]');
+    expect(dates[0].value).toBe('');
+    expect(dates[1].value).toBe(IN_5_DAYS);
+  });
+
+  it('maxRequestDays=3: validation rejects expiry beyond 3 days', async () => {
+    render(<AccessRequestForm onLogout={vi.fn()} requestorName="Dana" maxRequestDays={3} />);
+    await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), VALID_ID);
+    fireEvent.change(document.querySelectorAll('input[type="date"]')[1], { target: { value: IN_5_DAYS } });
+    await userEvent.type(screen.getByPlaceholderText('Describe the reason for entry…'), 'Visit');
+    fireEvent.submit(document.querySelector('form'));
+    await waitFor(() => expect(screen.getByText(/cannot be more than 3 days/i)).toBeInTheDocument());
+  });
+});

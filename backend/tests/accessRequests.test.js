@@ -731,3 +731,98 @@ describe('GET /access-requests/mine', () => {
     expect(res.status).toBe(403);
   });
 });
+
+describe('GET /access-requests/mine/config', () => {
+  afterEach(async () => {
+    await db.query("DELETE FROM users WHERE username = 'jane@example.com'");
+  });
+
+  it('returns maxRequestDays=7 when user has no DB row (default)', async () => {
+    const res = await request(app)
+      .get('/access-requests/mine/config')
+      .set('Authorization', `Bearer ${namedRequestorToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.maxRequestDays).toBe(7);
+  });
+
+  it('returns the user-specific maxRequestDays from the DB', async () => {
+    await db.query(
+      "INSERT INTO users (username, password, role, name, max_request_days) VALUES ('jane@example.com', 'x', 'access_requestor', 'Jane', 3)"
+    );
+
+    const res = await request(app)
+      .get('/access-requests/mine/config')
+      .set('Authorization', `Bearer ${namedRequestorToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.maxRequestDays).toBe(3);
+  });
+
+  it('returns 401 without a token', async () => {
+    const res = await request(app).get('/access-requests/mine/config');
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 403 for admin role', async () => {
+    const res = await request(app)
+      .get('/access-requests/mine/config')
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(res.status).toBe(403);
+  });
+});
+
+describe('per-user max_request_days validation', () => {
+  afterEach(async () => {
+    await db.query("DELETE FROM users WHERE username = 'jane@example.com'");
+  });
+
+  function daysFromNow(n) {
+    const d = new Date();
+    d.setDate(d.getDate() + n);
+    return d.toISOString().split('T')[0];
+  }
+
+  it('rejects POST /access-requests when expiry exceeds user max of 3 days', async () => {
+    await db.query(
+      "INSERT INTO users (username, password, role, name, max_request_days) VALUES ('jane@example.com', 'x', 'access_requestor', 'Jane', 3)"
+    );
+
+    const res = await request(app)
+      .post('/access-requests')
+      .set('Authorization', `Bearer ${namedRequestorToken}`)
+      .send({ ...VALID_PAYLOAD, requesterName: undefined, approvalExpiration: daysFromNow(5) });
+
+    expect(res.status).toBe(400);
+  });
+
+  it('accepts POST /access-requests when expiry is exactly user max of 3 days', async () => {
+    await db.query(
+      "INSERT INTO users (username, password, role, name, max_request_days) VALUES ('jane@example.com', 'x', 'access_requestor', 'Jane', 3)"
+    );
+
+    const res = await request(app)
+      .post('/access-requests')
+      .set('Authorization', `Bearer ${namedRequestorToken}`)
+      .send({ ...VALID_PAYLOAD, requesterName: undefined, approvalExpiration: daysFromNow(3) });
+
+    expect(res.status).toBe(201);
+  });
+
+  it('rejects POST /access-requests/:id/resubmit when expiry exceeds user max of 3 days', async () => {
+    await db.query(
+      "INSERT INTO users (username, password, role, name, max_request_days) VALUES ('jane@example.com', 'x', 'access_requestor', 'Jane', 3)"
+    );
+    const { rows } = await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict, status) VALUES ('IL_ID', '000000018', 'NOT_APPROVED', 'NOT_APPROVED') RETURNING id"
+    );
+    const id = rows[0].id;
+
+    const res = await request(app)
+      .post(`/access-requests/${id}/resubmit`)
+      .set('Authorization', `Bearer ${namedRequestorToken}`)
+      .send({ population: 'IL_MILITARY', reason: 'Extended', approvalExpiration: daysFromNow(5) });
+
+    expect(res.status).toBe(400);
+  });
+});

@@ -44,10 +44,21 @@ function friendlyMessage(msg, field) {
   if (msg.includes('required')) return `${FIELD_LABELS[field] ?? field} is required.`;
   if (msg.includes('future date')) return 'The expiration date must be in the future.';
   if (msg.includes('not be after approvalExpiration')) return 'Start date cannot be after the expiration date.';
-  if (msg.includes('7 days from approvalStartDate')) return 'Expiration date cannot be more than 7 days from the start date.';
+  if (msg.includes('days from approvalStartDate')) return 'Expiration date exceeds the maximum allowed from the start date.';
+  if (msg.includes('days from today')) return 'Expiration date exceeds the maximum allowed from today.';
   if (msg.includes('valid date')) return 'Please enter a valid date.';
   if (msg.includes('digits')) return 'Phone number can only contain digits and an optional "+" at the start.';
   return msg;
+}
+
+function buildChips(maxRequestDays) {
+  const chips = [{ key: 'today', label: 'Today', days: 0 }];
+  // Add fixed milestones only if strictly less than max (max chip handles the boundary)
+  if (1 < maxRequestDays) chips.push({ key: 'tomorrow', label: 'Tomorrow', days: 1 });
+  if (3 < maxRequestDays) chips.push({ key: '3days', label: '3 days', days: 3 });
+  // Last chip always = user's max
+  chips.push({ key: 'max', label: maxRequestDays === 1 ? 'Tomorrow' : `${maxRequestDays} days`, days: maxRequestDays });
+  return chips;
 }
 
 function extendRecordToForm(extendRecord, requestorName) {
@@ -64,7 +75,7 @@ function extendRecordToForm(extendRecord, requestorName) {
   };
 }
 
-export default function AccessRequestForm({ onLogout, requestorName, hideLogout, extendRecord, onExtendDone }) {
+export default function AccessRequestForm({ onLogout, requestorName, hideLogout, extendRecord, onExtendDone, maxRequestDays = 7 }) {
   const [form, setForm] = useState(
     extendRecord
       ? extendRecordToForm(extendRecord, requestorName)
@@ -87,21 +98,17 @@ export default function AccessRequestForm({ onLogout, requestorName, hideLogout,
     }
   }
 
-  function selectDuration(chip) {
+  function selectDuration(chip, days) {
     const base = new Date();
     const t = base.toISOString().split('T')[0];
-    const offset = (days) => {
+    const offset = (n) => {
       const d = new Date(base);
-      d.setDate(d.getDate() + days);
+      d.setDate(d.getDate() + n);
       return d.toISOString().split('T')[0];
     };
-    const updates = {
-      today:     { approvalStartDate: t,  approvalExpiration: t },
-      tomorrow:  { approvalStartDate: '', approvalExpiration: offset(1) },
-      '3days':   { approvalStartDate: '', approvalExpiration: offset(3) },
-      '7days':   { approvalStartDate: '', approvalExpiration: offset(7) },
-    }[chip];
-    if (!updates) return;
+    const updates = days === 0
+      ? { approvalStartDate: t, approvalExpiration: t }
+      : { approvalStartDate: '', approvalExpiration: offset(days) };
     setForm(prev => ({ ...prev, ...updates }));
     setActiveDurationChip(chip);
     setFieldErrors(prev => ({ ...prev, approvalStartDate: '', approvalExpiration: '' }));
@@ -113,10 +120,10 @@ export default function AccessRequestForm({ onLogout, requestorName, hideLogout,
   minDate.setDate(minDate.getDate() + 1);
   const minDateStr = minDate.toISOString().split('T')[0];
 
-  // Max expiration is 7 days from start date (if set) or 7 days from today
+  // Max expiration is maxRequestDays from start date (if set) or from today
   const expiryBaseDate = form.approvalStartDate ? new Date(form.approvalStartDate + 'T00:00:00') : today;
   const maxExpiryDate = new Date(expiryBaseDate);
-  maxExpiryDate.setDate(maxExpiryDate.getDate() + 7);
+  maxExpiryDate.setDate(maxExpiryDate.getDate() + maxRequestDays);
   const maxDateStr = maxExpiryDate.toISOString().split('T')[0];
 
   function clientValidate() {
@@ -136,13 +143,13 @@ export default function AccessRequestForm({ onLogout, requestorName, hideLogout,
       if (form.approvalExpiration < form.approvalStartDate) {
         errors.approvalExpiration = 'Expiration date cannot be before the start date.';
       } else if (form.approvalExpiration > maxDateStr) {
-        errors.approvalExpiration = 'Expiration date cannot be more than 7 days from the start date.';
+        errors.approvalExpiration = `Expiration date cannot be more than ${maxRequestDays} days from the start date.`;
       }
     } else {
       if (form.approvalExpiration <= todayStr) {
         errors.approvalExpiration = 'The expiration date must be in the future.';
       } else if (form.approvalExpiration > maxDateStr) {
-        errors.approvalExpiration = 'Expiration date cannot be more than 7 days from today.';
+        errors.approvalExpiration = `Expiration date cannot be more than ${maxRequestDays} days from today.`;
       }
     }
     if (!form.reason.trim()) {
@@ -320,16 +327,11 @@ export default function AccessRequestForm({ onLogout, requestorName, hideLogout,
         <div>
           <label style={{ display: 'block', fontWeight: 600, marginBottom: 8, fontSize: 15 }}>Duration</label>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {[
-              { key: 'today',    label: 'Today' },
-              { key: 'tomorrow', label: 'Tomorrow' },
-              { key: '3days',    label: '3 days' },
-              { key: '7days',    label: '7 days' },
-            ].map(({ key, label }) => (
+            {buildChips(maxRequestDays).map(({ key, label, days }) => (
               <button
                 key={key}
                 type="button"
-                onClick={() => selectDuration(key)}
+                onClick={() => selectDuration(key, days)}
                 aria-pressed={activeDurationChip === key}
                 style={durationChipStyle(activeDurationChip === key)}
               >

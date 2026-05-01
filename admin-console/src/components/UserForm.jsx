@@ -4,6 +4,7 @@ export default function UserForm({ initial, onSubmit, onCancel, loading }) {
   const [form, setForm] = useState({
     username: initial?.username || '',
     name: initial?.name || '',
+    maxRequestDays: initial?.max_request_days ?? 7,
   });
   const [error, setError] = useState('');
 
@@ -15,7 +16,7 @@ export default function UserForm({ initial, onSubmit, onCancel, loading }) {
     e.preventDefault();
     setError('');
     try {
-      await onSubmit({ username: form.username.trim(), name: form.name.trim() });
+      await onSubmit({ username: form.username.trim(), name: form.name.trim(), maxRequestDays: Number(form.maxRequestDays) });
     } catch (err) {
       setError(err.message || 'Something went wrong.');
     }
@@ -44,6 +45,21 @@ export default function UserForm({ initial, onSubmit, onCancel, loading }) {
           required
           style={{ width: '100%', boxSizing: 'border-box' }}
         />
+      </div>
+      <div>
+        <label style={{ display: 'block', marginBottom: 6, fontSize: 13, fontWeight: 600 }}>Max Request Days</label>
+        <input
+          type="number"
+          min={1}
+          max={30}
+          value={form.maxRequestDays}
+          onChange={e => set('maxRequestDays', e.target.value)}
+          required
+          style={{ width: '100%', boxSizing: 'border-box' }}
+        />
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 0' }}>
+          Maximum number of days this user can request access for (1–30, default 7).
+        </p>
       </div>
       {error && <p style={{ color: 'var(--not-approved)', fontSize: 13, margin: 0 }}>{error}</p>}
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>

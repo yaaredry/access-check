@@ -1,11 +1,12 @@
 import { useState } from 'react';
 
 const COLUMNS = [
-  { key: 'name',          label: 'Name' },
-  { key: 'username',      label: 'Email' },
-  { key: 'request_count', label: '# Submissions' },
-  { key: 'created_at',    label: 'Created' },
-  { key: 'updated_at',    label: 'Updated' },
+  { key: 'name',             label: 'Name' },
+  { key: 'username',         label: 'Email' },
+  { key: 'request_count',    label: '# Submissions' },
+  { key: 'max_request_days', label: 'Max Days' },
+  { key: 'created_at',       label: 'Created' },
+  { key: 'updated_at',       label: 'Updated' },
 ];
 
 function sortRows(rows, key, dir) {
@@ -15,7 +16,7 @@ function sortRows(rows, key, dir) {
     if (av == null && bv == null) return 0;
     if (av == null) return 1;
     if (bv == null) return -1;
-    if (key === 'request_count') return dir === 'asc' ? av - bv : bv - av;
+    if (key === 'request_count' || key === 'max_request_days') return dir === 'asc' ? av - bv : bv - av;
     if (['created_at', 'updated_at'].includes(key)) {
       const d = new Date(av) - new Date(bv);
       return dir === 'asc' ? d : -d;
@@ -79,6 +80,9 @@ export default function UserTable({ users, onEdit, onDelete, onRegenerate }) {
               <td style={{ color: 'var(--text-muted)', fontSize: 13 }}>{u.username}</td>
               <td style={{ fontSize: 13, fontWeight: u.request_count > 0 ? 600 : 400, color: u.request_count > 0 ? 'var(--text)' : 'var(--text-muted)' }}>
                 {u.request_count}
+              </td>
+              <td style={{ fontSize: 13, textAlign: 'center' }}>
+                {u.max_request_days ?? 7}
               </td>
               <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>
                 {new Date(u.created_at).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })}

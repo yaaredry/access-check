@@ -4,6 +4,7 @@ const { body } = require('express-validator');
 const { validate } = require('../middlewares/validate');
 const peopleRepo = require('../repositories/peopleRepository');
 const auditRepo = require('../repositories/auditRepository');
+const userRepo = require('../repositories/userRepository');
 const { validateIlId } = require('../utils/validateIlId');
 
 const POPULATIONS = ['IL_MILITARY', 'CIVILIAN'];
@@ -29,7 +30,8 @@ const requestBodyValidation = [
     .matches(/^\+?[\d]+$/).withMessage('escortPhone must contain digits and optional leading +'),
   body('approvalExpiration')
     .isISO8601().withMessage('approvalExpiration must be a valid date')
-    .custom((value, { req }) => {
+    .custom(async (value, { req }) => {
+      const maxDays = await userRepo.getMaxRequestDays(req.user.username);
       const expUTC = new Date(value + 'T00:00:00Z');
       const todayUTC = new Date(new Date().toISOString().split('T')[0] + 'T00:00:00Z');
       if (req.body.approvalStartDate) {
@@ -37,15 +39,15 @@ const requestBodyValidation = [
         const startUTC = new Date(req.body.approvalStartDate + 'T00:00:00Z');
         if (expUTC < startUTC) throw new Error('approvalExpiration must not be before approvalStartDate');
         const max = new Date(startUTC);
-        max.setUTCDate(max.getUTCDate() + 7);
+        max.setUTCDate(max.getUTCDate() + maxDays);
         max.setUTCHours(23, 59, 59, 999);
-        if (expUTC > max) throw new Error('approvalExpiration cannot be more than 7 days from approvalStartDate');
+        if (expUTC > max) throw new Error(`approvalExpiration cannot be more than ${maxDays} days from approvalStartDate`);
       } else {
         // No start date: must be strictly tomorrow or later
         if (expUTC <= todayUTC) throw new Error('approvalExpiration must be a future date');
         const max = new Date();
-        max.setDate(max.getDate() + 7);
-        if (expUTC > max) throw new Error('approvalExpiration cannot be more than 7 days from today');
+        max.setDate(max.getDate() + maxDays);
+        if (expUTC > max) throw new Error(`approvalExpiration cannot be more than ${maxDays} days from today`);
       }
       return true;
     }),
@@ -137,7 +139,8 @@ const resubmitBodyValidation = [
     .matches(/^\+?[\d]+$/).withMessage('escortPhone must contain digits and optional leading +'),
   body('approvalExpiration')
     .isISO8601().withMessage('approvalExpiration must be a valid date')
-    .custom((value, { req }) => {
+    .custom(async (value, { req }) => {
+      const maxDays = await userRepo.getMaxRequestDays(req.user.username);
       const expUTC = new Date(value + 'T00:00:00Z');
       const todayUTC = new Date(new Date().toISOString().split('T')[0] + 'T00:00:00Z');
       if (req.body.approvalStartDate) {
@@ -145,15 +148,15 @@ const resubmitBodyValidation = [
         const startUTC = new Date(req.body.approvalStartDate + 'T00:00:00Z');
         if (expUTC < startUTC) throw new Error('approvalExpiration must not be before approvalStartDate');
         const max = new Date(startUTC);
-        max.setUTCDate(max.getUTCDate() + 7);
+        max.setUTCDate(max.getUTCDate() + maxDays);
         max.setUTCHours(23, 59, 59, 999);
-        if (expUTC > max) throw new Error('approvalExpiration cannot be more than 7 days from approvalStartDate');
+        if (expUTC > max) throw new Error(`approvalExpiration cannot be more than ${maxDays} days from approvalStartDate`);
       } else {
         // No start date: must be strictly tomorrow or later
         if (expUTC <= todayUTC) throw new Error('approvalExpiration must be a future date');
         const max = new Date();
-        max.setDate(max.getDate() + 7);
-        if (expUTC > max) throw new Error('approvalExpiration cannot be more than 7 days from today');
+        max.setDate(max.getDate() + maxDays);
+        if (expUTC > max) throw new Error(`approvalExpiration cannot be more than ${maxDays} days from today`);
       }
       return true;
     }),
@@ -236,4 +239,13 @@ async function mine(req, res, next) {
   }
 }
 
-module.exports = { create, resubmit, mine, requestBodyValidation, resubmitBodyValidation };
+async function myConfig(req, res, next) {
+  try {
+    const maxRequestDays = await userRepo.getMaxRequestDays(req.user.username);
+    return res.json({ maxRequestDays });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+module.exports = { create, resubmit, mine, myConfig, requestBodyValidation, resubmitBodyValidation };

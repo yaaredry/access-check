@@ -21,13 +21,22 @@ function resolveVerdict(person) {
 
   if (person.status === 'PENDING') return VERDICTS.PENDING;
 
-  if (person.approval_start_date) {
+  // NOT_APPROVED is the strongest negative status — check before any date logic.
+  // Rejected records always have an approval_expiration from the original submission,
+  // so expiration must not override a rejection verdict.
+  if (person.status === 'NOT_APPROVED') return VERDICTS.NOT_APPROVED;
+
+  // Date checks only apply to records that were actually approved.
+  const wasApproved = ['APPROVED', 'ADMIN_APPROVED', 'APPROVED_WITH_ESCORT'].includes(person.verdict)
+    || person.status === 'APPROVED';
+
+  if (wasApproved && person.approval_start_date) {
     const start = new Date(person.approval_start_date);
     start.setHours(0, 0, 0, 0); // start of start day
     if (start > new Date()) return VERDICTS.NOT_YET_ACTIVE;
   }
 
-  if (person.approval_expiration) {
+  if (wasApproved && person.approval_expiration) {
     const expiry = new Date(person.approval_expiration);
     expiry.setHours(23, 59, 59, 999); // end of expiry day
     if (expiry < new Date()) {
