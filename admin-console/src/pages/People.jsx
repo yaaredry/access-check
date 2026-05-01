@@ -182,8 +182,8 @@ export default function People() {
           <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>{data.total} total records</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className="secondary" onClick={() => setModal(MODAL_GSHEET)}>Load from Google Sheet</button>
-          <button className="secondary" onClick={() => setModal(MODAL_BULK)}>Bulk Upload CSV</button>
+          <DisabledButtonWithTooltip label="Load from Google Sheet" />
+          <DisabledButtonWithTooltip label="Bulk Upload CSV" />
           <button className="primary" onClick={() => setModal(MODAL_CREATE)}>+ Add Person</button>
         </div>
       </div>
@@ -432,6 +432,34 @@ function RejectModal({ person, onConfirm, onCancel }) {
         </form>
       </div>
     </div>
+  );
+}
+
+function DisabledButtonWithTooltip({ label }) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <span
+      style={{ position: 'relative', display: 'inline-block' }}
+      onMouseEnter={() => setVisible(true)}
+      onMouseLeave={() => setVisible(false)}
+    >
+      <button className="secondary" disabled style={{ opacity: 0.4, pointerEvents: 'none' }}>
+        {label}
+      </button>
+      {visible && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 8px)', left: '50%',
+          transform: 'translateX(-50%)',
+          background: '#1e293b', color: '#fff',
+          fontSize: 12, padding: '7px 12px', borderRadius: 8,
+          whiteSpace: 'nowrap', zIndex: 9999,
+          boxShadow: '0 2px 8px rgba(0,0,0,.25)',
+          pointerEvents: 'none',
+        }}>
+          This feature is currently unavailable.<br />For assistance, please contact Yaron Edry.
+        </div>
+      )}
+    </span>
   );
 }
 
