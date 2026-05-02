@@ -5,7 +5,7 @@ function daysUntilExpiry(dateStr) {
   if (!dateStr) return null;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const expiry = new Date(dateStr + 'T00:00:00');
+  const expiry = new Date(dateStr.slice(0, 10) + 'T00:00:00');
   const days = Math.round((expiry - today) / (1000 * 60 * 60 * 24));
   if (days < 0) return null;
   return days === 0 ? 1 : days;
@@ -222,12 +222,12 @@ export default function MySubmissions({ onExtend }) {
                   {/* Active window */}
                   {row.approval_start_date && row.approval_expiration && (
                     <div style={{ fontSize: 13, color: expiringSoon ? '#d97706' : 'var(--text-muted)', marginTop: 2 }}>
-                      Active {new Date(row.approval_start_date + 'T00:00:00').toLocaleDateString()} – {new Date(row.approval_expiration + 'T00:00:00').toLocaleDateString()}
+                      Active {new Date(row.approval_start_date.slice(0, 10) + 'T00:00:00').toLocaleDateString()} – {new Date(row.approval_expiration.slice(0, 10) + 'T00:00:00').toLocaleDateString()}
                     </div>
                   )}
                   {!row.approval_start_date && row.approval_expiration && (
                     <div style={{ fontSize: 13, color: expiringSoon ? '#d97706' : 'var(--text-muted)', marginTop: 2 }}>
-                      Expires {new Date(row.approval_expiration + 'T00:00:00').toLocaleDateString()}
+                      Expires {new Date(row.approval_expiration.slice(0, 10) + 'T00:00:00').toLocaleDateString()}
                     </div>
                   )}
 
