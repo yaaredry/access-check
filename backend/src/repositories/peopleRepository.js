@@ -170,6 +170,7 @@ async function resubmitById(id, { approvalExpiration, approvalStartDate, populat
          requester_name     = $9,
          requester_email    = $10,
          last_resubmitted_at = NOW(),
+         resubmit_count     = resubmit_count + 1,
          updated_at         = NOW()
      WHERE id = $1
      RETURNING *`,

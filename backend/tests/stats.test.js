@@ -189,6 +189,52 @@ describe('GET /stats — request counts', () => {
     expect(Number(counts.all_time)).toBe(3);
   });
 
+  it('all_time includes resubmit_count from each row', async () => {
+    // 1 original submission + 2 resubmissions on it
+    await db.query(
+      `INSERT INTO people (identifier_type, identifier_value, verdict, status, resubmit_count, created_at)
+       VALUES ('IL_ID', '000000018', 'NOT_APPROVED', 'PENDING', 2, NOW() - INTERVAL '10 days')`
+    );
+    // 1 original submission, no resubmissions
+    await insertPersonRaw({ id: '000000026', createdInterval: '5 days' });
+
+    const res = await request(app).get('/stats').set('Authorization', `Bearer ${adminToken}`);
+    expect(Number(res.body.requests.counts.all_time)).toBe(4); // 2 rows + 2 resubmissions
+  });
+
+  it('windowed counts include rows whose last_resubmitted_at falls in the window', async () => {
+    // original created 31 days ago (outside all windows), resubmitted 1 hour ago
+    await db.query(
+      `INSERT INTO people (identifier_type, identifier_value, verdict, status, resubmit_count, created_at, last_resubmitted_at)
+       VALUES ('IL_ID', '000000018', 'NOT_APPROVED', 'PENDING', 1, NOW() - INTERVAL '31 days', NOW() - INTERVAL '1 hour')`
+    );
+
+    const res = await request(app).get('/stats').set('Authorization', `Bearer ${adminToken}`);
+    const { counts } = res.body.requests;
+
+    // original created_at is outside all windows, but last_resubmitted_at is within 24h/72h/7d/30d
+    expect(Number(counts.last_24h)).toBe(1);
+    expect(Number(counts.last_72h)).toBe(1);
+    expect(Number(counts.last_7d)).toBe(1);
+    expect(Number(counts.last_30d)).toBe(1);
+    expect(Number(counts.all_time)).toBe(2); // 1 row + 1 resubmission
+  });
+
+  it('windowed counts do not double-count a row whose both created_at and last_resubmitted_at are in the window', async () => {
+    // created 1 hour ago, resubmitted also within 24h
+    await db.query(
+      `INSERT INTO people (identifier_type, identifier_value, verdict, status, resubmit_count, created_at, last_resubmitted_at)
+       VALUES ('IL_ID', '000000018', 'NOT_APPROVED', 'PENDING', 1, NOW() - INTERVAL '1 hour', NOW() - INTERVAL '30 minutes')`
+    );
+
+    const res = await request(app).get('/stats').set('Authorization', `Bearer ${adminToken}`);
+    const { counts } = res.body.requests;
+
+    // created_at counts it once, last_resubmitted_at adds 1 more = 2 total for 24h window
+    expect(Number(counts.last_24h)).toBe(2); // 1 original + 1 resubmission (correct — they happened independently)
+    expect(Number(counts.all_time)).toBe(2);
+  });
+
   it('reports pending backlog total, stale_48h and stale_7d', async () => {
     // fresh pending
     await insertPersonRaw({ id: '000000018', status: 'PENDING', createdInterval: '1 hour' });
