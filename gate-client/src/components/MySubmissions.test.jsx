@@ -469,6 +469,83 @@ describe('MySubmissions — search', () => {
   });
 });
 
+// ── Expiry language (Expired vs Expires) + "Expired X days ago" pill ─────────
+
+describe('MySubmissions — expiry language and "Expired X days ago" pill', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('shows "Expires [date]" for a future expiration', async () => {
+    const future = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const row = { ...BASE, id: 10, identifier_value: '000000100', status: 'APPROVED', verdict: 'APPROVED', approval_expiration: future };
+    api.getMySubmissions.mockResolvedValue({ rows: [row] });
+    render(<MySubmissions />);
+    await waitFor(() => screen.getByText('000000100'));
+    expect(screen.getByText(/^Expires /)).toBeInTheDocument();
+  });
+
+  it('shows "Expired [date]" (not "Expires") for a past expiration', async () => {
+    api.getMySubmissions.mockResolvedValue({ rows: [EXPIRED_ROW] });
+    render(<MySubmissions />);
+    await waitFor(() => screen.getByText('000000075'));
+    // At least one element should start with "Expired" followed by a digit (the date line)
+    expect(screen.getAllByText(/^Expired \d/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText(/^Expires \d/)).not.toBeInTheDocument();
+  });
+
+  it('shows "Expired X days ago" pill for a past expiration', async () => {
+    api.getMySubmissions.mockResolvedValue({ rows: [EXPIRED_ROW] });
+    render(<MySubmissions />);
+    await waitFor(() => screen.getByText('000000075'));
+    expect(screen.getByText(/Expired .+ ago/)).toBeInTheDocument();
+  });
+
+  it('does NOT show "Expired X days ago" pill for a future expiration', async () => {
+    const future = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const row = { ...BASE, id: 10, identifier_value: '000000100', status: 'APPROVED', verdict: 'APPROVED', approval_expiration: future };
+    api.getMySubmissions.mockResolvedValue({ rows: [row] });
+    render(<MySubmissions />);
+    await waitFor(() => screen.getByText('000000100'));
+    expect(screen.queryByText(/Expired .+ ago/)).not.toBeInTheDocument();
+  });
+
+  it('shows "Expired 1 day ago" (singular) when expired exactly yesterday', async () => {
+    const yesterday = new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const row = { ...BASE, id: 11, identifier_value: '000000101', status: 'APPROVED', verdict: 'APPROVED', approval_expiration: yesterday };
+    api.getMySubmissions.mockResolvedValue({ rows: [row] });
+    render(<MySubmissions />);
+    await waitFor(() => screen.getByText('000000101'));
+    expect(screen.getByText('Expired 1 day ago')).toBeInTheDocument();
+  });
+
+  it('shows "Expired N days ago" (plural) when expired multiple days ago', async () => {
+    const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const row = { ...BASE, id: 12, identifier_value: '000000102', status: 'APPROVED', verdict: 'APPROVED', approval_expiration: fiveDaysAgo };
+    api.getMySubmissions.mockResolvedValue({ rows: [row] });
+    render(<MySubmissions />);
+    await waitFor(() => screen.getByText('000000102'));
+    expect(screen.getByText('Expired 5 days ago')).toBeInTheDocument();
+  });
+
+  it('handles full ISO timestamp in approval_expiration without showing Invalid Date', async () => {
+    const row = { ...BASE, id: 13, identifier_value: '000000103', status: 'APPROVED', verdict: 'APPROVED', approval_expiration: '2000-01-01T00:00:00.000Z' };
+    api.getMySubmissions.mockResolvedValue({ rows: [row] });
+    render(<MySubmissions />);
+    await waitFor(() => screen.getByText('000000103'));
+    expect(screen.queryByText(/Invalid Date/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Expired .+ ago/)).toBeInTheDocument();
+  });
+
+  it('handles full ISO timestamp in approval_start_date without showing Invalid Date', async () => {
+    const future = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString();
+    const row = { ...BASE, id: 14, identifier_value: '000000104', status: 'APPROVED', verdict: 'APPROVED', approval_start_date: '2026-01-01T00:00:00.000Z', approval_expiration: future };
+    api.getMySubmissions.mockResolvedValue({ rows: [row] });
+    render(<MySubmissions />);
+    await waitFor(() => screen.getByText('000000104'));
+    expect(screen.queryByText(/Invalid Date/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Active /)).toBeInTheDocument();
+  });
+});
+
 // ── Hidden records banner ─────────────────────────────────────────────────────
 
 describe('MySubmissions — hidden records banner', () => {
