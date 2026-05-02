@@ -4,7 +4,9 @@ import VisitHistoryModal from './VisitHistoryModal';
 
 function verdictBadge(verdict, expiration, status, startDate) {
   if (status === 'PENDING') return <span className="badge pending">Pending</span>;
-  if (expiration && new Date(expiration) < new Date()) {
+  if (status === 'NOT_APPROVED' || verdict === 'NOT_APPROVED') return <span className="badge not-approved">Not Approved</span>;
+  const wasApproved = ['APPROVED', 'ADMIN_APPROVED', 'APPROVED_WITH_ESCORT'].includes(verdict);
+  if (wasApproved && expiration && new Date(expiration) < new Date()) {
     return <span className="badge expired">Expired</span>;
   }
   if (startDate) {

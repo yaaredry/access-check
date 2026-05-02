@@ -67,6 +67,13 @@ describe('PersonTable', () => {
     expect(screen.getByText('Expired')).toHaveClass('badge', 'expired');
   });
 
+  it('shows Not Approved (not Expired) for a rejected record whose approval_expiration has passed', () => {
+    const row = { ...BASE, verdict: 'NOT_APPROVED', status: 'NOT_APPROVED', approval_expiration: '2000-01-01' };
+    render(<PersonTable rows={[row]} onEdit={vi.fn()} onDelete={vi.fn()} />);
+    expect(screen.getByText('Not Approved')).toHaveClass('badge', 'not-approved');
+    expect(screen.queryByText('Expired')).not.toBeInTheDocument();
+  });
+
   it('shows Approved badge when approval_expiration is in the future', () => {
     render(<PersonTable rows={[{ ...BASE, approval_expiration: '2099-12-31' }]} onEdit={vi.fn()} onDelete={vi.fn()} />);
     expect(screen.getByText('Approved')).toHaveClass('badge', 'approved');
