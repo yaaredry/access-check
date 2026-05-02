@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Login from './components/Login';
 import ManualCheck from './components/ManualCheck';
 import CameraCheck from './components/CameraCheck';
 import AccessRequestForm from './components/AccessRequestForm';
 import MySubmissions from './components/MySubmissions';
+import { api } from './api/client';
 
 const VIEW_HOME = 'home';
 const VIEW_MANUAL = 'manual';
@@ -76,6 +77,11 @@ export default function App() {
 function RequestorView({ onLogout, requestorName }) {
   const [tab, setTab] = useState('form');
   const [extendRecord, setExtendRecord] = useState(null);
+  const [maxRequestDays, setMaxRequestDays] = useState(7);
+
+  useEffect(() => {
+    api.getMyConfig().then(cfg => setMaxRequestDays(cfg.maxRequestDays)).catch(() => {});
+  }, []);
 
   function handleExtend(row) {
     setExtendRecord(row);
@@ -128,7 +134,7 @@ function RequestorView({ onLogout, requestorName }) {
       {/* Content */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {tab === 'form'
-          ? <AccessRequestForm onLogout={onLogout} requestorName={requestorName} hideLogout extendRecord={extendRecord} onExtendDone={handleExtendDone} />
+          ? <AccessRequestForm onLogout={onLogout} requestorName={requestorName} hideLogout extendRecord={extendRecord} onExtendDone={handleExtendDone} maxRequestDays={maxRequestDays} />
           : <MySubmissions requestorName={requestorName} onExtend={handleExtend} />
         }
       </div>

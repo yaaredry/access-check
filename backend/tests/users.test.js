@@ -284,3 +284,70 @@ describe('DELETE /users/:id', () => {
     expect(res.status).toBe(403);
   });
 });
+
+// ── max_request_days ──────────────────────────────────────────────────────────
+
+describe('max_request_days on users', () => {
+  it('GET /users includes max_request_days in response', async () => {
+    await insertUser({ username: 'maxtest@example.com' });
+    const res = await request(app).get('/users').set('Authorization', `Bearer ${adminToken}`);
+    expect(res.status).toBe(200);
+    const u = res.body.users.find(u => u.username === 'maxtest@example.com');
+    expect(u).toBeDefined();
+    expect(u.max_request_days).toBe(7); // default
+  });
+
+  it('POST /users without maxRequestDays creates user with default of 7', async () => {
+    const res = await request(app)
+      .post('/users')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ username: 'nomax@example.com', name: 'No Max' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.max_request_days).toBe(7);
+  });
+
+  it('POST /users with maxRequestDays=3 creates user with max_request_days=3', async () => {
+    const res = await request(app)
+      .post('/users')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ username: 'threeday@example.com', name: 'Three Day', maxRequestDays: 3 });
+
+    expect(res.status).toBe(201);
+    expect(res.body.max_request_days).toBe(3);
+
+    const { rows } = await db.query('SELECT max_request_days FROM users WHERE username = $1', ['threeday@example.com']);
+    expect(rows[0].max_request_days).toBe(3);
+  });
+
+  it('PUT /users/:id with maxRequestDays=5 updates the limit', async () => {
+    const user = await insertUser({ username: 'update5@example.com', name: 'Update Five' });
+    const res = await request(app)
+      .put(`/users/${user.id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ username: 'update5@example.com', name: 'Update Five', maxRequestDays: 5 });
+
+    expect(res.status).toBe(200);
+    expect(res.body.max_request_days).toBe(5);
+  });
+
+  it('PUT /users/:id with maxRequestDays=31 returns 400 (exceeds max 30)', async () => {
+    const user = await insertUser({ username: 'toobig@example.com', name: 'Too Big' });
+    const res = await request(app)
+      .put(`/users/${user.id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ username: 'toobig@example.com', name: 'Too Big', maxRequestDays: 31 });
+
+    expect(res.status).toBe(400);
+  });
+
+  it('PUT /users/:id with maxRequestDays=0 returns 400 (below min 1)', async () => {
+    const user = await insertUser({ username: 'toosmall@example.com', name: 'Too Small' });
+    const res = await request(app)
+      .put(`/users/${user.id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ username: 'toosmall@example.com', name: 'Too Small', maxRequestDays: 0 });
+
+    expect(res.status).toBe(400);
+  });
+});

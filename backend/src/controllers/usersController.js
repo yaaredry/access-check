@@ -18,6 +18,9 @@ function generatePassword() {
 const userBodyValidation = [
   body('username').trim().isEmail().withMessage('username must be a valid email'),
   body('name').trim().notEmpty().withMessage('name is required'),
+  body('maxRequestDays')
+    .optional()
+    .isInt({ min: 1, max: 30 }).withMessage('maxRequestDays must be an integer between 1 and 30'),
   validate,
 ];
 
@@ -37,13 +40,13 @@ async function list(_req, res, next) {
 
 async function create(req, res, next) {
   try {
-    const { username, name } = req.body;
+    const { username, name, maxRequestDays } = req.body;
     const existing = await userRepo.findByUsername(username);
     if (existing) return res.status(409).json({ error: 'A user with this email already exists' });
 
     const plainPassword = generatePassword();
     const hash = await bcrypt.hash(plainPassword, 12);
-    const user = await userRepo.createUser({ username, password: hash, name });
+    const user = await userRepo.createUser({ username, password: hash, name, maxRequestDays: maxRequestDays ?? 7 });
     return res.status(201).json({ ...user, plainPassword });
   } catch (err) {
     return next(err);
@@ -53,12 +56,12 @@ async function create(req, res, next) {
 async function update(req, res, next) {
   try {
     const id = parseInt(req.params.id, 10);
-    const { username, name } = req.body;
+    const { username, name, maxRequestDays } = req.body;
     const existing = await userRepo.findByUsername(username);
     if (existing && existing.id !== id) {
       return res.status(409).json({ error: 'A user with this email already exists' });
     }
-    const user = await userRepo.updateUser(id, { username, name });
+    const user = await userRepo.updateUser(id, { username, name, maxRequestDays: maxRequestDays ?? 7 });
     if (!user) return res.status(404).json({ error: 'User not found' });
     return res.json(user);
   } catch (err) {

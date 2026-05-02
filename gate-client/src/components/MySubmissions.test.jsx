@@ -13,6 +13,7 @@ const BASE = {
   approval_expiration: null,
   rejection_reason: null,
   created_at: '2024-06-01T10:00:00Z',
+  last_resubmitted_at: null,
   population: 'IL_MILITARY',
   division: null,
   escort_full_name: null,
@@ -337,5 +338,198 @@ describe('MySubmissions — extend on click', () => {
     fireEvent.click(screen.getByText('000000075'));
     expect(onExtend).toHaveBeenCalledWith(EXPIRED_ROW);
     expect(onExtend).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ── Dates display ─────────────────────────────────────────────────────────────
+
+describe('MySubmissions — dates', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('shows Submitted date from created_at', async () => {
+    api.getMySubmissions.mockResolvedValue({ rows: [PENDING_ROW] });
+    render(<MySubmissions />);
+    await waitFor(() => screen.getByText('000000018'));
+    expect(screen.getByText(/Submitted/)).toBeInTheDocument();
+  });
+
+  it('shows Extended date when last_resubmitted_at is set', async () => {
+    const row = { ...EXPIRED_ROW, last_resubmitted_at: '2025-03-10T08:00:00Z' };
+    api.getMySubmissions.mockResolvedValue({ rows: [row] });
+    render(<MySubmissions />);
+    await waitFor(() => screen.getByText('000000075'));
+    expect(screen.getByText(/Extended/)).toBeInTheDocument();
+  });
+
+  it('does not show Extended when last_resubmitted_at is null', async () => {
+    api.getMySubmissions.mockResolvedValue({ rows: [PENDING_ROW] });
+    render(<MySubmissions />);
+    await waitFor(() => screen.getByText('000000018'));
+    expect(screen.queryByText(/Extended/)).not.toBeInTheDocument();
+  });
+});
+
+// ── Division display ──────────────────────────────────────────────────────────
+
+describe('MySubmissions — division', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('shows division when present', async () => {
+    const row = { ...PENDING_ROW, division: 'Alpha Unit' };
+    api.getMySubmissions.mockResolvedValue({ rows: [row] });
+    render(<MySubmissions />);
+    await waitFor(() => screen.getByText('000000018'));
+    expect(screen.getByText('Alpha Unit')).toBeInTheDocument();
+  });
+
+  it('does not show division when null', async () => {
+    api.getMySubmissions.mockResolvedValue({ rows: [PENDING_ROW] }); // division: null
+    render(<MySubmissions />);
+    await waitFor(() => screen.getByText('000000018'));
+    expect(screen.queryByText('Alpha Unit')).not.toBeInTheDocument();
+  });
+
+  it('does not show division when empty string — same rendered output as null', async () => {
+    // With division = '', the conditional {row.division && ...} is falsy → no division element
+    const withEmpty = { ...PENDING_ROW, division: '' };
+    api.getMySubmissions.mockResolvedValue({ rows: [withEmpty] });
+    render(<MySubmissions />);
+    await waitFor(() => screen.getByText('000000018'));
+    // The card should render without any visible division text
+    // Walk up to the card element and check no leaf node has empty-string text content
+    const idEl = screen.getByText('000000018');
+    const card = idEl.closest('[style]')?.parentElement;
+    if (card) {
+      const emptyLeaves = Array.from(card.querySelectorAll('*')).filter(
+        el => el.childElementCount === 0 && el.textContent === ''
+      );
+      expect(emptyLeaves).toHaveLength(0);
+    }
+  });
+});
+
+// ── Search ────────────────────────────────────────────────────────────────────
+
+describe('MySubmissions — search', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('renders the search input', async () => {
+    api.getMySubmissions.mockResolvedValue({ rows: [] });
+    render(<MySubmissions />);
+    await waitFor(() => screen.getByText('No submissions yet.'));
+    expect(screen.getByRole('searchbox')).toBeInTheDocument();
+  });
+
+  it('filters cards by ID as user types', async () => {
+    api.getMySubmissions.mockResolvedValue({ rows: [PENDING_ROW, ADMIN_APPROVED_ROW] });
+    render(<MySubmissions />);
+    await waitFor(() => screen.getByText('000000018'));
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: '26' } });
+    expect(screen.getByText('000000026')).toBeInTheDocument();
+    expect(screen.queryByText('000000018')).not.toBeInTheDocument();
+  });
+
+  it('shows all cards when search is cleared', async () => {
+    api.getMySubmissions.mockResolvedValue({ rows: [PENDING_ROW, ADMIN_APPROVED_ROW] });
+    render(<MySubmissions />);
+    await waitFor(() => screen.getByText('000000018'));
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: '26' } });
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: '' } });
+    expect(screen.getByText('000000018')).toBeInTheDocument();
+    expect(screen.getByText('000000026')).toBeInTheDocument();
+  });
+
+  it('shows "No results for..." message when search has no matches', async () => {
+    api.getMySubmissions.mockResolvedValue({ rows: [PENDING_ROW] });
+    render(<MySubmissions />);
+    await waitFor(() => screen.getByText('000000018'));
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: '999' } });
+    expect(screen.getByText(/No results for/)).toBeInTheDocument();
+  });
+
+  it('search and filter work together — only shows rows matching both', async () => {
+    api.getMySubmissions.mockResolvedValue({ rows: [PENDING_ROW, ADMIN_APPROVED_ROW, EXPIRED_ROW] });
+    render(<MySubmissions />);
+    await waitFor(() => screen.getByText('000000018'));
+    // Filter to Expired, then search for '075'
+    fireEvent.click(screen.getByRole('button', { name: 'Expired' }));
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: '075' } });
+    expect(screen.getByText('000000075')).toBeInTheDocument();
+    expect(screen.queryByText('000000018')).not.toBeInTheDocument();
+    expect(screen.queryByText('000000026')).not.toBeInTheDocument();
+  });
+
+  it('search ignores leading/trailing whitespace', async () => {
+    api.getMySubmissions.mockResolvedValue({ rows: [PENDING_ROW, ADMIN_APPROVED_ROW] });
+    render(<MySubmissions />);
+    await waitFor(() => screen.getByText('000000018'));
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: '  26  ' } });
+    expect(screen.getByText('000000026')).toBeInTheDocument();
+    expect(screen.queryByText('000000018')).not.toBeInTheDocument();
+  });
+});
+
+// ── Hidden records banner ─────────────────────────────────────────────────────
+
+describe('MySubmissions — hidden records banner', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('does not show the banner when hiddenCount is 0', async () => {
+    api.getMySubmissions.mockResolvedValue({ rows: [PENDING_ROW], hiddenCount: 0 });
+    render(<MySubmissions />);
+    await waitFor(() => screen.getByText('000000018'));
+    expect(screen.queryByText(/not shown/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Show all' })).not.toBeInTheDocument();
+  });
+
+  it('does not show the banner when hiddenCount is absent from the API response', async () => {
+    api.getMySubmissions.mockResolvedValue({ rows: [PENDING_ROW] });
+    render(<MySubmissions />);
+    await waitFor(() => screen.getByText('000000018'));
+    expect(screen.queryByText(/not shown/)).not.toBeInTheDocument();
+  });
+
+  it('shows the banner with the correct count when hiddenCount > 0', async () => {
+    api.getMySubmissions.mockResolvedValue({ rows: [PENDING_ROW], hiddenCount: 3 });
+    render(<MySubmissions />);
+    await waitFor(() => screen.getByText('000000018'));
+    expect(screen.getByText(/3 older records not shown/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Show all' })).toBeInTheDocument();
+  });
+
+  it('uses singular "record" when hiddenCount is 1', async () => {
+    api.getMySubmissions.mockResolvedValue({ rows: [PENDING_ROW], hiddenCount: 1 });
+    render(<MySubmissions />);
+    await waitFor(() => screen.getByText('000000018'));
+    expect(screen.getByText(/1 older record not shown/)).toBeInTheDocument();
+    expect(screen.queryByText(/records not shown/)).not.toBeInTheDocument();
+  });
+
+  it('clicking Show all calls getMySubmissions(true) and shows previously hidden records', async () => {
+    const STALE_ROW = { ...BASE, id: 99, identifier_value: '000000091', status: 'APPROVED', verdict: 'APPROVED', approval_expiration: '2020-01-01' };
+    api.getMySubmissions
+      .mockResolvedValueOnce({ rows: [PENDING_ROW], hiddenCount: 1 })
+      .mockResolvedValueOnce({ rows: [PENDING_ROW, STALE_ROW], hiddenCount: 0 });
+    render(<MySubmissions />);
+    await waitFor(() => screen.getByRole('button', { name: 'Show all' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Show all' }));
+    await waitFor(() => screen.getByText('000000091'));
+    expect(api.getMySubmissions).toHaveBeenCalledWith(true);
+    expect(screen.queryByRole('button', { name: 'Show all' })).not.toBeInTheDocument();
+  });
+
+  it('Refresh resets back to the filtered view', async () => {
+    const STALE_ROW = { ...BASE, id: 99, identifier_value: '000000091', status: 'APPROVED', verdict: 'APPROVED', approval_expiration: '2020-01-01' };
+    api.getMySubmissions
+      .mockResolvedValueOnce({ rows: [PENDING_ROW], hiddenCount: 1 })
+      .mockResolvedValueOnce({ rows: [PENDING_ROW, STALE_ROW], hiddenCount: 0 })
+      .mockResolvedValueOnce({ rows: [PENDING_ROW], hiddenCount: 1 });
+    render(<MySubmissions />);
+    await waitFor(() => screen.getByRole('button', { name: 'Show all' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Show all' }));
+    await waitFor(() => screen.getByText('000000091'));
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+    await waitFor(() => expect(screen.queryByText('000000091')).not.toBeInTheDocument());
+    expect(screen.getByText(/1 older record not shown/)).toBeInTheDocument();
   });
 });

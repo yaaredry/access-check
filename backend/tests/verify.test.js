@@ -71,6 +71,22 @@ describe('POST /verify/id', () => {
     expect(res.body.verdict).toBe('NOT_FOUND');
   });
 
+  it('returns NOT_APPROVED (not EXPIRED) for a rejected record whose approval_expiration has passed', async () => {
+    // Rejected records always have an approval_expiration from the original submission.
+    // Once that date passes, NOT_APPROVED must still take precedence over EXPIRED.
+    await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict, status, approval_expiration) VALUES ('IL_ID', '000000018', 'NOT_APPROVED', 'NOT_APPROVED', '2020-01-01')"
+    );
+
+    const res = await request(app)
+      .post('/verify/id')
+      .set('Authorization', `Bearer ${gateToken}`)
+      .send({ identifierType: 'IL_ID', identifierValue: '000000018' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.verdict).toBe('NOT_APPROVED');
+  });
+
   it('returns EXPIRED when approval_expiration is in the past', async () => {
     await db.query(
       "INSERT INTO people (identifier_type, identifier_value, verdict, approval_expiration) VALUES ('IL_ID', '000000018', 'APPROVED', '2020-01-01')"

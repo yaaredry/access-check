@@ -1,0 +1,1 @@
+ALTER TABLE people ADD COLUMN IF NOT EXISTS last_resubmitted_at TIMESTAMPTZ;
