@@ -1,14 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../api/client';
 
-function daysUntilExpiry(dateStr) {
+function daysFromExpiry(dateStr) {
   if (!dateStr) return null;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const expiry = new Date(dateStr.slice(0, 10) + 'T00:00:00');
   const days = Math.round((expiry - today) / (1000 * 60 * 60 * 24));
-  if (days < 0) return null;
-  return days === 0 ? 1 : days;
+  if (days === 0) return 1; // expires today → treat as 1 day remaining
+  return days; // positive = days remaining, negative = days since expiry
 }
 
 function isExpired(row) {
@@ -176,9 +176,10 @@ export default function MySubmissions({ onExtend }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {filtered.map(row => {
               const cfg = statusConfig(row);
-              const expiresInDays = daysUntilExpiry(row.approval_expiration);
-              const expiringSoon = expiresInDays !== null && expiresInDays <= 2;
+              const daysRelative = daysFromExpiry(row.approval_expiration);
+              const expiringSoon = daysRelative !== null && daysRelative > 0 && daysRelative <= 2;
               const expired = isExpired(row);
+              const daysAgo = expired && daysRelative !== null ? Math.abs(daysRelative) : null;
               return (
                 <div
                   key={row.id}
@@ -222,12 +223,12 @@ export default function MySubmissions({ onExtend }) {
                   {/* Active window */}
                   {row.approval_start_date && row.approval_expiration && (
                     <div style={{ fontSize: 13, color: expiringSoon ? '#d97706' : 'var(--text-muted)', marginTop: 2 }}>
-                      Active {new Date(row.approval_start_date.slice(0, 10) + 'T00:00:00').toLocaleDateString()} – {new Date(row.approval_expiration.slice(0, 10) + 'T00:00:00').toLocaleDateString()}
+                      {expired ? 'Expired' : 'Active'} {new Date(row.approval_start_date.slice(0, 10) + 'T00:00:00').toLocaleDateString()} – {new Date(row.approval_expiration.slice(0, 10) + 'T00:00:00').toLocaleDateString()}
                     </div>
                   )}
                   {!row.approval_start_date && row.approval_expiration && (
                     <div style={{ fontSize: 13, color: expiringSoon ? '#d97706' : 'var(--text-muted)', marginTop: 2 }}>
-                      Expires {new Date(row.approval_expiration.slice(0, 10) + 'T00:00:00').toLocaleDateString()}
+                      {expired ? 'Expired' : 'Expires'} {new Date(row.approval_expiration.slice(0, 10) + 'T00:00:00').toLocaleDateString()}
                     </div>
                   )}
 
@@ -238,7 +239,18 @@ export default function MySubmissions({ onExtend }) {
                       background: 'rgba(245,158,11,.12)', color: '#d97706',
                       fontSize: 12, fontWeight: 600,
                     }}>
-                      Expires in {expiresInDays === 1 ? '1 day' : `${expiresInDays} days`}
+                      Expires in {daysRelative === 1 ? '1 day' : `${daysRelative} days`}
+                    </div>
+                  )}
+
+                  {/* Expired X days ago */}
+                  {expired && daysAgo !== null && (
+                    <div style={{
+                      marginTop: 8, padding: '6px 10px', borderRadius: 8,
+                      background: 'rgba(100,116,139,.1)', color: 'var(--text-muted)',
+                      fontSize: 12, fontWeight: 600,
+                    }}>
+                      Expired {daysAgo === 1 ? '1 day ago' : `${daysAgo} days ago`}
                     </div>
                   )}
 
