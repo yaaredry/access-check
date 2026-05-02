@@ -586,6 +586,37 @@ describe('POST /access-requests/:id/resubmit', () => {
     expect(rows[0].approval_start_date).not.toBeNull();
   });
 
+  it('increments resubmit_count by 1 on each resubmit', async () => {
+    const id = await insertPerson({ status: 'NOT_APPROVED', verdict: 'NOT_APPROVED' });
+
+    // First resubmit
+    await request(app)
+      .post(`/access-requests/${id}/resubmit`)
+      .set('Authorization', `Bearer ${requestorToken}`)
+      .send(RESUBMIT_PAYLOAD);
+
+    let { rows } = await db.query('SELECT resubmit_count FROM people WHERE id = $1', [id]);
+    expect(rows[0].resubmit_count).toBe(1);
+
+    // Manually set back to NOT_APPROVED so we can resubmit again
+    await db.query(`UPDATE people SET status = 'NOT_APPROVED', verdict = 'NOT_APPROVED' WHERE id = $1`, [id]);
+
+    // Second resubmit
+    await request(app)
+      .post(`/access-requests/${id}/resubmit`)
+      .set('Authorization', `Bearer ${requestorToken}`)
+      .send(RESUBMIT_PAYLOAD);
+
+    ({ rows } = await db.query('SELECT resubmit_count FROM people WHERE id = $1', [id]));
+    expect(rows[0].resubmit_count).toBe(2);
+  });
+
+  it('new people records start with resubmit_count of 0', async () => {
+    const id = await insertPerson();
+    const { rows } = await db.query('SELECT resubmit_count FROM people WHERE id = $1', [id]);
+    expect(rows[0].resubmit_count).toBe(0);
+  });
+
   it('resubmit clears approvalStartDate when not provided', async () => {
     // Record previously had a start date
     const { rows: inserted } = await db.query(

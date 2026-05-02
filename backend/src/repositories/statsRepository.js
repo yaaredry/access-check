@@ -38,11 +38,17 @@ async function getGateScanVerdictBreakdown() {
 async function getRequestCounts() {
   const { rows } = await db.query(`
     SELECT
-      COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '24 hours')  AS last_24h,
-      COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '72 hours')  AS last_72h,
-      COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '7 days')    AS last_7d,
-      COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '30 days')   AS last_30d,
-      COUNT(*)                                                           AS all_time
+      -- original submissions in window + resubmissions whose last_resubmitted_at falls in window
+      COUNT(*) FILTER (WHERE created_at          > NOW() - INTERVAL '24 hours')
+        + COUNT(*) FILTER (WHERE last_resubmitted_at > NOW() - INTERVAL '24 hours')  AS last_24h,
+      COUNT(*) FILTER (WHERE created_at          > NOW() - INTERVAL '72 hours')
+        + COUNT(*) FILTER (WHERE last_resubmitted_at > NOW() - INTERVAL '72 hours')  AS last_72h,
+      COUNT(*) FILTER (WHERE created_at          > NOW() - INTERVAL '7 days')
+        + COUNT(*) FILTER (WHERE last_resubmitted_at > NOW() - INTERVAL '7 days')    AS last_7d,
+      COUNT(*) FILTER (WHERE created_at          > NOW() - INTERVAL '30 days')
+        + COUNT(*) FILTER (WHERE last_resubmitted_at > NOW() - INTERVAL '30 days')   AS last_30d,
+      -- all-time: every original submission + every resubmission ever made
+      COUNT(*) + COALESCE(SUM(resubmit_count), 0)                                    AS all_time
     FROM people
   `);
   return rows[0];
