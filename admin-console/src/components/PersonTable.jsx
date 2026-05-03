@@ -6,8 +6,9 @@ function verdictBadge(verdict, expiration, status, startDate) {
   if (status === 'PENDING') return <span className="badge pending">Pending</span>;
   if (status === 'NOT_APPROVED' || verdict === 'NOT_APPROVED') return <span className="badge not-approved">Not Approved</span>;
   const wasApproved = ['APPROVED', 'ADMIN_APPROVED', 'APPROVED_WITH_ESCORT'].includes(verdict);
-  if (wasApproved && expiration && new Date(expiration) < new Date()) {
-    return <span className="badge expired">Expired</span>;
+  if (wasApproved && expiration) {
+    const endOfExpiryDay = new Date(expiration.slice(0, 10) + 'T23:59:59.999');
+    if (endOfExpiryDay < new Date()) return <span className="badge expired">Expired</span>;
   }
   if (startDate) {
     const start = new Date(startDate);

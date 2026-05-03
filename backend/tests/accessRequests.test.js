@@ -35,6 +35,17 @@ beforeAll(async () => {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
+  // Seed users matching JWT sub values used in this test file
+  await db.query(`
+    INSERT INTO users (id, username, password, role, name)
+    OVERRIDING SYSTEM VALUE VALUES
+      (1,  'admin',           'hash', 'admin',            'Admin'),
+      (97, 'bob@example.com', 'hash', 'access_requestor', 'Bob Jones'),
+      (98, 'jane@example.com','hash', 'access_requestor', 'Jane Smith'),
+      (99, 'requestor-test',  'hash', 'access_requestor', NULL)
+    ON CONFLICT (id) DO UPDATE
+      SET username = EXCLUDED.username, role = EXCLUDED.role, name = EXCLUDED.name
+  `);
 });
 
 beforeEach(async () => {
@@ -317,7 +328,7 @@ describe('POST /access-requests', () => {
     expect(rows[0].requester_name).toBe('Jane Smith');
   });
 
-  it('generic requestor: requesterEmail is null when no name in JWT', async () => {
+  it('access_requestor with no name in JWT: requesterEmail is still set to their username', async () => {
     await request(app)
       .post('/access-requests')
       .set('Authorization', `Bearer ${requestorToken}`)
@@ -325,7 +336,7 @@ describe('POST /access-requests', () => {
 
     const { rows } = await db.query('SELECT * FROM people WHERE identifier_value = $1', ['000000018']);
     expect(rows[0].requester_name).toBe('Jane Smith');
-    expect(rows[0].requester_email).toBeNull();
+    expect(rows[0].requester_email).toBe('requestor'); // username from JWT, not null
   });
 });
 
@@ -415,7 +426,7 @@ describe('POST /access-requests/:id/resubmit', () => {
 
     const { rows } = await db.query('SELECT * FROM people WHERE id = $1', [id]);
     expect(rows[0].requester_name).toBe('New Person');
-    expect(rows[0].requester_email).toBeNull();
+    expect(rows[0].requester_email).toBe('requestor'); // username from JWT, not null
   });
 
   it('named requestor: derives requester identity from JWT on resubmit', async () => {
@@ -566,7 +577,7 @@ describe('POST /access-requests/:id/resubmit', () => {
     expect(resubmitRes.status).toBe(200);
     const { rows } = await db.query('SELECT * FROM people WHERE id = $1', [id]);
     expect(rows[0].requester_name).toBe('New Requestor');
-    expect(rows[0].requester_email).toBeNull();
+    expect(rows[0].requester_email).toBe('requestor'); // username from JWT
     expect(rows[0].rejection_reason).toBeNull(); // cleared
     expect(rows[0].status).toBe('PENDING');
   });
@@ -765,7 +776,8 @@ describe('GET /access-requests/mine', () => {
 
 describe('GET /access-requests/mine/config', () => {
   afterEach(async () => {
-    await db.query("DELETE FROM users WHERE username = 'jane@example.com'");
+    // Reset to default instead of deleting so id=98 stays intact for auth checks
+    await db.query("UPDATE users SET max_request_days = 7 WHERE username = 'jane@example.com'");
   });
 
   it('returns maxRequestDays=7 when user has no DB row (default)', async () => {
@@ -779,7 +791,7 @@ describe('GET /access-requests/mine/config', () => {
 
   it('returns the user-specific maxRequestDays from the DB', async () => {
     await db.query(
-      "INSERT INTO users (username, password, role, name, max_request_days) VALUES ('jane@example.com', 'x', 'access_requestor', 'Jane', 3)"
+      "INSERT INTO users (username, password, role, name, max_request_days) VALUES ('jane@example.com', 'x', 'access_requestor', 'Jane', 3) ON CONFLICT (username) DO UPDATE SET max_request_days = 3"
     );
 
     const res = await request(app)
@@ -805,7 +817,8 @@ describe('GET /access-requests/mine/config', () => {
 
 describe('per-user max_request_days validation', () => {
   afterEach(async () => {
-    await db.query("DELETE FROM users WHERE username = 'jane@example.com'");
+    // Reset to default instead of deleting so id=98 stays intact for auth checks
+    await db.query("UPDATE users SET max_request_days = 7 WHERE username = 'jane@example.com'");
   });
 
   function daysFromNow(n) {
@@ -816,7 +829,7 @@ describe('per-user max_request_days validation', () => {
 
   it('rejects POST /access-requests when expiry exceeds user max of 3 days', async () => {
     await db.query(
-      "INSERT INTO users (username, password, role, name, max_request_days) VALUES ('jane@example.com', 'x', 'access_requestor', 'Jane', 3)"
+      "INSERT INTO users (username, password, role, name, max_request_days) VALUES ('jane@example.com', 'x', 'access_requestor', 'Jane', 3) ON CONFLICT (username) DO UPDATE SET max_request_days = 3"
     );
 
     const res = await request(app)
@@ -829,7 +842,7 @@ describe('per-user max_request_days validation', () => {
 
   it('accepts POST /access-requests when expiry is exactly user max of 3 days', async () => {
     await db.query(
-      "INSERT INTO users (username, password, role, name, max_request_days) VALUES ('jane@example.com', 'x', 'access_requestor', 'Jane', 3)"
+      "INSERT INTO users (username, password, role, name, max_request_days) VALUES ('jane@example.com', 'x', 'access_requestor', 'Jane', 3) ON CONFLICT (username) DO UPDATE SET max_request_days = 3"
     );
 
     const res = await request(app)
@@ -842,7 +855,7 @@ describe('per-user max_request_days validation', () => {
 
   it('rejects POST /access-requests/:id/resubmit when expiry exceeds user max of 3 days', async () => {
     await db.query(
-      "INSERT INTO users (username, password, role, name, max_request_days) VALUES ('jane@example.com', 'x', 'access_requestor', 'Jane', 3)"
+      "INSERT INTO users (username, password, role, name, max_request_days) VALUES ('jane@example.com', 'x', 'access_requestor', 'Jane', 3) ON CONFLICT (username) DO UPDATE SET max_request_days = 3"
     );
     const { rows } = await db.query(
       "INSERT INTO people (identifier_type, identifier_value, verdict, status) VALUES ('IL_ID', '000000018', 'NOT_APPROVED', 'NOT_APPROVED') RETURNING id"
