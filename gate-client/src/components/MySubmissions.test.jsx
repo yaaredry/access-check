@@ -105,12 +105,12 @@ describe('MySubmissions', () => {
     expect(screen.queryAllByText('Expired').every(el => el.tagName === 'BUTTON')).toBe(true);
   });
 
-  it('shows expiry warning when approval_expiration is exactly today', async () => {
+  it('shows "Expires today" warning when approval_expiration is today', async () => {
     const today = new Date().toISOString().split('T')[0];
     const row = { ...ADMIN_APPROVED_ROW, approval_expiration: today };
     api.getMySubmissions.mockResolvedValue({ rows: [row] });
     render(<MySubmissions />);
-    await waitFor(() => expect(screen.getByText(/Expires in 1 day/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Expires today')).toBeInTheDocument());
   });
 
   it('shows expiry warning when approval_expiration is in 2 days', async () => {
@@ -543,6 +543,25 @@ describe('MySubmissions — expiry language and "Expired X days ago" pill', () =
     await waitFor(() => screen.getByText('000000104'));
     expect(screen.queryByText(/Invalid Date/)).not.toBeInTheDocument();
     expect(screen.getByText(/Active /)).toBeInTheDocument();
+  });
+
+  it('today\'s expiry is NOT shown as expired (valid all day until midnight)', async () => {
+    const today = new Date().toISOString().split('T')[0];
+    const row = { ...BASE, id: 15, identifier_value: '000000110', status: 'APPROVED', verdict: 'APPROVED', approval_expiration: today };
+    api.getMySubmissions.mockResolvedValue({ rows: [row] });
+    render(<MySubmissions />);
+    await waitFor(() => screen.getByText('000000110'));
+    expect(screen.queryByText(/Expired .+ ago/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Expired \d/)).not.toBeInTheDocument();
+  });
+
+  it('shows "Expires today" chip when approval_expiration is today', async () => {
+    const today = new Date().toISOString().split('T')[0];
+    const row = { ...BASE, id: 16, identifier_value: '000000111', status: 'APPROVED', verdict: 'APPROVED', approval_expiration: today };
+    api.getMySubmissions.mockResolvedValue({ rows: [row] });
+    render(<MySubmissions />);
+    await waitFor(() => screen.getByText('000000111'));
+    expect(screen.getByText('Expires today')).toBeInTheDocument();
   });
 });
 

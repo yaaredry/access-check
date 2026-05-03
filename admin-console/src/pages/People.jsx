@@ -20,7 +20,10 @@ function getDisplayStatus(person) {
   if (person.status === 'PENDING') return 'PENDING';
   if (person.status === 'NOT_APPROVED' || person.verdict === 'NOT_APPROVED') return 'NOT_APPROVED';
   const wasApproved = ['APPROVED', 'ADMIN_APPROVED', 'APPROVED_WITH_ESCORT'].includes(person.verdict);
-  if (wasApproved && person.approval_expiration && new Date(person.approval_expiration) < new Date()) return 'EXPIRED';
+  if (wasApproved && person.approval_expiration) {
+    const endOfExpiryDay = new Date(person.approval_expiration.slice(0, 10) + 'T23:59:59.999');
+    if (endOfExpiryDay < new Date()) return 'EXPIRED';
+  }
   if (person.verdict === 'APPROVED') return 'APPROVED';
   if (person.verdict === 'ADMIN_APPROVED') return 'ADMIN_APPROVED';
   if (person.verdict === 'APPROVED_WITH_ESCORT') return 'APPROVED_WITH_ESCORT';

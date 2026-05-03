@@ -35,6 +35,17 @@ beforeAll(async () => {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
+  // Seed users matching JWT sub values used in this test file
+  await db.query(`
+    INSERT INTO users (id, username, password, role, name)
+    OVERRIDING SYSTEM VALUE VALUES
+      (1,  'admin',           'hash', 'admin',            'Admin'),
+      (97, 'bob@example.com', 'hash', 'access_requestor', 'Bob Jones'),
+      (98, 'jane@example.com','hash', 'access_requestor', 'Jane Smith'),
+      (99, 'requestor-test',  'hash', 'access_requestor', NULL)
+    ON CONFLICT (id) DO UPDATE
+      SET username = EXCLUDED.username, role = EXCLUDED.role, name = EXCLUDED.name
+  `);
 });
 
 beforeEach(async () => {
@@ -765,7 +776,8 @@ describe('GET /access-requests/mine', () => {
 
 describe('GET /access-requests/mine/config', () => {
   afterEach(async () => {
-    await db.query("DELETE FROM users WHERE username = 'jane@example.com'");
+    // Reset to default instead of deleting so id=98 stays intact for auth checks
+    await db.query("UPDATE users SET max_request_days = 7 WHERE username = 'jane@example.com'");
   });
 
   it('returns maxRequestDays=7 when user has no DB row (default)', async () => {
@@ -779,7 +791,7 @@ describe('GET /access-requests/mine/config', () => {
 
   it('returns the user-specific maxRequestDays from the DB', async () => {
     await db.query(
-      "INSERT INTO users (username, password, role, name, max_request_days) VALUES ('jane@example.com', 'x', 'access_requestor', 'Jane', 3)"
+      "INSERT INTO users (username, password, role, name, max_request_days) VALUES ('jane@example.com', 'x', 'access_requestor', 'Jane', 3) ON CONFLICT (username) DO UPDATE SET max_request_days = 3"
     );
 
     const res = await request(app)
@@ -805,7 +817,8 @@ describe('GET /access-requests/mine/config', () => {
 
 describe('per-user max_request_days validation', () => {
   afterEach(async () => {
-    await db.query("DELETE FROM users WHERE username = 'jane@example.com'");
+    // Reset to default instead of deleting so id=98 stays intact for auth checks
+    await db.query("UPDATE users SET max_request_days = 7 WHERE username = 'jane@example.com'");
   });
 
   function daysFromNow(n) {
@@ -816,7 +829,7 @@ describe('per-user max_request_days validation', () => {
 
   it('rejects POST /access-requests when expiry exceeds user max of 3 days', async () => {
     await db.query(
-      "INSERT INTO users (username, password, role, name, max_request_days) VALUES ('jane@example.com', 'x', 'access_requestor', 'Jane', 3)"
+      "INSERT INTO users (username, password, role, name, max_request_days) VALUES ('jane@example.com', 'x', 'access_requestor', 'Jane', 3) ON CONFLICT (username) DO UPDATE SET max_request_days = 3"
     );
 
     const res = await request(app)
@@ -829,7 +842,7 @@ describe('per-user max_request_days validation', () => {
 
   it('accepts POST /access-requests when expiry is exactly user max of 3 days', async () => {
     await db.query(
-      "INSERT INTO users (username, password, role, name, max_request_days) VALUES ('jane@example.com', 'x', 'access_requestor', 'Jane', 3)"
+      "INSERT INTO users (username, password, role, name, max_request_days) VALUES ('jane@example.com', 'x', 'access_requestor', 'Jane', 3) ON CONFLICT (username) DO UPDATE SET max_request_days = 3"
     );
 
     const res = await request(app)
@@ -842,7 +855,7 @@ describe('per-user max_request_days validation', () => {
 
   it('rejects POST /access-requests/:id/resubmit when expiry exceeds user max of 3 days', async () => {
     await db.query(
-      "INSERT INTO users (username, password, role, name, max_request_days) VALUES ('jane@example.com', 'x', 'access_requestor', 'Jane', 3)"
+      "INSERT INTO users (username, password, role, name, max_request_days) VALUES ('jane@example.com', 'x', 'access_requestor', 'Jane', 3) ON CONFLICT (username) DO UPDATE SET max_request_days = 3"
     );
     const { rows } = await db.query(
       "INSERT INTO people (identifier_type, identifier_value, verdict, status) VALUES ('IL_ID', '000000018', 'NOT_APPROVED', 'NOT_APPROVED') RETURNING id"

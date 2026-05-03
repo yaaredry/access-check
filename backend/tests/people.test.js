@@ -23,6 +23,14 @@ beforeAll(async () => {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
+  await db.query(`
+    INSERT INTO users (id, username, password, role, name)
+    OVERRIDING SYSTEM VALUE VALUES
+      (1, 'admin',              'hash', 'admin',            'Admin'),
+      (2, 'requestor@test.com', 'hash', 'access_requestor', NULL)
+    ON CONFLICT (id) DO UPDATE
+      SET username = EXCLUDED.username, role = EXCLUDED.role, name = EXCLUDED.name
+  `);
 });
 
 beforeEach(async () => {

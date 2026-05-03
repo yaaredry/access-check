@@ -6,14 +6,15 @@ function daysFromExpiry(dateStr) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const expiry = new Date(dateStr.slice(0, 10) + 'T00:00:00');
-  const days = Math.round((expiry - today) / (1000 * 60 * 60 * 24));
-  if (days === 0) return 1; // expires today → treat as 1 day remaining
-  return days; // positive = days remaining, negative = days since expiry
+  return Math.round((expiry - today) / (1000 * 60 * 60 * 24)); // 0=today, positive=future, negative=past
 }
 
 function isExpired(row) {
   if (!['APPROVED', 'ADMIN_APPROVED', 'APPROVED_WITH_ESCORT'].includes(row.verdict)) return false;
-  return !!(row.approval_expiration && new Date(row.approval_expiration) < new Date());
+  if (!row.approval_expiration) return false;
+  // Treat expiry date as end-of-day so "today" remains valid all day
+  const endOfExpiryDay = new Date(row.approval_expiration.slice(0, 10) + 'T23:59:59.999');
+  return endOfExpiryDay < new Date();
 }
 
 function statusConfig(row) {
@@ -177,7 +178,7 @@ export default function MySubmissions({ onExtend }) {
             {filtered.map(row => {
               const cfg = statusConfig(row);
               const daysRelative = daysFromExpiry(row.approval_expiration);
-              const expiringSoon = daysRelative !== null && daysRelative > 0 && daysRelative <= 2;
+              const expiringSoon = daysRelative !== null && daysRelative >= 0 && daysRelative <= 2;
               const expired = isExpired(row);
               const daysAgo = expired && daysRelative !== null ? Math.abs(daysRelative) : null;
               return (
@@ -239,7 +240,7 @@ export default function MySubmissions({ onExtend }) {
                       background: 'rgba(245,158,11,.12)', color: '#d97706',
                       fontSize: 12, fontWeight: 600,
                     }}>
-                      Expires in {daysRelative === 1 ? '1 day' : `${daysRelative} days`}
+                      {daysRelative === 0 ? 'Expires today' : daysRelative === 1 ? 'Expires in 1 day' : `Expires in ${daysRelative} days`}
                     </div>
                   )}
 
