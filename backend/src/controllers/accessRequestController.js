@@ -77,9 +77,9 @@ async function create(req, res, next) {
   try {
     const { ilId, population, division, escortFullName, escortPhone, approvalExpiration, approvalStartDate, reason, requesterName: requesterNameFromBody } = req.body;
 
-    // Named requestors have their identity locked to the JWT; generic requestor uses the form field
+    // access_requestor identity is always their username; name falls back to form field if not set
     const requesterName = req.user.name || requesterNameFromBody;
-    const requesterEmail = req.user.name ? req.user.username : null;
+    const requesterEmail = req.user.role === 'access_requestor' ? req.user.username : null;
 
     const existing = await peopleRepo.findByIdentifierValue(ilId);
     if (existing) {
@@ -201,7 +201,7 @@ async function resubmit(req, res, next) {
     }
 
     const requesterName = req.user.name || requesterNameFromBody;
-    const requesterEmail = req.user.name ? req.user.username : null;
+    const requesterEmail = req.user.role === 'access_requestor' ? req.user.username : null;
 
     const updated = await peopleRepo.resubmitById(id, {
       approvalExpiration,

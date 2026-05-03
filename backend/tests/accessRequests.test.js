@@ -317,7 +317,7 @@ describe('POST /access-requests', () => {
     expect(rows[0].requester_name).toBe('Jane Smith');
   });
 
-  it('generic requestor: requesterEmail is null when no name in JWT', async () => {
+  it('access_requestor with no name in JWT: requesterEmail is still set to their username', async () => {
     await request(app)
       .post('/access-requests')
       .set('Authorization', `Bearer ${requestorToken}`)
@@ -325,7 +325,7 @@ describe('POST /access-requests', () => {
 
     const { rows } = await db.query('SELECT * FROM people WHERE identifier_value = $1', ['000000018']);
     expect(rows[0].requester_name).toBe('Jane Smith');
-    expect(rows[0].requester_email).toBeNull();
+    expect(rows[0].requester_email).toBe('requestor'); // username from JWT, not null
   });
 });
 
@@ -415,7 +415,7 @@ describe('POST /access-requests/:id/resubmit', () => {
 
     const { rows } = await db.query('SELECT * FROM people WHERE id = $1', [id]);
     expect(rows[0].requester_name).toBe('New Person');
-    expect(rows[0].requester_email).toBeNull();
+    expect(rows[0].requester_email).toBe('requestor'); // username from JWT, not null
   });
 
   it('named requestor: derives requester identity from JWT on resubmit', async () => {
@@ -566,7 +566,7 @@ describe('POST /access-requests/:id/resubmit', () => {
     expect(resubmitRes.status).toBe(200);
     const { rows } = await db.query('SELECT * FROM people WHERE id = $1', [id]);
     expect(rows[0].requester_name).toBe('New Requestor');
-    expect(rows[0].requester_email).toBeNull();
+    expect(rows[0].requester_email).toBe('requestor'); // username from JWT
     expect(rows[0].rejection_reason).toBeNull(); // cleared
     expect(rows[0].status).toBe('PENDING');
   });
