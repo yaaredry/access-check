@@ -21,6 +21,8 @@ beforeAll(async () => {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
+  // Remove any stale 'megido' row at a different id before upserting at id=2
+  await db.query(`DELETE FROM users WHERE username = 'megido' AND id != 2`);
   await db.query(`
     INSERT INTO users (id, username, password, role, name)
     OVERRIDING SYSTEM VALUE VALUES
