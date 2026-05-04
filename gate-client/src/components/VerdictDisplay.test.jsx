@@ -91,7 +91,18 @@ describe('VerdictDisplay', () => {
   it('shows APPROVED WITH ESCORT label and icon', () => {
     render(<VerdictDisplay verdict="APPROVED_WITH_ESCORT" onBack={vi.fn()} autoResetMs={0} />);
     expect(screen.getByText('APPROVED WITH ESCORT')).toBeInTheDocument();
-    expect(screen.getByText('✓')).toBeInTheDocument();
+    expect(screen.getByText('👥')).toBeInTheDocument();
+  });
+
+  it('shows escort warning for APPROVED_WITH_ESCORT', () => {
+    render(<VerdictDisplay verdict="APPROVED_WITH_ESCORT" onBack={vi.fn()} autoResetMs={0} />);
+    expect(screen.getByText(/MUST have an escort at all times/)).toBeInTheDocument();
+    expect(screen.getByText(/Followme driver is not considered a valid escort/)).toBeInTheDocument();
+  });
+
+  it('does not show escort warning for other verdicts', () => {
+    render(<VerdictDisplay verdict="APPROVED" onBack={vi.fn()} autoResetMs={0} />);
+    expect(screen.queryByText(/MUST have an escort/)).not.toBeInTheDocument();
   });
 
   it('shows escort name when escortName is provided', () => {
@@ -117,8 +128,13 @@ describe('VerdictDisplay', () => {
 
   it('shows instruction bullets for ADMIN_APPROVED', () => {
     render(<VerdictDisplay verdict="ADMIN_APPROVED" onBack={vi.fn()} autoResetMs={0} />);
-    expect(screen.getByText('All visitor cameras must be covered with blue stickers')).toBeInTheDocument();
     expect(screen.getByText('All visitors must obtain and wear a badge at all times')).toBeInTheDocument();
+    expect(screen.getByText('Check physical ID card — verify face matches ID number')).toBeInTheDocument();
+  });
+
+  it('does not show stickers bullet for ADMIN_APPROVED', () => {
+    render(<VerdictDisplay verdict="ADMIN_APPROVED" onBack={vi.fn()} autoResetMs={0} />);
+    expect(screen.queryByText('All visitor cameras must be covered with blue stickers')).not.toBeInTheDocument();
   });
 
   it('does not show instruction bullets for APPROVED', () => {
