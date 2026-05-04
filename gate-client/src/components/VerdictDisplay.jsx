@@ -14,10 +14,10 @@ const CONFIG = {
     bg: 'rgba(239,68,68,.15)',
   },
   EXPIRED: {
-    color: 'var(--expired)',
+    color: '#ef4444',
     icon: '⏱',
     label: 'EXPIRED',
-    bg: 'rgba(245,158,11,.15)',
+    bg: 'rgba(100,116,139,.15)',
   },
   ADMIN_APPROVED: {
     color: '#ca8a04',
@@ -26,8 +26,8 @@ const CONFIG = {
     bg: 'rgba(234,179,8,.15)',
   },
   APPROVED_WITH_ESCORT: {
-    color: '#d97706',
-    icon: '✓',
+    color: '#eab308',
+    icon: '👥',
     label: 'APPROVED WITH ESCORT',
     bg: 'rgba(234,179,8,.15)',
   },
@@ -119,9 +119,15 @@ export default function VerdictDisplay({ verdict, identifierValue, escortName, e
           textAlign: 'left',
           display: 'inline-block',
         }}>
-          <li style={{ fontSize: 22, fontWeight: 600, lineHeight: 1.6 }}>All visitor cameras must be covered with blue stickers</li>
           <li style={{ fontSize: 22, fontWeight: 600, lineHeight: 1.6 }}>All visitors must obtain and wear a badge at all times</li>
+          <li style={{ fontSize: 22, fontWeight: 600, lineHeight: 1.6 }}>Check physical ID card — verify face matches ID number</li>
         </ul>
+      )}
+
+      {verdict === 'APPROVED_WITH_ESCORT' && (
+        <div style={{ fontSize: 20, fontWeight: 700, textAlign: 'center', color: '#ef4444', maxWidth: 320, lineHeight: 1.5 }}>
+          This person MUST have an escort at all times while on base. Followme driver is not considered a valid escort.
+        </div>
       )}
 
       <button className="back" style={{ marginTop: 16, maxWidth: 320 }} onClick={onBack}>
