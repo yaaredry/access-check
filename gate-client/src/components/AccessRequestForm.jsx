@@ -1,6 +1,25 @@
 import { useState } from 'react';
 import { api } from '../api/client';
 
+const VISIT_REASONS = [
+  'Drivers & Transport',
+  'Food & Catering',
+  'Construction & Infrastructure',
+  'Maintenance & Technicians',
+  'Suppliers & Equipment',
+  'Regular & Reserve Military Personnel',
+  'Medical & Emergency',
+  'Official Visits & Meetings',
+  'Cleaning & Services',
+  'Other',
+];
+
+function parseReason(reason) {
+  if (!reason) return { reasonCategory: '', reasonOther: '' };
+  if (VISIT_REASONS.includes(reason) && reason !== 'Other') return { reasonCategory: reason, reasonOther: '' };
+  return { reasonCategory: 'Other', reasonOther: reason === 'Other' ? '' : reason };
+}
+
 function validateIlId(value) {
   if (!/^\d{9}$/.test(value)) return false;
   const digits = value.split('').map(Number);
@@ -22,7 +41,8 @@ const EMPTY = {
   escortPhone: '',
   approvalStartDate: '',
   approvalExpiration: '',
-  reason: '',
+  reasonCategory: '',
+  reasonOther: '',
 };
 
 // Maps backend field paths to friendly labels used in error messages
@@ -34,7 +54,7 @@ const FIELD_LABELS = {
   escortPhone:        'escort phone',
   approvalStartDate:  'start date',
   approvalExpiration: 'expiration date',
-  reason:             'reason for entering',
+  reasonCategory:     'reason for entering',
 };
 
 // Maps specific backend error messages to user-friendly text
@@ -62,6 +82,7 @@ function buildChips(maxRequestDays) {
 }
 
 function extendRecordToForm(extendRecord, requestorName) {
+  const { reasonCategory, reasonOther } = parseReason(extendRecord.reason || '');
   return {
     requesterName: requestorName || '',
     ilId: extendRecord.identifier_value || '',
@@ -71,7 +92,8 @@ function extendRecordToForm(extendRecord, requestorName) {
     escortPhone: extendRecord.escort_phone || '',
     approvalStartDate: '',
     approvalExpiration: '',
-    reason: extendRecord.reason || '',
+    reasonCategory,
+    reasonOther,
   };
 }
 
@@ -95,6 +117,9 @@ export default function AccessRequestForm({ onLogout, requestorName, hideLogout,
     if (fieldErrors[field]) setFieldErrors((prev) => ({ ...prev, [field]: '' }));
     if (field === 'approvalStartDate' || field === 'approvalExpiration') {
       setActiveDurationChip(null);
+    }
+    if (field === 'reasonCategory') {
+      setFieldErrors(prev => ({ ...prev, reasonOther: '' }));
     }
   }
 
@@ -152,8 +177,14 @@ export default function AccessRequestForm({ onLogout, requestorName, hideLogout,
         errors.approvalExpiration = `Expiration date cannot be more than ${maxRequestDays} days from today.`;
       }
     }
-    if (!form.reason.trim()) {
-      errors.reason = 'Please explain the reason for this visit.';
+    if (!form.reasonCategory) {
+      errors.reasonCategory = 'Please select a reason for this visit.';
+    } else if (form.reasonCategory === 'Other') {
+      if (!form.reasonOther.trim()) {
+        errors.reasonOther = 'Please describe the reason for this visit.';
+      } else if (form.reasonOther.length > 100) {
+        errors.reasonOther = 'Reason cannot exceed 100 characters.';
+      }
     }
     if (form.population === 'CIVILIAN') {
       if (!form.escortFullName.trim()) errors.escortFullName = 'Escort full name is required for civilian visitors.';
@@ -177,14 +208,16 @@ export default function AccessRequestForm({ onLogout, requestorName, hideLogout,
 
     setLoading(true);
     try {
-      await api.submitAccessRequest(form);
+      const reason = form.reasonCategory === 'Other' ? form.reasonOther.trim() : form.reasonCategory;
+      await api.submitAccessRequest({ ...form, reason });
       setSubmitted(true);
     } catch (err) {
       // Parse per-field errors from express-validator response
       if (err.data?.errors && Array.isArray(err.data.errors)) {
         const parsed = {};
         err.data.errors.forEach(({ path, msg }) => {
-          parsed[path] = friendlyMessage(msg, path);
+          const mappedPath = path === 'reason' ? 'reasonCategory' : path;
+          parsed[mappedPath] = friendlyMessage(msg, path);
         });
         setFieldErrors(parsed);
       } else if (err.status === 409 && err.data?.existing) {
@@ -201,7 +234,8 @@ export default function AccessRequestForm({ onLogout, requestorName, hideLogout,
     setLoading(true);
     setGeneralError('');
     try {
-      await api.resubmitAccessRequest(id, form);
+      const reason = form.reasonCategory === 'Other' ? form.reasonOther.trim() : form.reasonCategory;
+      await api.resubmitAccessRequest(id, { ...form, reason });
       setSubmitted(true);
     } catch (err) {
       setGeneralError(err.message || 'Something went wrong. Please try again.');
@@ -362,15 +396,32 @@ export default function AccessRequestForm({ onLogout, requestorName, hideLogout,
           />
         </Field>
 
-        <Field label="Reason for Entering" error={fieldErrors.reason}>
-          <textarea
-            placeholder="Describe the reason for entry…"
-            value={form.reason}
-            onChange={e => set('reason', e.target.value)}
-            rows={4}
-            style={{ ...inputStyle, resize: 'vertical', ...(fieldErrors.reason ? errorInputStyle : {}) }}
-          />
+        <Field label="Reason for Entering" error={fieldErrors.reasonCategory}>
+          <select
+            value={form.reasonCategory}
+            onChange={e => set('reasonCategory', e.target.value)}
+            style={{ ...inputStyle, ...(fieldErrors.reasonCategory ? errorInputStyle : {}) }}
+          >
+            <option value="">Select a reason…</option>
+            {VISIT_REASONS.map(r => (
+              <option key={r} value={r}>{r}</option>
+            ))}
+          </select>
         </Field>
+        {form.reasonCategory === 'Other' && (
+          <Field label="Please describe" error={fieldErrors.reasonOther}>
+            <textarea
+              placeholder="Describe the reason for entry… (max 100 characters)"
+              value={form.reasonOther}
+              onChange={e => set('reasonOther', e.target.value)}
+              rows={3}
+              style={{ ...inputStyle, resize: 'vertical', ...(fieldErrors.reasonOther ? errorInputStyle : {}) }}
+            />
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4, textAlign: 'right' }}>
+              {form.reasonOther.length}/100
+            </div>
+          </Field>
+        )}
 
         {existingRecord && (
           <ExistingRecordCard

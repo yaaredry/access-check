@@ -89,10 +89,54 @@ describe('PersonForm', () => {
     const onSubmit = vi.fn().mockResolvedValue();
     render(<PersonForm onSubmit={onSubmit} onCancel={noop} />);
     await userEvent.type(screen.getByLabelText(/Identifier Value/i), '000000018');
+    await userEvent.selectOptions(screen.getByLabelText(/Reason for Visit/i), 'Maintenance & Technicians');
     fireEvent.click(screen.getByText('Save'));
     await waitFor(() => {
       expect(onSubmit).toHaveBeenCalled();
     });
+  });
+
+  it('shows validation error when reason is not selected', async () => {
+    render(<PersonForm onSubmit={noop} onCancel={noop} />);
+    await userEvent.type(screen.getByLabelText(/Identifier Value/i), '000000018');
+    fireEvent.click(screen.getByText('Save'));
+    await waitFor(() => expect(screen.getByText(/Reason for visit is required/i)).toBeInTheDocument());
+  });
+
+  it('shows validation error when Other is selected but free text is empty', async () => {
+    render(<PersonForm onSubmit={noop} onCancel={noop} />);
+    await userEvent.type(screen.getByLabelText(/Identifier Value/i), '000000018');
+    await userEvent.selectOptions(screen.getByLabelText(/Reason for Visit/i), 'Other');
+    fireEvent.click(screen.getByText('Save'));
+    await waitFor(() => expect(screen.getByText(/Please describe the reason/i)).toBeInTheDocument());
+  });
+
+  it('shows validation error when Other free text exceeds 100 characters', async () => {
+    render(<PersonForm onSubmit={noop} onCancel={noop} />);
+    await userEvent.type(screen.getByLabelText(/Identifier Value/i), '000000018');
+    await userEvent.selectOptions(screen.getByLabelText(/Reason for Visit/i), 'Other');
+    fireEvent.change(screen.getByPlaceholderText(/Describe the reason for this visit/), { target: { value: 'a'.repeat(101) } });
+    fireEvent.click(screen.getByText('Save'));
+    await waitFor(() => expect(screen.getByText(/cannot exceed 100 characters/i)).toBeInTheDocument());
+  });
+
+  it('shows Other free-text textarea only when Other is selected', async () => {
+    render(<PersonForm onSubmit={noop} onCancel={noop} />);
+    expect(screen.queryByPlaceholderText(/Describe the reason for this visit/)).not.toBeInTheDocument();
+    await userEvent.selectOptions(screen.getByLabelText(/Reason for Visit/i), 'Other');
+    expect(screen.getByPlaceholderText(/Describe the reason for this visit/)).toBeInTheDocument();
+    await userEvent.selectOptions(screen.getByLabelText(/Reason for Visit/i), 'Drivers & Transport');
+    expect(screen.queryByPlaceholderText(/Describe the reason for this visit/)).not.toBeInTheDocument();
+  });
+
+  it('dropdown renders all expected options including Other', () => {
+    render(<PersonForm onSubmit={noop} onCancel={noop} />);
+    const select = screen.getByLabelText(/Reason for Visit/i);
+    const options = Array.from(select.options).map(o => o.value);
+    expect(options).toContain('Drivers & Transport');
+    expect(options).toContain('Medical & Emergency');
+    expect(options).toContain('Other');
+    expect(options).toHaveLength(11); // 10 reasons + blank placeholder
   });
 
   it('populates base fields from initial prop', () => {
@@ -115,7 +159,8 @@ describe('PersonForm', () => {
     expect(screen.getByLabelText(/Division/i)).toHaveValue('Alpha');
     expect(screen.getByLabelText(/Escort Full Name/i)).toHaveValue('Jane Doe');
     expect(screen.getByLabelText(/Escort Phone/i)).toHaveValue('+972501234567');
-    expect(screen.getByLabelText(/Reason for Visit/i)).toHaveValue('Visit');
+    expect(screen.getByLabelText(/Reason for Visit/i)).toHaveValue('Other');
+    expect(screen.getByPlaceholderText(/Describe the reason for this visit/)).toHaveValue('Visit');
     expect(screen.getByLabelText(/Requester Name/i)).toHaveValue('Bob');
   });
 
@@ -126,7 +171,7 @@ describe('PersonForm', () => {
     await userEvent.type(screen.getByLabelText(/Identifier Value/i), '000000018');
     await userEvent.type(screen.getByLabelText(/Division/i), 'Bravo');
     await userEvent.type(screen.getByLabelText(/Requester Name/i), 'Bob');
-    await userEvent.type(screen.getByLabelText(/Reason for Visit/i), 'Supply delivery');
+    await userEvent.selectOptions(screen.getByLabelText(/Reason for Visit/i), 'Suppliers & Equipment');
     fireEvent.click(screen.getByText('Save'));
 
     await waitFor(() => {
@@ -138,7 +183,7 @@ describe('PersonForm', () => {
         population: 'IL_MILITARY',
         division: 'Bravo',
         requesterName: 'Bob',
-        reason: 'Supply delivery',
+        reason: 'Suppliers & Equipment',
       }));
     });
   });
@@ -151,6 +196,7 @@ describe('PersonForm', () => {
     await userEvent.selectOptions(screen.getByLabelText(/Population/i), 'CIVILIAN');
     await userEvent.type(screen.getByLabelText(/Escort Full Name/i), 'Jane Doe');
     await userEvent.type(screen.getByLabelText(/Escort Phone/i), '+972501234567');
+    await userEvent.selectOptions(screen.getByLabelText(/Reason for Visit/i), 'Official Visits & Meetings');
     fireEvent.click(screen.getByText('Save'));
 
     await waitFor(() => {
@@ -168,6 +214,7 @@ describe('PersonForm', () => {
 
     await userEvent.selectOptions(screen.getByLabelText(/Status/i), 'ADMIN_APPROVED');
     await userEvent.type(screen.getByLabelText(/Identifier Value/i), '000000018');
+    await userEvent.selectOptions(screen.getByLabelText(/Reason for Visit/i), 'Official Visits & Meetings');
     fireEvent.click(screen.getByText('Save'));
 
     await waitFor(() => {
@@ -181,6 +228,7 @@ describe('PersonForm', () => {
 
     await userEvent.selectOptions(screen.getByLabelText(/Status/i), 'PENDING');
     await userEvent.type(screen.getByLabelText(/Identifier Value/i), '000000018');
+    await userEvent.selectOptions(screen.getByLabelText(/Reason for Visit/i), 'Official Visits & Meetings');
     fireEvent.click(screen.getByText('Save'));
 
     await waitFor(() => {
@@ -196,6 +244,7 @@ describe('PersonForm', () => {
     render(<PersonForm onSubmit={onSubmit} onCancel={noop} />);
 
     await userEvent.type(screen.getByLabelText(/Identifier Value/i), '000000018');
+    await userEvent.selectOptions(screen.getByLabelText(/Reason for Visit/i), 'Official Visits & Meetings');
     fireEvent.click(screen.getByText('Save'));
 
     await waitFor(() => {
@@ -247,6 +296,7 @@ describe('PersonForm — Save & Add Another', () => {
     const onSubmit = vi.fn().mockResolvedValue();
     render(<PersonForm onSubmit={onSubmit} onSaveAndAddAnother={onSaveAndAddAnother} onCancel={noop} />);
     await userEvent.type(screen.getByLabelText(/Identifier Value/i), '000000018');
+    await userEvent.selectOptions(screen.getByLabelText(/Reason for Visit/i), 'Drivers & Transport');
     fireEvent.click(screen.getByText('Save & Add Another'));
     await waitFor(() => expect(onSaveAndAddAnother).toHaveBeenCalled());
     expect(onSubmit).not.toHaveBeenCalled();
@@ -258,6 +308,7 @@ describe('PersonForm — Save & Add Another', () => {
     const onSaveAndAddAnother = vi.fn().mockResolvedValue();
     render(<PersonForm onSubmit={noop} onSaveAndAddAnother={onSaveAndAddAnother} onCancel={noop} />);
     await userEvent.type(screen.getByLabelText(/Identifier Value/i), '000000018');
+    await userEvent.selectOptions(screen.getByLabelText(/Reason for Visit/i), 'Drivers & Transport');
     fireEvent.click(screen.getByText('Save & Add Another'));
     await waitFor(() => expect(onSaveAndAddAnother).toHaveBeenCalled());
     expect(screen.getByLabelText(/Identifier Value/i)).toHaveValue('');
@@ -267,6 +318,7 @@ describe('PersonForm — Save & Add Another', () => {
     const onSaveAndAddAnother = vi.fn().mockResolvedValue();
     render(<PersonForm onSubmit={noop} onSaveAndAddAnother={onSaveAndAddAnother} onCancel={noop} />);
     await userEvent.type(screen.getByLabelText(/Identifier Value/i), '000000018');
+    await userEvent.selectOptions(screen.getByLabelText(/Reason for Visit/i), 'Drivers & Transport');
     fireEvent.change(screen.getByLabelText(/Approval Expiration/i), { target: { value: '2099-12-31' } });
     fireEvent.click(screen.getByText('Save & Add Another'));
     await waitFor(() => expect(onSaveAndAddAnother).toHaveBeenCalled());
@@ -277,6 +329,7 @@ describe('PersonForm — Save & Add Another', () => {
     const onSaveAndAddAnother = vi.fn().mockResolvedValue();
     render(<PersonForm onSubmit={noop} onSaveAndAddAnother={onSaveAndAddAnother} onCancel={noop} />);
     await userEvent.type(screen.getByLabelText(/Identifier Value/i), '000000018');
+    await userEvent.selectOptions(screen.getByLabelText(/Reason for Visit/i), 'Drivers & Transport');
     fireEvent.change(screen.getByLabelText(/Start Date/i), { target: { value: '2099-01-01' } });
     fireEvent.click(screen.getByText('Save & Add Another'));
     await waitFor(() => expect(onSaveAndAddAnother).toHaveBeenCalled());
@@ -291,7 +344,7 @@ describe('PersonForm — Save & Add Another', () => {
     await userEvent.type(screen.getByLabelText(/Division/i), 'Alpha');
     await userEvent.type(screen.getByLabelText(/Escort Full Name/i), 'Jane Doe');
     await userEvent.type(screen.getByLabelText(/Escort Phone/i), '+972501234567');
-    await userEvent.type(screen.getByLabelText(/Reason for Visit/i), 'Group visit');
+    await userEvent.selectOptions(screen.getByLabelText(/Reason for Visit/i), 'Official Visits & Meetings');
     await userEvent.type(screen.getByLabelText(/Requester Name/i), 'Bob');
     fireEvent.click(screen.getByText('Save & Add Another'));
     await waitFor(() => expect(onSaveAndAddAnother).toHaveBeenCalled());
@@ -299,7 +352,7 @@ describe('PersonForm — Save & Add Another', () => {
     expect(screen.getByLabelText(/Division/i)).toHaveValue('Alpha');
     expect(screen.getByLabelText(/Escort Full Name/i)).toHaveValue('Jane Doe');
     expect(screen.getByLabelText(/Escort Phone/i)).toHaveValue('+972501234567');
-    expect(screen.getByLabelText(/Reason for Visit/i)).toHaveValue('Group visit');
+    expect(screen.getByLabelText(/Reason for Visit/i)).toHaveValue('Official Visits & Meetings');
     expect(screen.getByLabelText(/Requester Name/i)).toHaveValue('Bob');
   });
 
@@ -308,6 +361,7 @@ describe('PersonForm — Save & Add Another', () => {
     render(<PersonForm onSubmit={noop} onSaveAndAddAnother={onSaveAndAddAnother} onCancel={noop} />);
     await userEvent.selectOptions(screen.getByLabelText(/Status/i), 'ADMIN_APPROVED');
     await userEvent.type(screen.getByLabelText(/Identifier Value/i), '000000018');
+    await userEvent.selectOptions(screen.getByLabelText(/Reason for Visit/i), 'Official Visits & Meetings');
     fireEvent.click(screen.getByText('Save & Add Another'));
     await waitFor(() => expect(onSaveAndAddAnother).toHaveBeenCalled());
     expect(screen.getByLabelText(/Status/i)).toHaveValue('ADMIN_APPROVED');
@@ -321,9 +375,10 @@ describe('PersonForm — Save & Add Another', () => {
     await userEvent.type(screen.getByLabelText(/Identifier Value/i), '000000018');
     fireEvent.click(screen.getByText('Save'));
     await waitFor(() => expect(screen.getByText(/Escort full name is required/i)).toBeInTheDocument());
-    // Fix escort and use Save & Add Another
+    // Fix escort and reason, then use Save & Add Another
     await userEvent.type(screen.getByLabelText(/Escort Full Name/i), 'Jane Doe');
     await userEvent.type(screen.getByLabelText(/Escort Phone/i), '+972501234567');
+    await userEvent.selectOptions(screen.getByLabelText(/Reason for Visit/i), 'Official Visits & Meetings');
     fireEvent.click(screen.getByText('Save & Add Another'));
     await waitFor(() => expect(onSaveAndAddAnother).toHaveBeenCalled());
     expect(screen.queryByText(/Escort full name is required/i)).not.toBeInTheDocument();
@@ -335,6 +390,7 @@ describe('PersonForm — Save & Add Another', () => {
       .mockResolvedValue();
     render(<PersonForm onSubmit={noop} onSaveAndAddAnother={onSaveAndAddAnother} onCancel={noop} />);
     await userEvent.type(screen.getByLabelText(/Identifier Value/i), '000000018');
+    await userEvent.selectOptions(screen.getByLabelText(/Reason for Visit/i), 'Drivers & Transport');
     fireEvent.click(screen.getByText('Save & Add Another'));
     await waitFor(() => expect(screen.getByText('Server error')).toBeInTheDocument());
     // Retry with Save & Add Another (field still has valid value from first attempt)
@@ -348,12 +404,12 @@ describe('PersonForm — Save & Add Another', () => {
     const onSaveAndAddAnother = vi.fn().mockResolvedValue();
     render(<PersonForm onSubmit={onSubmit} onSaveAndAddAnother={onSaveAndAddAnother} onCancel={noop} />);
     await userEvent.type(screen.getByLabelText(/Identifier Value/i), '000000018');
-    await userEvent.type(screen.getByLabelText(/Reason for Visit/i), 'Delivery');
+    await userEvent.selectOptions(screen.getByLabelText(/Reason for Visit/i), 'Suppliers & Equipment');
     fireEvent.click(screen.getByText('Save'));
     await waitFor(() => expect(onSubmit).toHaveBeenCalled());
     expect(onSaveAndAddAnother).not.toHaveBeenCalled();
     // identifierValue and reason should still be present (parent closes the modal)
     expect(screen.getByLabelText(/Identifier Value/i)).toHaveValue('000000018');
-    expect(screen.getByLabelText(/Reason for Visit/i)).toHaveValue('Delivery');
+    expect(screen.getByLabelText(/Reason for Visit/i)).toHaveValue('Suppliers & Equipment');
   });
 });
