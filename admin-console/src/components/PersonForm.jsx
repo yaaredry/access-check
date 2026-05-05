@@ -1,5 +1,24 @@
 import { useState, useRef } from 'react';
 
+const VISIT_REASONS = [
+  'Drivers & Transport',
+  'Food & Catering',
+  'Construction & Infrastructure',
+  'Maintenance & Technicians',
+  'Suppliers & Equipment',
+  'Regular & Reserve Military Personnel',
+  'Medical & Emergency',
+  'Official Visits & Meetings',
+  'Cleaning & Services',
+  'Other',
+];
+
+function parseReason(reason) {
+  if (!reason) return { reasonCategory: '', reasonOther: '' };
+  if (VISIT_REASONS.includes(reason) && reason !== 'Other') return { reasonCategory: reason, reasonOther: '' };
+  return { reasonCategory: 'Other', reasonOther: reason === 'Other' ? '' : reason };
+}
+
 function validateIlId(value) {
   if (!/^\d{9}$/.test(value)) return false;
   const digits = value.split('').map(Number);
@@ -37,14 +56,17 @@ const EMPTY = {
   division: '',
   escortFullName: '',
   escortPhone: '',
-  reason: '',
+  reasonCategory: '',
+  reasonOther: '',
   requesterName: '',
 };
 
 export default function PersonForm({ initial, onSubmit, onSaveAndAddAnother, onCancel, loading }) {
-  const [form, setForm] = useState(
-    initial ? { ...EMPTY, ...initial, uiStatus: resolveUiStatus(initial) } : EMPTY
-  );
+  const [form, setForm] = useState(() => {
+    if (!initial) return EMPTY;
+    const { reasonCategory, reasonOther } = parseReason(initial.reason || '');
+    return { ...EMPTY, ...initial, uiStatus: resolveUiStatus(initial), reasonCategory, reasonOther };
+  });
   const [fieldErrors, setFieldErrors] = useState({});
   const [error, setError] = useState('');
   const addAnotherRef = useRef(false);
@@ -52,6 +74,7 @@ export default function PersonForm({ initial, onSubmit, onSaveAndAddAnother, onC
   function set(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }));
     if (fieldErrors[field]) setFieldErrors((prev) => ({ ...prev, [field]: '' }));
+    if (field === 'reasonCategory') setFieldErrors(prev => ({ ...prev, reasonOther: '' }));
   }
 
   async function handleSubmit(e) {
@@ -71,6 +94,15 @@ export default function PersonForm({ initial, onSubmit, onSaveAndAddAnother, onC
       if (!form.escortPhone?.trim()) errors.escortPhone = 'Escort phone is required.';
       else if (!/^\+?[\d]+$/.test(form.escortPhone)) errors.escortPhone = 'Phone number can only contain digits and an optional "+" at the start.';
     }
+    if (!form.reasonCategory) {
+      errors.reasonCategory = 'Reason for visit is required.';
+    } else if (form.reasonCategory === 'Other') {
+      if (!form.reasonOther.trim()) {
+        errors.reasonOther = 'Please describe the reason for this visit.';
+      } else if (form.reasonOther.length > 100) {
+        errors.reasonOther = 'Reason cannot exceed 100 characters.';
+      }
+    }
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
       return;
@@ -87,7 +119,7 @@ export default function PersonForm({ initial, onSubmit, onSaveAndAddAnother, onC
         escortFullName: form.escortFullName || null,
         escortPhone: form.escortPhone || null,
         division: form.division || null,
-        reason: form.reason || null,
+        reason: form.reasonCategory === 'Other' ? (form.reasonOther.trim() || null) : (form.reasonCategory || null),
         requesterName: form.requesterName || null,
       };
       if (addAnotherRef.current && onSaveAndAddAnother) {
@@ -223,15 +255,35 @@ export default function PersonForm({ initial, onSubmit, onSaveAndAddAnother, onC
       </div>
 
       <div>
-        <label htmlFor="pf-reason" style={labelStyle}>Reason for Visit (optional)</label>
-        <textarea
-          id="pf-reason"
-          placeholder="Describe the reason for this visit…"
-          value={form.reason || ''}
-          onChange={(e) => set('reason', e.target.value)}
-          rows={3}
-          style={{ resize: 'vertical' }}
-        />
+        <label htmlFor="pf-reasonCategory" style={labelStyle}>Reason for Visit</label>
+        <select
+          id="pf-reasonCategory"
+          value={form.reasonCategory}
+          onChange={(e) => set('reasonCategory', e.target.value)}
+          style={fieldErrors.reasonCategory ? errorInputStyle : undefined}
+        >
+          <option value="">Select a reason…</option>
+          {VISIT_REASONS.map(r => (
+            <option key={r} value={r}>{r}</option>
+          ))}
+        </select>
+        {fieldErrors.reasonCategory && <p style={fieldErrorStyle}>⚠ {fieldErrors.reasonCategory}</p>}
+        {form.reasonCategory === 'Other' && (
+          <>
+            <textarea
+              id="pf-reasonOther"
+              placeholder="Describe the reason for this visit… (max 100 characters)"
+              value={form.reasonOther || ''}
+              onChange={(e) => set('reasonOther', e.target.value)}
+              rows={3}
+              style={{ resize: 'vertical', marginTop: 8, ...(fieldErrors.reasonOther ? errorInputStyle : {}) }}
+            />
+            {fieldErrors.reasonOther && <p style={fieldErrorStyle}>⚠ {fieldErrors.reasonOther}</p>}
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 0', textAlign: 'right' }}>
+              {(form.reasonOther || '').length}/100
+            </p>
+          </>
+        )}
       </div>
 
       {error && <p className="error-msg">{error}</p>}

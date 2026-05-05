@@ -33,7 +33,7 @@ async function fillRequiredFields() {
   await userEvent.type(screen.getByPlaceholderText('Your full name'), 'Jane Smith');
   await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), VALID_ID);
   fireEvent.change(getExpirationInput(), { target: { value: FUTURE_DATE } });
-  await userEvent.type(screen.getByPlaceholderText('Describe the reason for entry…'), 'Supply run');
+  await userEvent.selectOptions(screen.getByDisplayValue('Select a reason…'), 'Drivers & Transport');
 }
 
 describe('AccessRequestForm', () => {
@@ -47,6 +47,7 @@ describe('AccessRequestForm', () => {
     expect(screen.getByText('Division (optional)')).toBeInTheDocument();
     expect(screen.getByText('Expiration Date')).toBeInTheDocument();
     expect(screen.getByText('Reason for Entering')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Select a reason…')).toBeInTheDocument();
     expect(screen.getByText('Submit Request')).toBeInTheDocument();
   });
 
@@ -70,7 +71,7 @@ describe('AccessRequestForm', () => {
     render(<AccessRequestForm onLogout={vi.fn()} />);
     await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), VALID_ID);
     fireEvent.change(getExpirationInput(), { target: { value: FUTURE_DATE } });
-    await userEvent.type(screen.getByPlaceholderText('Describe the reason for entry…'), 'Supply run');
+    await userEvent.selectOptions(screen.getByDisplayValue('Select a reason…'), 'Drivers & Transport');
     submitForm();
     await waitFor(() => expect(screen.getByText(/Please enter your name/i)).toBeInTheDocument());
   });
@@ -85,7 +86,7 @@ describe('AccessRequestForm', () => {
   it('shows validation error when expiration date is missing', async () => {
     render(<AccessRequestForm onLogout={vi.fn()} />);
     await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), VALID_ID);
-    await userEvent.type(screen.getByPlaceholderText('Describe the reason for entry…'), 'Supply run');
+    await userEvent.selectOptions(screen.getByDisplayValue('Select a reason…'), 'Drivers & Transport');
     submitForm();
     await waitFor(() => expect(screen.getByText(/Expiration date is required/)).toBeInTheDocument());
   });
@@ -95,7 +96,7 @@ describe('AccessRequestForm', () => {
     await userEvent.type(screen.getByPlaceholderText('Your full name'), 'Jane Smith');
     await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), VALID_ID);
     fireEvent.change(getExpirationInput(), { target: { value: FAR_FUTURE_DATE } });
-    await userEvent.type(screen.getByPlaceholderText('Describe the reason for entry…'), 'Supply run');
+    await userEvent.selectOptions(screen.getByDisplayValue('Select a reason…'), 'Drivers & Transport');
     submitForm();
     await waitFor(() => expect(screen.getByText(/cannot be more than 7 days/i)).toBeInTheDocument());
   });
@@ -106,7 +107,7 @@ describe('AccessRequestForm', () => {
     await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), VALID_ID);
     fireEvent.change(document.querySelectorAll('input[type="date"]')[0], { target: { value: PAST_DATE_RECENT } });
     fireEvent.change(getExpirationInput(), { target: { value: FUTURE_DATE } });
-    await userEvent.type(screen.getByPlaceholderText('Describe the reason for entry…'), 'Supply run');
+    await userEvent.selectOptions(screen.getByDisplayValue('Select a reason…'), 'Drivers & Transport');
     submitForm();
     await waitFor(() => expect(screen.getByText(/Start date cannot be in the past/i)).toBeInTheDocument());
   });
@@ -118,7 +119,7 @@ describe('AccessRequestForm', () => {
     await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), VALID_ID);
     fireEvent.change(document.querySelectorAll('input[type="date"]')[0], { target: { value: TODAY } });
     fireEvent.change(getExpirationInput(), { target: { value: FUTURE_DATE } });
-    await userEvent.type(screen.getByPlaceholderText('Describe the reason for entry…'), 'Supply run');
+    await userEvent.selectOptions(screen.getByDisplayValue('Select a reason…'), 'Drivers & Transport');
     submitForm();
     await waitFor(() => expect(screen.getByText('Request Submitted')).toBeInTheDocument());
     expect(screen.queryByText(/Start date cannot be in the past/i)).not.toBeInTheDocument();
@@ -133,7 +134,7 @@ describe('AccessRequestForm', () => {
     const DAY_AFTER_TOMORROW = dayAfterTomorrow.toISOString().split('T')[0];
     fireEvent.change(document.querySelectorAll('input[type="date"]')[0], { target: { value: DAY_AFTER_TOMORROW } });
     fireEvent.change(getExpirationInput(), { target: { value: FUTURE_DATE } }); // tomorrow < day after tomorrow
-    await userEvent.type(screen.getByPlaceholderText('Describe the reason for entry…'), 'Supply run');
+    await userEvent.selectOptions(screen.getByDisplayValue('Select a reason…'), 'Drivers & Transport');
     submitForm();
     await waitFor(() => expect(screen.getByText(/Expiration date cannot be before the start date/i)).toBeInTheDocument());
   });
@@ -144,7 +145,7 @@ describe('AccessRequestForm', () => {
     await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), VALID_ID);
     fireEvent.change(document.querySelectorAll('input[type="date"]')[0], { target: { value: FUTURE_DATE } });
     fireEvent.change(getExpirationInput(), { target: { value: FAR_FUTURE_DATE } });
-    await userEvent.type(screen.getByPlaceholderText('Describe the reason for entry…'), 'Supply run');
+    await userEvent.selectOptions(screen.getByDisplayValue('Select a reason…'), 'Drivers & Transport');
     submitForm();
     await waitFor(() => expect(screen.getByText(/cannot be more than 7 days from the start date/i)).toBeInTheDocument());
   });
@@ -154,7 +155,61 @@ describe('AccessRequestForm', () => {
     await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), VALID_ID);
     fireEvent.change(getExpirationInput(), { target: { value: FUTURE_DATE } });
     submitForm();
-    await waitFor(() => expect(screen.getByText(/reason for this visit/i)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/Please select a reason for this visit/i)).toBeInTheDocument());
+  });
+
+  it('shows validation error when Other is selected but free text is empty', async () => {
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    await userEvent.type(screen.getByPlaceholderText('Your full name'), 'Jane Smith');
+    await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), VALID_ID);
+    fireEvent.change(getExpirationInput(), { target: { value: FUTURE_DATE } });
+    await userEvent.selectOptions(screen.getByDisplayValue('Select a reason…'), 'Other');
+    submitForm();
+    await waitFor(() => expect(screen.getByText(/Please describe the reason/i)).toBeInTheDocument());
+  });
+
+  it('shows validation error when Other free text exceeds 100 characters', async () => {
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    await userEvent.type(screen.getByPlaceholderText('Your full name'), 'Jane Smith');
+    await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), VALID_ID);
+    fireEvent.change(getExpirationInput(), { target: { value: FUTURE_DATE } });
+    await userEvent.selectOptions(screen.getByDisplayValue('Select a reason…'), 'Other');
+    fireEvent.change(screen.getByPlaceholderText('Describe the reason for entry… (max 100 characters)'), { target: { value: 'a'.repeat(101) } });
+    submitForm();
+    await waitFor(() => expect(screen.getByText(/cannot exceed 100 characters/i)).toBeInTheDocument());
+  });
+
+  it('shows Other free-text textarea only when Other is selected', async () => {
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    expect(screen.queryByPlaceholderText('Describe the reason for entry… (max 100 characters)')).not.toBeInTheDocument();
+    await userEvent.selectOptions(screen.getByDisplayValue('Select a reason…'), 'Other');
+    expect(screen.getByPlaceholderText('Describe the reason for entry… (max 100 characters)')).toBeInTheDocument();
+    await userEvent.selectOptions(screen.getByDisplayValue('Other'), 'Drivers & Transport');
+    expect(screen.queryByPlaceholderText('Describe the reason for entry… (max 100 characters)')).not.toBeInTheDocument();
+  });
+
+  it('submits successfully with Other + valid free text', async () => {
+    api.submitAccessRequest.mockResolvedValue({});
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    await userEvent.type(screen.getByPlaceholderText('Your full name'), 'Jane Smith');
+    await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), VALID_ID);
+    fireEvent.change(getExpirationInput(), { target: { value: FUTURE_DATE } });
+    await userEvent.selectOptions(screen.getByDisplayValue('Select a reason…'), 'Other');
+    await userEvent.type(screen.getByPlaceholderText('Describe the reason for entry… (max 100 characters)'), 'Custom reason');
+    submitForm();
+    await waitFor(() => expect(screen.getByText('Request Submitted')).toBeInTheDocument());
+    expect(api.submitAccessRequest).toHaveBeenCalledWith(expect.objectContaining({ reason: 'Custom reason' }));
+  });
+
+  it('dropdown renders all expected options including Other', () => {
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    const select = screen.getByDisplayValue('Select a reason…');
+    const options = Array.from(select.options).map(o => o.value);
+    expect(options).toContain('Drivers & Transport');
+    expect(options).toContain('Food & Catering');
+    expect(options).toContain('Medical & Emergency');
+    expect(options).toContain('Other');
+    expect(options).toHaveLength(11); // 10 reasons + blank placeholder
   });
 
   it('shows validation error for civilian with missing escort name', async () => {
@@ -163,7 +218,7 @@ describe('AccessRequestForm', () => {
     await userEvent.selectOptions(screen.getByDisplayValue('IL Military'), 'CIVILIAN');
     await userEvent.type(screen.getByPlaceholderText('+972501234567'), '+972501234567');
     fireEvent.change(getExpirationInput(), { target: { value: FUTURE_DATE } });
-    await userEvent.type(screen.getByPlaceholderText('Describe the reason for entry…'), 'Visit');
+    await userEvent.selectOptions(screen.getByDisplayValue('Select a reason…'), 'Drivers & Transport');
     submitForm();
     await waitFor(() => expect(screen.getByText(/escort full name is required/i)).toBeInTheDocument());
   });
@@ -175,7 +230,7 @@ describe('AccessRequestForm', () => {
     await userEvent.type(screen.getByPlaceholderText("Escort's full name"), 'Jane');
     await userEvent.type(screen.getByPlaceholderText('+972501234567'), 'not-a-phone');
     fireEvent.change(getExpirationInput(), { target: { value: FUTURE_DATE } });
-    await userEvent.type(screen.getByPlaceholderText('Describe the reason for entry…'), 'Visit');
+    await userEvent.selectOptions(screen.getByDisplayValue('Select a reason…'), 'Drivers & Transport');
     submitForm();
     await waitFor(() => expect(screen.getByText(/only contain digits/i)).toBeInTheDocument());
   });
@@ -219,7 +274,7 @@ describe('AccessRequestForm', () => {
     fireEvent.click(screen.getByText('Add Another Person (Same Details)'));
     expect(screen.getByPlaceholderText('9-digit Israeli ID')).toHaveValue('');
     expect(screen.getByPlaceholderText('Your full name')).toHaveValue('Jane Smith');
-    expect(screen.getByPlaceholderText('Describe the reason for entry…')).toHaveValue('Supply run');
+    expect(screen.getByDisplayValue('Drivers & Transport')).toBeInTheDocument();
   });
 
   it('Add Another Person clears expiration date', async () => {
@@ -256,14 +311,14 @@ describe('AccessRequestForm', () => {
     await userEvent.type(screen.getByPlaceholderText("Escort's full name"), 'Guard One');
     await userEvent.type(screen.getByPlaceholderText('+972501234567'), '+972501234567');
     fireEvent.change(getExpirationInput(), { target: { value: FUTURE_DATE } });
-    await userEvent.type(screen.getByPlaceholderText('Describe the reason for entry…'), 'Group tour');
+    await userEvent.selectOptions(screen.getByDisplayValue('Select a reason…'), 'Food & Catering');
     submitForm();
     await waitFor(() => screen.getByText('Add Another Person (Same Details)'));
     fireEvent.click(screen.getByText('Add Another Person (Same Details)'));
     expect(screen.getByDisplayValue('Civilian')).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Escort's full name")).toHaveValue('Guard One');
     expect(screen.getByPlaceholderText('+972501234567')).toHaveValue('+972501234567');
-    expect(screen.getByPlaceholderText('Describe the reason for entry…')).toHaveValue('Group tour');
+    expect(screen.getByDisplayValue('Food & Catering')).toBeInTheDocument();
   });
 
   it('Add Another Person clears field errors', async () => {
@@ -289,7 +344,7 @@ describe('AccessRequestForm', () => {
     render(<AccessRequestForm onLogout={vi.fn()} requestorName="Dana Levi" />);
     await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), VALID_ID);
     fireEvent.change(getExpirationInput(), { target: { value: FUTURE_DATE } });
-    await userEvent.type(screen.getByPlaceholderText('Describe the reason for entry…'), 'Delivery');
+    await userEvent.selectOptions(screen.getByDisplayValue('Select a reason…'), 'Drivers & Transport');
     submitForm();
     await waitFor(() => screen.getByText('Add Another Person (Same Details)'));
     fireEvent.click(screen.getByText('Add Another Person (Same Details)'));
@@ -352,7 +407,7 @@ describe('AccessRequestForm', () => {
     // Don't fill name (it's locked), fill everything else
     await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), VALID_ID);
     fireEvent.change(getExpirationInput(), { target: { value: FUTURE_DATE } });
-    await userEvent.type(screen.getByPlaceholderText('Describe the reason for entry…'), 'Supply run');
+    await userEvent.selectOptions(screen.getByDisplayValue('Select a reason…'), 'Drivers & Transport');
     submitForm();
     await waitFor(() => expect(screen.queryByText(/Please enter your name/i)).not.toBeInTheDocument());
   });
@@ -362,7 +417,7 @@ describe('AccessRequestForm', () => {
     render(<AccessRequestForm onLogout={vi.fn()} requestorName="Dana Levi" />);
     await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), VALID_ID);
     fireEvent.change(getExpirationInput(), { target: { value: FUTURE_DATE } });
-    await userEvent.type(screen.getByPlaceholderText('Describe the reason for entry…'), 'Supply run');
+    await userEvent.selectOptions(screen.getByDisplayValue('Select a reason…'), 'Drivers & Transport');
     submitForm();
     await waitFor(() => screen.getByText('Start Fresh'));
     fireEvent.click(screen.getByText('Start Fresh'));
@@ -404,9 +459,18 @@ describe('AccessRequestForm — extendRecord prop', () => {
     expect(idInput).toBeDisabled();
   });
 
-  it('pre-fills reason from extendRecord', () => {
+  it('pre-fills reason from extendRecord when not in the dropdown list', () => {
     render(<AccessRequestForm onLogout={vi.fn()} requestorName="Dana" extendRecord={EXPIRED_SUBMISSION} />);
-    expect(screen.getByPlaceholderText('Describe the reason for entry…')).toHaveValue('Supply run');
+    // 'Supply run' is not a named option → Other selected, free text shown
+    expect(screen.getByDisplayValue('Other')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Describe the reason for entry… (max 100 characters)')).toHaveValue('Supply run');
+  });
+
+  it('pre-fills reason from extendRecord when it matches a named option', () => {
+    const record = { ...EXPIRED_SUBMISSION, reason: 'Medical & Emergency' };
+    render(<AccessRequestForm onLogout={vi.fn()} requestorName="Dana" extendRecord={record} />);
+    expect(screen.getByDisplayValue('Medical & Emergency')).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText('Describe the reason for entry… (max 100 characters)')).not.toBeInTheDocument();
   });
 
   it('pre-fills division from extendRecord', () => {
@@ -600,7 +664,7 @@ describe('AccessRequestForm — resubmit flow', () => {
     render(<AccessRequestForm onLogout={vi.fn()} requestorName="Bob Jones" />);
     await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), VALID_ID);
     fireEvent.change(getExpirationInput(), { target: { value: FUTURE_DATE } });
-    await userEvent.type(screen.getByPlaceholderText('Describe the reason for entry…'), 'Supply run');
+    await userEvent.selectOptions(screen.getByDisplayValue('Select a reason…'), 'Drivers & Transport');
     submitForm();
     await waitFor(() => expect(screen.getByRole('button', { name: /Request Extension until/i })).toBeInTheDocument());
   });
@@ -699,7 +763,7 @@ describe('AccessRequestForm — duration chips', () => {
     render(<AccessRequestForm onLogout={vi.fn()} requestorName="Dana" />);
     await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), VALID_ID);
     fireEvent.click(screen.getByRole('button', { name: 'Today' }));
-    await userEvent.type(screen.getByPlaceholderText('Describe the reason for entry…'), 'Supply run');
+    await userEvent.selectOptions(screen.getByDisplayValue('Select a reason…'), 'Drivers & Transport');
     fireEvent.submit(document.querySelector('form'));
     await waitFor(() => expect(screen.getByText('Request Submitted')).toBeInTheDocument());
   });
@@ -709,7 +773,7 @@ describe('AccessRequestForm — duration chips', () => {
     render(<AccessRequestForm onLogout={vi.fn()} requestorName="Dana" />);
     await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), VALID_ID);
     fireEvent.click(screen.getByRole('button', { name: '7 days' }));
-    await userEvent.type(screen.getByPlaceholderText('Describe the reason for entry…'), 'Supply run');
+    await userEvent.selectOptions(screen.getByDisplayValue('Select a reason…'), 'Drivers & Transport');
     fireEvent.submit(document.querySelector('form'));
     await waitFor(() => screen.getByText('Start Fresh'));
     fireEvent.click(screen.getByText('Start Fresh'));
@@ -783,7 +847,7 @@ describe('AccessRequestForm — maxRequestDays dynamic chips', () => {
     render(<AccessRequestForm onLogout={vi.fn()} requestorName="Dana" maxRequestDays={3} />);
     await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), VALID_ID);
     fireEvent.change(document.querySelectorAll('input[type="date"]')[1], { target: { value: IN_5_DAYS } });
-    await userEvent.type(screen.getByPlaceholderText('Describe the reason for entry…'), 'Visit');
+    await userEvent.selectOptions(screen.getByDisplayValue('Select a reason…'), 'Drivers & Transport');
     fireEvent.submit(document.querySelector('form'));
     await waitFor(() => expect(screen.getByText(/cannot be more than 3 days/i)).toBeInTheDocument());
   });
