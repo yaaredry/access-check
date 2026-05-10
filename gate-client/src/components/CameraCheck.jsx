@@ -4,7 +4,7 @@ import VerdictDisplay from './VerdictDisplay';
 
 const TIMEOUT_MS = 30_000;
 
-export default function CameraCheck({ onBack, onSwitch }) {
+export default function CameraCheck({ onBack, onSwitch, onResult }) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
@@ -32,6 +32,7 @@ export default function CameraCheck({ onBack, onSwitch }) {
     try {
       const res = await api.verifyImage(file, controller.signal);
       setResult(res);
+      if (res.identifierValue) onResult?.({ identifierValue: res.identifierValue, verdict: res.verdict });
     } catch (err) {
       if (err.name === 'AbortError' || controller.signal.aborted) {
         onBack();
