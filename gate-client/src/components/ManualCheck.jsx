@@ -2,6 +2,28 @@ import { useState } from 'react';
 import { api } from '../api/client';
 import VerdictDisplay from './VerdictDisplay';
 
+const VERDICT_COLORS = {
+  APPROVED: 'var(--approved)',
+  ADMIN_APPROVED: '#ca8a04',
+  APPROVED_WITH_ESCORT: '#eab308',
+  NOT_APPROVED: 'var(--not-approved)',
+  EXPIRED: '#ef4444',
+  PENDING: 'var(--text-muted)',
+  NOT_FOUND: 'var(--text-muted)',
+  NOT_YET_ACTIVE: '#6366f1',
+};
+
+const VERDICT_LABELS = {
+  APPROVED: 'APPROVED',
+  ADMIN_APPROVED: 'ADMIN APPROVED',
+  APPROVED_WITH_ESCORT: 'WITH ESCORT',
+  NOT_APPROVED: 'NOT APPROVED',
+  EXPIRED: 'EXPIRED',
+  PENDING: 'PENDING',
+  NOT_FOUND: 'NOT FOUND',
+  NOT_YET_ACTIVE: 'NOT YET ACTIVE',
+};
+
 function validateIlId(value) {
   if (!/^\d{9}$/.test(value)) return false;
   const digits = value.split('').map(Number);
@@ -20,12 +42,13 @@ function isValidId(type, value) {
   return false;
 }
 
-export default function ManualCheck({ onBack }) {
+export default function ManualCheck({ onBack, recentChecks = [], onResult }) {
   const [type, setType] = useState('IL_ID');
   const [value, setValue] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
+  const [showRecent, setShowRecent] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -39,6 +62,7 @@ export default function ManualCheck({ onBack }) {
     try {
       const res = await api.verifyId(type, value.trim());
       setResult(res);
+      onResult?.({ identifierValue: value.trim(), verdict: res.verdict });
     } catch (err) {
       setError(err.message || 'Verification failed');
     } finally {
@@ -100,6 +124,43 @@ export default function ManualCheck({ onBack }) {
           {loading ? 'Checking…' : 'Check'}
         </button>
       </form>
+
+      {recentChecks.length > 0 && (
+        <div>
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => setShowRecent(prev => !prev)}
+            style={{ fontSize: 14, padding: '8px 16px' }}
+          >
+            🕒 Recent ({recentChecks.length})
+          </button>
+          {showRecent && (
+            <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {recentChecks.map((entry, i) => (
+                <div key={i} style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '10px 14px',
+                  background: 'var(--surface)',
+                  borderRadius: 'var(--radius)',
+                  border: '1px solid var(--border)',
+                }}>
+                  <span style={{ fontWeight: 600, letterSpacing: 1 }}>{entry.identifierValue}</span>
+                  <span style={{
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: VERDICT_COLORS[entry.verdict] || 'var(--text-muted)',
+                  }}>
+                    {VERDICT_LABELS[entry.verdict] || entry.verdict}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <button className="back" onClick={onBack}>← Back</button>
     </div>

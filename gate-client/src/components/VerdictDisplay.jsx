@@ -53,7 +53,7 @@ const CONFIG = {
   },
 };
 
-export default function VerdictDisplay({ verdict, identifierValue, escortName, escortPhone, onBack, autoResetMs = 8000 }) {
+export default function VerdictDisplay({ verdict, identifierValue, escortName, escortPhone, onBack, autoResetMs = 15000 }) {
   const cfg = CONFIG[verdict] || CONFIG.NOT_FOUND;
 
   useEffect(() => {

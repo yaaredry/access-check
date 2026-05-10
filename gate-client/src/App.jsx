@@ -37,6 +37,11 @@ export default function App() {
   const [role, setRole] = useState(() => localStorage.getItem('gate_role') || '');
   const [requestorName, setRequestorName] = useState(() => localStorage.getItem('gate_name') || '');
   const [view, setView] = useState(VIEW_MANUAL);
+  const [recentChecks, setRecentChecks] = useState([]);
+
+  function addRecentCheck(entry) {
+    setRecentChecks(prev => [entry, ...prev].slice(0, 3));
+  }
 
   function handleLogout() {
     clearGateSession();
@@ -68,8 +73,8 @@ export default function App() {
       margin: '0 auto',
     }}>
       {view === VIEW_HOME && <Home onManual={() => setView(VIEW_MANUAL)} onLogout={handleLogout} />}
-      {view === VIEW_MANUAL && <ManualCheck onBack={() => setView(VIEW_HOME)} />}
-      {view === VIEW_CAMERA && <CameraCheck onBack={() => setView(VIEW_HOME)} onSwitch={() => setView(VIEW_MANUAL)} />}
+      {view === VIEW_MANUAL && <ManualCheck onBack={() => setView(VIEW_HOME)} recentChecks={recentChecks} onResult={addRecentCheck} />}
+      {view === VIEW_CAMERA && <CameraCheck onBack={() => setView(VIEW_HOME)} onSwitch={() => setView(VIEW_MANUAL)} onResult={addRecentCheck} />}
     </div>
   );
 }

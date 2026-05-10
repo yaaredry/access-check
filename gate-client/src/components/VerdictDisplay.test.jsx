@@ -84,8 +84,8 @@ describe('VerdictDisplay', () => {
   });
 
   it('shows auto-reset countdown text', () => {
-    render(<VerdictDisplay verdict="APPROVED" onBack={vi.fn()} autoResetMs={8000} />);
-    expect(screen.getByText('Auto-reset in 8s')).toBeInTheDocument();
+    render(<VerdictDisplay verdict="APPROVED" onBack={vi.fn()} autoResetMs={15000} />);
+    expect(screen.getByText('Auto-reset in 15s')).toBeInTheDocument();
   });
 
   it('shows APPROVED WITH ESCORT label and icon', () => {

@@ -96,4 +96,60 @@ describe('ManualCheck', () => {
     expect(onBack).toHaveBeenCalled();
   });
 
+  it('calls onResult with identifierValue and verdict after successful check', async () => {
+    api.verifyId.mockResolvedValue({ verdict: 'APPROVED' });
+    const onResult = vi.fn();
+    render(<ManualCheck onBack={vi.fn()} onResult={onResult} />);
+    await userEvent.type(screen.getByPlaceholderText('Enter ID number'), '000000018');
+    fireEvent.click(screen.getByText('Check'));
+    await waitFor(() => expect(onResult).toHaveBeenCalledWith({ identifierValue: '000000018', verdict: 'APPROVED' }));
+  });
+
+  it('does not show Recent button when recentChecks is empty', () => {
+    render(<ManualCheck onBack={vi.fn()} recentChecks={[]} />);
+    expect(screen.queryByText(/Recent/)).not.toBeInTheDocument();
+  });
+
+  it('shows Recent button when recentChecks has entries', () => {
+    const recent = [{ identifierValue: '000000018', verdict: 'APPROVED' }];
+    render(<ManualCheck onBack={vi.fn()} recentChecks={recent} />);
+    expect(screen.getByText('🕒 Recent (1)')).toBeInTheDocument();
+  });
+
+  it('toggles recent panel on button click', async () => {
+    const recent = [{ identifierValue: '000000018', verdict: 'APPROVED' }];
+    render(<ManualCheck onBack={vi.fn()} recentChecks={recent} />);
+    expect(screen.queryByText('000000018')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText('🕒 Recent (1)'));
+    expect(screen.getByText('000000018')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('🕒 Recent (1)'));
+    expect(screen.queryByText('000000018')).not.toBeInTheDocument();
+  });
+
+  it('shows verdict label for each recent entry', async () => {
+    const recent = [
+      { identifierValue: '000000018', verdict: 'APPROVED' },
+      { identifierValue: '123456782', verdict: 'NOT_APPROVED' },
+    ];
+    render(<ManualCheck onBack={vi.fn()} recentChecks={recent} />);
+    fireEvent.click(screen.getByText('🕒 Recent (2)'));
+    expect(screen.getByText('APPROVED')).toBeInTheDocument();
+    expect(screen.getByText('NOT APPROVED')).toBeInTheDocument();
+    expect(screen.getByText('000000018')).toBeInTheDocument();
+    expect(screen.getByText('123456782')).toBeInTheDocument();
+  });
+
+  it('shows up to 3 recent entries', () => {
+    const recent = [
+      { identifierValue: '000000018', verdict: 'APPROVED' },
+      { identifierValue: '123456782', verdict: 'EXPIRED' },
+      { identifierValue: '987654321', verdict: 'NOT_FOUND' },
+    ];
+    render(<ManualCheck onBack={vi.fn()} recentChecks={recent} />);
+    fireEvent.click(screen.getByText('🕒 Recent (3)'));
+    expect(screen.getByText('000000018')).toBeInTheDocument();
+    expect(screen.getByText('123456782')).toBeInTheDocument();
+    expect(screen.getByText('987654321')).toBeInTheDocument();
+  });
+
 });
