@@ -5,7 +5,11 @@ import AccessRequestForm from './AccessRequestForm';
 import { api } from '../api/client';
 
 vi.mock('../api/client', () => ({
-  api: { submitAccessRequest: vi.fn(), resubmitAccessRequest: vi.fn() },
+  api: {
+    submitAccessRequest: vi.fn(),
+    resubmitAccessRequest: vi.fn(),
+    getMySuggestions: vi.fn().mockResolvedValue({ suggestions: [] }),
+  },
 }));
 
 // A valid date within the allowed 7-day window (tomorrow)
@@ -850,5 +854,117 @@ describe('AccessRequestForm — maxRequestDays dynamic chips', () => {
     await userEvent.selectOptions(screen.getByDisplayValue('Select a reason…'), 'Drivers & Transport');
     fireEvent.submit(document.querySelector('form'));
     await waitFor(() => expect(screen.getByText(/cannot be more than 3 days/i)).toBeInTheDocument());
+  });
+});
+
+// ── ID autocomplete ───────────────────────────────────────────────────────────
+
+const SUGGESTION = {
+  identifier_value: '000000018',
+  population: 'CIVILIAN',
+  division: 'Logistics',
+  escort_full_name: 'Guard One',
+  escort_phone: '+972501234567',
+  reason: 'Food & Catering',
+};
+
+describe('AccessRequestForm — ID autocomplete', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    api.getMySuggestions.mockResolvedValue({ suggestions: [] });
+  });
+
+  it('fetches suggestions on mount (non-extend mode)', async () => {
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    await waitFor(() => expect(api.getMySuggestions).toHaveBeenCalledTimes(1));
+  });
+
+  it('does not fetch suggestions when in extend-record mode', () => {
+    render(<AccessRequestForm onLogout={vi.fn()} requestorName="Dana" extendRecord={EXPIRED_SUBMISSION} />);
+    expect(api.getMySuggestions).not.toHaveBeenCalled();
+  });
+
+  it('shows matching suggestions when user types a prefix', async () => {
+    api.getMySuggestions.mockResolvedValue({ suggestions: [SUGGESTION] });
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    await waitFor(() => expect(api.getMySuggestions).toHaveBeenCalled());
+
+    const idInput = screen.getByPlaceholderText('9-digit Israeli ID');
+    await userEvent.type(idInput, '000');
+    await waitFor(() => expect(screen.getByText('000000018')).toBeInTheDocument());
+  });
+
+  it('does not show suggestions when typed value does not match any previous ID', async () => {
+    api.getMySuggestions.mockResolvedValue({ suggestions: [SUGGESTION] });
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    await waitFor(() => expect(api.getMySuggestions).toHaveBeenCalled());
+
+    const idInput = screen.getByPlaceholderText('9-digit Israeli ID');
+    await userEvent.type(idInput, '999');
+    expect(screen.queryByText('000000018')).not.toBeInTheDocument();
+  });
+
+  it('does not show suggestions when the ID field is empty', async () => {
+    api.getMySuggestions.mockResolvedValue({ suggestions: [SUGGESTION] });
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    await waitFor(() => expect(api.getMySuggestions).toHaveBeenCalled());
+
+    screen.getByPlaceholderText('9-digit Israeli ID').focus();
+    expect(screen.queryByText('000000018')).not.toBeInTheDocument();
+  });
+
+  it('selecting a suggestion pre-fills all form fields', async () => {
+    api.getMySuggestions.mockResolvedValue({ suggestions: [SUGGESTION] });
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    await waitFor(() => expect(api.getMySuggestions).toHaveBeenCalled());
+
+    const idInput = screen.getByPlaceholderText('9-digit Israeli ID');
+    await userEvent.type(idInput, '000');
+    await waitFor(() => expect(screen.getByText('000000018')).toBeInTheDocument());
+    fireEvent.mouseDown(screen.getByText('000000018'));
+
+    expect(idInput).toHaveValue('000000018');
+    expect(screen.getByDisplayValue('Civilian')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Unit or division')).toHaveValue('Logistics');
+    expect(screen.getByPlaceholderText("Escort's full name")).toHaveValue('Guard One');
+    expect(screen.getByPlaceholderText('+972501234567')).toHaveValue('+972501234567');
+    expect(screen.getByDisplayValue('Food & Catering')).toBeInTheDocument();
+  });
+
+  it('suggestion hint shows population and division', async () => {
+    api.getMySuggestions.mockResolvedValue({ suggestions: [SUGGESTION] });
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    await waitFor(() => expect(api.getMySuggestions).toHaveBeenCalled());
+
+    await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), '000');
+    await waitFor(() => expect(screen.getByText(/Civilian · Logistics/)).toBeInTheDocument());
+  });
+
+  it('suggestion hint shows Military for IL_MILITARY population', async () => {
+    api.getMySuggestions.mockResolvedValue({ suggestions: [{ ...SUGGESTION, population: 'IL_MILITARY' }] });
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    await waitFor(() => expect(api.getMySuggestions).toHaveBeenCalled());
+
+    await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), '000');
+    await waitFor(() => expect(screen.getByText(/Military · Logistics/)).toBeInTheDocument());
+  });
+
+  it('dropdown disappears after selecting a suggestion', async () => {
+    api.getMySuggestions.mockResolvedValue({ suggestions: [SUGGESTION] });
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    await waitFor(() => expect(api.getMySuggestions).toHaveBeenCalled());
+
+    await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), '000');
+    await waitFor(() => expect(screen.getByText('000000018')).toBeInTheDocument());
+    fireEvent.mouseDown(screen.getByText('000000018'));
+
+    expect(screen.queryByRole('list')).not.toBeInTheDocument();
+  });
+
+  it('silently ignores getMySuggestions API errors (no crash)', async () => {
+    api.getMySuggestions.mockRejectedValue(new Error('Network error'));
+    expect(() => render(<AccessRequestForm onLogout={vi.fn()} />)).not.toThrow();
+    // Form still renders normally
+    await waitFor(() => expect(screen.getByPlaceholderText('9-digit Israeli ID')).toBeInTheDocument());
   });
 });
