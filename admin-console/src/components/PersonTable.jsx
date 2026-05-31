@@ -3,6 +3,7 @@ import { api } from '../api/client';
 import VisitHistoryModal from './VisitHistoryModal';
 
 function verdictBadge(verdict, expiration, status, startDate) {
+  if (status === 'BLOCKED') return <span className="badge blocked">🚫 Blocked</span>;
   if (status === 'PENDING') return <span className="badge pending">Pending</span>;
   if (status === 'NOT_APPROVED' || verdict === 'NOT_APPROVED') return <span className="badge not-approved">Not Approved</span>;
   const wasApproved = ['APPROVED', 'ADMIN_APPROVED', 'APPROVED_WITH_ESCORT'].includes(verdict);
@@ -61,7 +62,7 @@ function SortIcon({ active, dir }) {
   return <span style={{ marginLeft: 4, fontSize: 11 }}>{dir === 'asc' ? '↑' : '↓'}</span>;
 }
 
-export default function PersonTable({ rows, onEdit, onDelete, onApprove, onReject }) {
+export default function PersonTable({ rows, onEdit, onDelete, onApprove, onReject, onBlock, onUnblock }) {
   const [sortKey, setSortKey] = useState(null);
   const [sortDir, setSortDir] = useState('asc');
   const [selectedPerson, setSelectedPerson] = useState(null);
@@ -145,7 +146,11 @@ export default function PersonTable({ rows, onEdit, onDelete, onApprove, onRejec
               onClick={() => handleRowClick(p)}
               style={{
                 cursor: 'pointer',
-                ...(p.status === 'PENDING' ? { background: 'rgba(234,179,8,.07)' } : {}),
+                ...(p.status === 'BLOCKED'
+                  ? { background: 'rgba(153,27,27,.07)', borderLeft: '3px solid #991b1b' }
+                  : p.status === 'PENDING'
+                    ? { background: 'rgba(234,179,8,.07)' }
+                    : {}),
               }}
             >
               <td style={{ color: 'var(--text-muted)' }}>{p.id}</td>
@@ -167,6 +172,11 @@ export default function PersonTable({ rows, onEdit, onDelete, onApprove, onRejec
                     {p.rejection_reason}
                   </div>
                 )}
+                {p.block_reason && (
+                  <div style={{ fontSize: 11, color: '#991b1b', marginTop: 4, maxWidth: 180 }} title={p.block_reason}>
+                    {p.block_reason}
+                  </div>
+                )}
               </td>
               <td>
                 {p.approval_start_date && p.approval_expiration
@@ -185,16 +195,32 @@ export default function PersonTable({ rows, onEdit, onDelete, onApprove, onRejec
               </td>
               <td>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  {p.status === 'PENDING' && (
-                    <button className="primary" style={{ padding: '4px 10px', fontSize: 12 }} onClick={(e) => { e.stopPropagation(); onApprove(p); }}>Approve</button>
+                  {p.status === 'BLOCKED' ? (
+                    <button
+                      className="secondary"
+                      style={{ padding: '4px 10px', fontSize: 12, borderColor: '#991b1b', color: '#991b1b' }}
+                      onClick={(e) => { e.stopPropagation(); onUnblock(p); }}
+                    >Unblock</button>
+                  ) : (
+                    <>
+                      {p.status === 'PENDING' && (
+                        <button className="primary" style={{ padding: '4px 10px', fontSize: 12 }} onClick={(e) => { e.stopPropagation(); onApprove(p); }}>Approve</button>
+                      )}
+                      <button
+                        className="danger"
+                        style={{ padding: '4px 10px', fontSize: 12, opacity: p.status === 'NOT_APPROVED' ? 0.35 : 1, cursor: p.status === 'NOT_APPROVED' ? 'not-allowed' : 'pointer' }}
+                        disabled={p.status === 'NOT_APPROVED'}
+                        title={p.status === 'NOT_APPROVED' ? 'Already rejected' : undefined}
+                        onClick={(e) => { e.stopPropagation(); onReject(p); }}
+                      >Reject</button>
+                      <button
+                        className="danger"
+                        style={{ padding: '4px 10px', fontSize: 12, background: '#7f1d1d', borderColor: '#7f1d1d' }}
+                        onClick={(e) => { e.stopPropagation(); onBlock(p); }}
+                        title="Block this person"
+                      >🚫 Block</button>
+                    </>
                   )}
-                  <button
-                    className="danger"
-                    style={{ padding: '4px 10px', fontSize: 12, opacity: p.status === 'NOT_APPROVED' ? 0.35 : 1, cursor: p.status === 'NOT_APPROVED' ? 'not-allowed' : 'pointer' }}
-                    disabled={p.status === 'NOT_APPROVED'}
-                    title={p.status === 'NOT_APPROVED' ? 'Already rejected' : undefined}
-                    onClick={(e) => { e.stopPropagation(); onReject(p); }}
-                  >Reject</button>
                   <button className="secondary" style={{ padding: '4px 10px', fontSize: 12 }} onClick={(e) => { e.stopPropagation(); onEdit(p); }}>Edit</button>
                   <button className="danger" style={{ padding: '4px 10px', fontSize: 12 }} onClick={(e) => { e.stopPropagation(); onDelete(p); }}>Delete</button>
                 </div>

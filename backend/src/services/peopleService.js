@@ -53,6 +53,36 @@ async function updatePerson(id, data) {
   return person;
 }
 
+async function blockPerson(id, blockReason) {
+  const person = await peopleRepo.blockPerson(id, blockReason);
+  if (person) {
+    await auditRepo.log({
+      action: 'BLOCK',
+      identifierType: person.identifier_type,
+      identifierValue: person.identifier_value,
+      verdict: 'BLOCKED',
+      source: 'admin',
+      metadata: { blockReason },
+    });
+  }
+  return person;
+}
+
+async function unblockPerson(id, { status, verdict, rejectionReason }) {
+  const person = await peopleRepo.unblockPerson(id, { status, verdict, rejectionReason });
+  if (person) {
+    await auditRepo.log({
+      action: 'UNBLOCK',
+      identifierType: person.identifier_type,
+      identifierValue: person.identifier_value,
+      verdict: person.verdict,
+      source: 'admin',
+      metadata: { newStatus: status },
+    });
+  }
+  return person;
+}
+
 async function deletePerson(id) {
   const person = await peopleRepo.findById(id);
   if (!person) return false;
@@ -153,4 +183,4 @@ async function importFromGSheet(url) {
   return { ...result, errors, skipped, totalRows: rows.length };
 }
 
-module.exports = { listPeople, getPerson, createPerson, updatePerson, deletePerson, bulkUploadCSV, importFromGSheet, validateIdentifierValue };
+module.exports = { listPeople, getPerson, createPerson, updatePerson, blockPerson, unblockPerson, deletePerson, bulkUploadCSV, importFromGSheet, validateIdentifierValue };

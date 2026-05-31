@@ -257,6 +257,8 @@ export default function AccessRequestForm({ onLogout, requestorName, hideLogout,
           parsed[mappedPath] = friendlyMessage(msg, path);
         });
         setFieldErrors(parsed);
+      } else if (err.status === 409 && err.data?.blocked) {
+        setGeneralError('This person is blocked — contact system admin.');
       } else if (err.status === 409 && err.data?.existing) {
         setExistingRecord(err.data.existing);
       } else {
@@ -275,7 +277,12 @@ export default function AccessRequestForm({ onLogout, requestorName, hideLogout,
       await api.resubmitAccessRequest(id, { ...form, reason });
       setSubmitted(true);
     } catch (err) {
-      setGeneralError(err.message || 'Something went wrong. Please try again.');
+      if (err.status === 409 && err.data?.blocked) {
+        setGeneralError('This person is blocked — contact system admin.');
+        setExistingRecord(null);
+      } else {
+        setGeneralError(err.message || 'Something went wrong. Please try again.');
+      }
     } finally {
       setLoading(false);
     }

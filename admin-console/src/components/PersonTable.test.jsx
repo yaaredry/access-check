@@ -247,3 +247,90 @@ describe('PersonTable', () => {
     expect(dataRow).toHaveStyle({ cursor: 'pointer' });
   });
 });
+
+describe('PersonTable — BLOCKED person', () => {
+  const BLOCKED_PERSON = {
+    ...{
+      id: 2,
+      identifier_type: 'IL_ID',
+      identifier_value: '000000018',
+      verdict: 'BLOCKED',
+      status: 'BLOCKED',
+      block_reason: 'Caught tailgating',
+      approval_expiration: null,
+      last_seen_at: null,
+      created_at: '2024-01-01T00:00:00Z',
+    },
+  };
+
+  beforeEach(() => {
+    vi.mocked(api.getPersonVisits).mockReset();
+    vi.mocked(api.getPersonVisits).mockResolvedValue([]);
+  });
+
+  it('shows Blocked badge with blocked class', () => {
+    render(<PersonTable rows={[BLOCKED_PERSON]} onEdit={vi.fn()} onDelete={vi.fn()} onBlock={vi.fn()} onUnblock={vi.fn()} />);
+    const badge = screen.getByText(/Blocked/i);
+    expect(badge).toHaveClass('badge', 'blocked');
+  });
+
+  it('shows block_reason beneath the badge', () => {
+    render(<PersonTable rows={[BLOCKED_PERSON]} onEdit={vi.fn()} onDelete={vi.fn()} onBlock={vi.fn()} onUnblock={vi.fn()} />);
+    expect(screen.getByText('Caught tailgating')).toBeInTheDocument();
+  });
+
+  it('shows Unblock button instead of Approve/Reject/Block for blocked rows', () => {
+    render(<PersonTable rows={[BLOCKED_PERSON]} onEdit={vi.fn()} onDelete={vi.fn()} onBlock={vi.fn()} onUnblock={vi.fn()} />);
+    expect(screen.getByText('Unblock')).toBeInTheDocument();
+    expect(screen.queryByText('Approve')).not.toBeInTheDocument();
+    expect(screen.queryByText('Reject')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /🚫 Block/ })).not.toBeInTheDocument();
+  });
+
+  it('calls onUnblock when Unblock is clicked', () => {
+    const onUnblock = vi.fn();
+    render(<PersonTable rows={[BLOCKED_PERSON]} onEdit={vi.fn()} onDelete={vi.fn()} onBlock={vi.fn()} onUnblock={onUnblock} />);
+    fireEvent.click(screen.getByText('Unblock'));
+    expect(onUnblock).toHaveBeenCalledWith(BLOCKED_PERSON);
+  });
+
+  it('shows Block button for non-blocked rows', () => {
+    render(<PersonTable rows={[{ ...BLOCKED_PERSON, status: 'APPROVED', verdict: 'APPROVED', block_reason: null }]} onEdit={vi.fn()} onDelete={vi.fn()} onBlock={vi.fn()} onUnblock={vi.fn()} />);
+    expect(screen.getByText(/🚫 Block/)).toBeInTheDocument();
+    expect(screen.queryByText('Unblock')).not.toBeInTheDocument();
+  });
+
+  it('calls onBlock when Block is clicked', () => {
+    const onBlock = vi.fn();
+    const approved = { ...BLOCKED_PERSON, status: 'APPROVED', verdict: 'APPROVED', block_reason: null };
+    render(<PersonTable rows={[approved]} onEdit={vi.fn()} onDelete={vi.fn()} onBlock={onBlock} onUnblock={vi.fn()} />);
+    fireEvent.click(screen.getByText(/🚫 Block/));
+    expect(onBlock).toHaveBeenCalledWith(approved);
+  });
+
+  it('clicking Unblock button does not open the visit history modal', async () => {
+    render(<PersonTable rows={[BLOCKED_PERSON]} onEdit={vi.fn()} onDelete={vi.fn()} onBlock={vi.fn()} onUnblock={vi.fn()} />);
+    fireEvent.click(screen.getByText('Unblock'));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(api.getPersonVisits).not.toHaveBeenCalled();
+  });
+
+  it('clicking Block button does not open the visit history modal', async () => {
+    const approved = { ...BLOCKED_PERSON, status: 'APPROVED', verdict: 'APPROVED', block_reason: null };
+    render(<PersonTable rows={[approved]} onEdit={vi.fn()} onDelete={vi.fn()} onBlock={vi.fn()} onUnblock={vi.fn()} />);
+    fireEvent.click(screen.getByText(/🚫 Block/));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(api.getPersonVisits).not.toHaveBeenCalled();
+  });
+
+  it('Reject button is absent for blocked rows', () => {
+    render(<PersonTable rows={[BLOCKED_PERSON]} onEdit={vi.fn()} onDelete={vi.fn()} onBlock={vi.fn()} onUnblock={vi.fn()} />);
+    expect(screen.queryByText('Reject')).not.toBeInTheDocument();
+  });
+
+  it('does not show block_reason text for non-blocked rows', () => {
+    const approved = { ...BLOCKED_PERSON, status: 'APPROVED', verdict: 'APPROVED', block_reason: null };
+    render(<PersonTable rows={[approved]} onEdit={vi.fn()} onDelete={vi.fn()} onBlock={vi.fn()} onUnblock={vi.fn()} />);
+    expect(screen.queryByText('Caught tailgating')).not.toBeInTheDocument();
+  });
+});

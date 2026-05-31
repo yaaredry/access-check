@@ -357,3 +357,62 @@ describe('POST /verify/image', () => {
     expect(res.body.identifierType).toBe('IDF_ID');
   });
 });
+
+describe('BLOCKED verdict', () => {
+  it('returns BLOCKED via POST /verify/id even when a prior APPROVED verdict exists', async () => {
+    await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict, status, block_reason) VALUES ('IL_ID', '000000018', 'BLOCKED', 'BLOCKED', 'Caught tailgating')"
+    );
+    const res = await request(app)
+      .post('/verify/id')
+      .set('Authorization', `Bearer ${gateToken}`)
+      .send({ identifierType: 'IL_ID', identifierValue: '000000018' });
+    expect(res.status).toBe(200);
+    expect(res.body.verdict).toBe('BLOCKED');
+  });
+
+  it('BLOCKED overrides a non-expired approval (verdict stored as APPROVED, status BLOCKED)', async () => {
+    const future = new Date();
+    future.setDate(future.getDate() + 30);
+    await db.query(
+      `INSERT INTO people (identifier_type, identifier_value, verdict, status, approval_expiration, block_reason)
+       VALUES ('IL_ID', '000000018', 'BLOCKED', 'BLOCKED', $1, 'Misconduct')`,
+      [future.toISOString().split('T')[0]]
+    );
+    const res = await request(app)
+      .post('/verify/id')
+      .set('Authorization', `Bearer ${gateToken}`)
+      .send({ identifierType: 'IL_ID', identifierValue: '000000018' });
+    expect(res.status).toBe(200);
+    expect(res.body.verdict).toBe('BLOCKED');
+  });
+
+  it('BLOCKED overrides EXPIRED (status BLOCKED with past approval_expiration returns BLOCKED)', async () => {
+    const past = new Date();
+    past.setFullYear(past.getFullYear() - 1);
+    await db.query(
+      `INSERT INTO people (identifier_type, identifier_value, verdict, status, approval_expiration, block_reason)
+       VALUES ('IL_ID', '000000018', 'BLOCKED', 'BLOCKED', $1, 'Persistent issue')`,
+      [past.toISOString().split('T')[0]]
+    );
+    const res = await request(app)
+      .post('/verify/id')
+      .set('Authorization', `Bearer ${gateToken}`)
+      .send({ identifierType: 'IL_ID', identifierValue: '000000018' });
+    expect(res.status).toBe(200);
+    expect(res.body.verdict).toBe('BLOCKED');
+  });
+
+  it('writes a VERIFY audit log entry with verdict BLOCKED for a blocked person', async () => {
+    await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict, status, block_reason) VALUES ('IL_ID', '000000018', 'BLOCKED', 'BLOCKED', 'Audit test')"
+    );
+    await request(app)
+      .post('/verify/id')
+      .set('Authorization', `Bearer ${gateToken}`)
+      .send({ identifierType: 'IL_ID', identifierValue: '000000018' });
+    const { rows: logs } = await db.query("SELECT * FROM audit_logs WHERE action = 'VERIFY'");
+    expect(logs).toHaveLength(1);
+    expect(logs[0].verdict).toBe('BLOCKED');
+  });
+});

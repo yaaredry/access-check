@@ -107,6 +107,52 @@ async function updateStatus(req, res, next) {
   }
 }
 
+async function blockPerson(req, res, next) {
+  try {
+    const { blockReason } = req.body;
+    if (!blockReason?.trim()) {
+      return res.status(400).json({ error: 'blockReason is required' });
+    }
+    const person = await peopleService.blockPerson(parseInt(req.params.id, 10), blockReason.trim());
+    if (!person) return res.status(404).json({ error: 'Person not found' });
+    return res.json(person);
+  } catch (err) {
+    return next(err);
+  }
+}
+
+const UNBLOCK_STATUSES = ['PENDING', 'APPROVED', 'NOT_APPROVED'];
+const APPROVAL_VERDICTS = ['APPROVED', 'ADMIN_APPROVED', 'APPROVED_WITH_ESCORT'];
+
+async function unblockPerson(req, res, next) {
+  try {
+    const { status, verdict: requestedVerdict, rejectionReason } = req.body;
+    if (!UNBLOCK_STATUSES.includes(status)) {
+      return res.status(400).json({ error: `status must be one of: ${UNBLOCK_STATUSES.join(', ')}` });
+    }
+    if (status === 'NOT_APPROVED' && !rejectionReason?.trim()) {
+      return res.status(400).json({ error: 'rejectionReason is required when status is NOT_APPROVED' });
+    }
+    let verdict;
+    if (status === 'APPROVED') {
+      verdict = APPROVAL_VERDICTS.includes(requestedVerdict) ? requestedVerdict : 'ADMIN_APPROVED';
+    } else if (status === 'NOT_APPROVED') {
+      verdict = 'NOT_APPROVED';
+    } else {
+      verdict = 'NOT_APPROVED';
+    }
+    const person = await peopleService.unblockPerson(parseInt(req.params.id, 10), {
+      status,
+      verdict,
+      rejectionReason: status === 'NOT_APPROVED' ? rejectionReason.trim() : null,
+    });
+    if (!person) return res.status(404).json({ error: 'Person not found' });
+    return res.json(person);
+  } catch (err) {
+    return next(err);
+  }
+}
+
 async function remove(req, res, next) {
   try {
     const deleted = await peopleService.deletePerson(parseInt(req.params.id, 10));
@@ -171,6 +217,8 @@ module.exports = {
   create,
   update,
   updateStatus,
+  blockPerson,
+  unblockPerson,
   remove,
   uploadCSV,
   importGSheet,

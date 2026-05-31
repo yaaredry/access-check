@@ -83,6 +83,9 @@ async function create(req, res, next) {
 
     const existing = await peopleRepo.findByIdentifierValue(ilId);
     if (existing) {
+      if (existing.status === 'BLOCKED') {
+        return res.status(409).json({ blocked: true, error: 'This person is blocked — contact system admin.' });
+      }
       return res.status(409).json({
         error: 'A record for this ID already exists.',
         existing: {
@@ -195,6 +198,10 @@ async function resubmit(req, res, next) {
 
     const record = await peopleRepo.findById(id);
     if (!record) return res.status(404).json({ error: 'Record not found.' });
+
+    if (record.status === 'BLOCKED') {
+      return res.status(409).json({ blocked: true, error: 'This person is blocked — contact system admin.' });
+    }
 
     if (!isResubmittable(record)) {
       return res.status(409).json({ error: 'This record cannot be resubmitted in its current state.' });

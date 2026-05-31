@@ -142,4 +142,23 @@ describe('VerdictDisplay', () => {
     expect(screen.queryByText('All visitor cameras must be covered with blue stickers')).not.toBeInTheDocument();
     expect(screen.queryByText('All visitors must obtain and wear a badge at all times')).not.toBeInTheDocument();
   });
+
+  it('shows BLOCKED label and 🚫 icon', () => {
+    render(<VerdictDisplay verdict="BLOCKED" onBack={vi.fn()} autoResetMs={0} />);
+    expect(screen.getByText('BLOCKED')).toBeInTheDocument();
+    expect(screen.getByText('🚫')).toBeInTheDocument();
+  });
+
+  it('shows sub-message for BLOCKED verdict', () => {
+    render(<VerdictDisplay verdict="BLOCKED" onBack={vi.fn()} autoResetMs={0} />);
+    expect(screen.getByText('Entry denied — this person is blocked')).toBeInTheDocument();
+  });
+
+  it('auto-resets after autoResetMs for BLOCKED verdict', () => {
+    const onBack = vi.fn();
+    render(<VerdictDisplay verdict="BLOCKED" onBack={onBack} autoResetMs={5000} />);
+    expect(onBack).not.toHaveBeenCalled();
+    act(() => { vi.advanceTimersByTime(5000); });
+    expect(onBack).toHaveBeenCalledOnce();
+  });
 });

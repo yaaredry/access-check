@@ -51,6 +51,13 @@ const CONFIG = {
     label: 'NOT FOUND',
     bg: 'rgba(100,116,139,.15)',
   },
+  BLOCKED: {
+    color: '#991b1b',
+    icon: '🚫',
+    label: 'BLOCKED',
+    sub: 'Entry denied — this person is blocked',
+    bg: 'rgba(153,27,27,.15)',
+  },
 };
 
 export default function VerdictDisplay({ verdict, identifierValue, escortName, escortPhone, onBack, autoResetMs = 15000 }) {
