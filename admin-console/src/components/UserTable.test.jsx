@@ -3,8 +3,8 @@ import { describe, it, expect, vi } from 'vitest';
 import UserTable from './UserTable';
 
 const USERS = [
-  { id: 1, username: 'alice@example.com', name: 'Alice', request_count: 5,  max_request_days: 7,  created_at: '2024-01-01T00:00:00Z', updated_at: '2024-03-01T00:00:00Z' },
-  { id: 2, username: 'bob@example.com',   name: 'Bob',   request_count: 12, max_request_days: 14, created_at: '2024-02-01T00:00:00Z', updated_at: '2024-02-15T00:00:00Z' },
+  { id: 1, username: 'alice@example.com', name: 'Alice', request_count: 5,  max_request_days: 7,  can_extend: true,  created_at: '2024-01-01T00:00:00Z', updated_at: '2024-03-01T00:00:00Z' },
+  { id: 2, username: 'bob@example.com',   name: 'Bob',   request_count: 12, max_request_days: 14, can_extend: false, created_at: '2024-02-01T00:00:00Z', updated_at: '2024-02-15T00:00:00Z' },
 ];
 
 describe('UserTable', () => {
@@ -130,5 +130,21 @@ describe('UserTable — max_request_days column', () => {
     fireEvent.click(screen.getByText(/Max Days/));
     fireEvent.click(screen.getByText(/Max Days/));
     expect(getNames()).toEqual(['Bob', 'Alice']); // 14 > 7
+  });
+});
+
+describe('UserTable — can_extend column', () => {
+  it('user with can_extend: true shows ✓ indicator', () => {
+    const users = [{ id: 1, username: 'a@b.com', name: 'Alice', request_count: 0, max_request_days: 7, can_extend: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' }];
+    render(<UserTable users={users} onEdit={vi.fn()} onDelete={vi.fn()} onRegenerate={vi.fn()} />);
+    expect(screen.getByText('✓')).toBeInTheDocument();
+    expect(screen.queryByText('✗')).not.toBeInTheDocument();
+  });
+
+  it('user with can_extend: false shows ✗ indicator', () => {
+    const users = [{ id: 1, username: 'a@b.com', name: 'Bob', request_count: 0, max_request_days: 7, can_extend: false, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' }];
+    render(<UserTable users={users} onEdit={vi.fn()} onDelete={vi.fn()} onRegenerate={vi.fn()} />);
+    expect(screen.getByText('✗')).toBeInTheDocument();
+    expect(screen.queryByText('✓')).not.toBeInTheDocument();
   });
 });

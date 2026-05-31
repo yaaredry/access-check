@@ -1,6 +1,13 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import App from './App';
+import { api } from './api/client';
+
+vi.mock('./api/client', () => ({
+  api: {
+    getMyConfig: vi.fn().mockResolvedValue({ maxRequestDays: 7, canExtend: true }),
+  },
+}));
 
 vi.mock('./components/Login', () => ({
   default: ({ onLogin }) => (
@@ -30,8 +37,8 @@ vi.mock('./components/CameraCheck', () => ({
 }));
 
 vi.mock('./components/AccessRequestForm', () => ({
-  default: ({ onLogout, extendRecord, onExtendDone }) => (
-    <div data-testid="access-request-form">
+  default: ({ onLogout, extendRecord, onExtendDone, canExtend }) => (
+    <div data-testid="access-request-form" data-can-extend={String(canExtend ?? true)}>
       <button onClick={onLogout}>RequestorLogout</button>
       {extendRecord && <span data-testid="extend-record-id">{extendRecord.identifier_value}</span>}
       {onExtendDone && <button onClick={onExtendDone}>ExtendDone</button>}
@@ -40,8 +47,8 @@ vi.mock('./components/AccessRequestForm', () => ({
 }));
 
 vi.mock('./components/MySubmissions', () => ({
-  default: ({ onExtend }) => (
-    <div data-testid="my-submissions">
+  default: ({ onExtend, canExtend }) => (
+    <div data-testid="my-submissions" data-can-extend={String(canExtend ?? true)}>
       My Submissions Content
       {onExtend && (
         <button onClick={() => onExtend({ id: 7, identifier_value: '000000075', status: 'APPROVED', verdict: 'APPROVED', approval_expiration: '2000-01-01', rejection_reason: null, population: 'IL_MILITARY', division: null, escort_full_name: null, escort_phone: null, reason: 'Test' })}>
@@ -53,7 +60,11 @@ vi.mock('./components/MySubmissions', () => ({
 }));
 
 describe('App', () => {
-  beforeEach(() => localStorage.clear());
+  beforeEach(() => {
+    localStorage.clear();
+    vi.clearAllMocks();
+    api.getMyConfig.mockResolvedValue({ maxRequestDays: 7, canExtend: true });
+  });
 
   it('shows Login when not authenticated', () => {
     render(<App />);
@@ -167,5 +178,40 @@ describe('App', () => {
     localStorage.setItem('gate_role', 'gate');
     render(<App />);
     expect(screen.getByTestId('manual-check')).toBeInTheDocument();
+  });
+});
+
+describe('RequestorView — canExtend prop threading', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.clearAllMocks();
+  });
+
+  it('getMyConfig returns canExtend: false → MySubmissions receives canExtend: false', async () => {
+    api.getMyConfig.mockResolvedValue({ maxRequestDays: 7, canExtend: false });
+    render(<App />);
+    fireEvent.click(screen.getByText('Login as requestor'));
+    await waitFor(() => screen.getByText('📄 My Submissions'));
+    fireEvent.click(screen.getByText('📄 My Submissions'));
+    await waitFor(() => screen.getByTestId('my-submissions'));
+    expect(screen.getByTestId('my-submissions')).toHaveAttribute('data-can-extend', 'false');
+  });
+
+  it('getMyConfig returns canExtend: true → MySubmissions receives canExtend: true', async () => {
+    api.getMyConfig.mockResolvedValue({ maxRequestDays: 7, canExtend: true });
+    render(<App />);
+    fireEvent.click(screen.getByText('Login as requestor'));
+    await waitFor(() => screen.getByText('📄 My Submissions'));
+    fireEvent.click(screen.getByText('📄 My Submissions'));
+    await waitFor(() => screen.getByTestId('my-submissions'));
+    expect(screen.getByTestId('my-submissions')).toHaveAttribute('data-can-extend', 'true');
+  });
+
+  it('getMyConfig returns canExtend: false → AccessRequestForm receives canExtend: false', async () => {
+    api.getMyConfig.mockResolvedValue({ maxRequestDays: 7, canExtend: false });
+    render(<App />);
+    fireEvent.click(screen.getByText('Login as requestor'));
+    await waitFor(() => screen.getByTestId('access-request-form'));
+    expect(screen.getByTestId('access-request-form')).toHaveAttribute('data-can-extend', 'false');
   });
 });

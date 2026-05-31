@@ -61,8 +61,8 @@ export const api = {
   getStats: () => request('GET', '/stats'),
 
   listUsers: () => request('GET', '/users'),
-  createUser: (data) => request('POST', '/users', data),
-  updateUser: (id, data) => request('PUT', `/users/${id}`, data),
+  createUser: ({ username, name, maxRequestDays, canExtend }) => request('POST', '/users', { username, name, maxRequestDays, canExtend }),
+  updateUser: (id, { username, name, maxRequestDays, canExtend }) => request('PUT', `/users/${id}`, { username, name, maxRequestDays, canExtend }),
   deleteUser: (id) => request('DELETE', `/users/${id}`),
   regeneratePassword: (id) => request('POST', `/users/${id}/regenerate-password`),
 };

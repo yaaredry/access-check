@@ -866,6 +866,43 @@ describe('AccessRequestForm — maxRequestDays dynamic chips', () => {
   });
 });
 
+// ── canExtend prop ────────────────────────────────────────────────────────────
+
+describe('AccessRequestForm — canExtend', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('canExtend: false + expired existing record in 409 → extension button not shown', async () => {
+    api.submitAccessRequest.mockRejectedValue(
+      make409Error({ id: 42, status: 'APPROVED', verdict: 'APPROVED', rejection_reason: null, approval_expiration: PAST_DATE })
+    );
+    render(<AccessRequestForm onLogout={vi.fn()} canExtend={false} />);
+    await fillRequiredFields();
+    submitForm();
+    await waitFor(() => expect(screen.getByText(/already exists/i)).toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: /Request Extension/i })).not.toBeInTheDocument();
+  });
+
+  it('canExtend: true + expired existing record in 409 → extension button shown', async () => {
+    api.submitAccessRequest.mockRejectedValue(
+      make409Error({ id: 42, status: 'APPROVED', verdict: 'APPROVED', rejection_reason: null, approval_expiration: PAST_DATE })
+    );
+    render(<AccessRequestForm onLogout={vi.fn()} canExtend={true} />);
+    await fillRequiredFields();
+    submitForm();
+    await waitFor(() => expect(screen.getByRole('button', { name: /Request Extension/i })).toBeInTheDocument());
+  });
+
+  it('canExtend: false + NOT_APPROVED in 409 → "Resubmit Request" still shown', async () => {
+    api.submitAccessRequest.mockRejectedValue(
+      make409Error({ id: 42, status: 'NOT_APPROVED', verdict: 'NOT_APPROVED', rejection_reason: 'Denied', approval_expiration: null })
+    );
+    render(<AccessRequestForm onLogout={vi.fn()} canExtend={false} />);
+    await fillRequiredFields();
+    submitForm();
+    await waitFor(() => expect(screen.getByRole('button', { name: /Resubmit Request/i })).toBeInTheDocument());
+  });
+});
+
 // ── ID autocomplete ───────────────────────────────────────────────────────────
 
 const SUGGESTION = {

@@ -37,14 +37,14 @@ beforeAll(async () => {
   `);
   // Seed users matching JWT sub values used in this test file
   await db.query(`
-    INSERT INTO users (id, username, password, role, name)
+    INSERT INTO users (id, username, password, role, name, can_extend)
     OVERRIDING SYSTEM VALUE VALUES
-      (1,  'admin',           'hash', 'admin',            'Admin'),
-      (97, 'bob@example.com', 'hash', 'access_requestor', 'Bob Jones'),
-      (98, 'jane@example.com','hash', 'access_requestor', 'Jane Smith'),
-      (99, 'requestor-test',  'hash', 'access_requestor', NULL)
+      (1,  'admin',           'hash', 'admin',            'Admin',      TRUE),
+      (97, 'bob@example.com', 'hash', 'access_requestor', 'Bob Jones',  TRUE),
+      (98, 'jane@example.com','hash', 'access_requestor', 'Jane Smith', TRUE),
+      (99, 'requestor-test',  'hash', 'access_requestor', NULL,         TRUE)
     ON CONFLICT (id) DO UPDATE
-      SET username = EXCLUDED.username, role = EXCLUDED.role, name = EXCLUDED.name
+      SET username = EXCLUDED.username, role = EXCLUDED.role, name = EXCLUDED.name, can_extend = EXCLUDED.can_extend
   `);
 });
 
@@ -985,6 +985,245 @@ describe('GET /access-requests/mine/suggestions', () => {
        WHERE tablename = 'people' AND indexname = 'idx_people_requester_email_id_date'`
     );
     expect(rows).toHaveLength(1);
+  });
+});
+
+describe('can_extend — expired entry renewal restriction', () => {
+  // Helper to insert an expired approved record
+  async function insertExpiredPerson({ identifier_value = '000000018', verdict = 'APPROVED' } = {}) {
+    const { rows } = await db.query(
+      `INSERT INTO people (identifier_type, identifier_value, verdict, status, approval_expiration)
+       VALUES ('IL_ID', $1, $2, $3, '2020-01-01') RETURNING id`,
+      [identifier_value, verdict, verdict]
+    );
+    return rows[0].id;
+  }
+
+  // A user with can_extend = false
+  let canExtendFalseToken;
+  let canExtendFalseUserId;
+
+  beforeAll(async () => {
+    const { rows } = await db.query(
+      `INSERT INTO users (username, password, role, name, can_extend)
+       VALUES ('noextend@test.com', 'hash', 'access_requestor', 'No Extend', false)
+       ON CONFLICT (username) DO UPDATE SET can_extend = false
+       RETURNING id`
+    );
+    canExtendFalseUserId = rows[0].id;
+    canExtendFalseToken = jwt.sign(
+      { sub: canExtendFalseUserId, username: 'noextend@test.com', role: 'access_requestor' },
+      process.env.JWT_SECRET || 'dev-secret'
+    );
+  });
+
+  it('expired record + can_extend: false → POST /access-requests returns 201', async () => {
+    await insertExpiredPerson();
+
+    const res = await request(app)
+      .post('/access-requests')
+      .set('Authorization', `Bearer ${canExtendFalseToken}`)
+      .send(VALID_PAYLOAD);
+
+    expect(res.status).toBe(201);
+  });
+
+  it('expired + can_extend: false → response is { id, status: PENDING }', async () => {
+    await insertExpiredPerson();
+
+    const res = await request(app)
+      .post('/access-requests')
+      .set('Authorization', `Bearer ${canExtendFalseToken}`)
+      .send(VALID_PAYLOAD);
+
+    expect(res.status).toBe(201);
+    expect(typeof res.body.id).toBe('number');
+    expect(res.body.status).toBe('PENDING');
+  });
+
+  it('expired + can_extend: false → record in DB has status = PENDING', async () => {
+    const id = await insertExpiredPerson();
+
+    await request(app)
+      .post('/access-requests')
+      .set('Authorization', `Bearer ${canExtendFalseToken}`)
+      .send(VALID_PAYLOAD);
+
+    const { rows } = await db.query('SELECT status FROM people WHERE id = $1', [id]);
+    expect(rows[0].status).toBe('PENDING');
+  });
+
+  it('expired + can_extend: false → resubmit_count incremented', async () => {
+    const id = await insertExpiredPerson();
+
+    await request(app)
+      .post('/access-requests')
+      .set('Authorization', `Bearer ${canExtendFalseToken}`)
+      .send(VALID_PAYLOAD);
+
+    const { rows } = await db.query('SELECT resubmit_count FROM people WHERE id = $1', [id]);
+    expect(rows[0].resubmit_count).toBe(1);
+  });
+
+  it('expired + can_extend: false → form fields updated (population, reason, approvalExpiration)', async () => {
+    const id = await insertExpiredPerson();
+
+    await request(app)
+      .post('/access-requests')
+      .set('Authorization', `Bearer ${canExtendFalseToken}`)
+      .send({ ...VALID_PAYLOAD, population: 'IL_MILITARY', reason: 'Updated reason' });
+
+    const { rows } = await db.query('SELECT population, reason, approval_expiration FROM people WHERE id = $1', [id]);
+    expect(rows[0].population).toBe('IL_MILITARY');
+    expect(rows[0].reason).toBe('Updated reason');
+    expect(rows[0].approval_expiration).not.toBeNull();
+  });
+
+  it('expired + can_extend: false → requester_email updated to current submitter', async () => {
+    const id = await insertExpiredPerson();
+
+    await request(app)
+      .post('/access-requests')
+      .set('Authorization', `Bearer ${canExtendFalseToken}`)
+      .send(VALID_PAYLOAD);
+
+    const { rows } = await db.query('SELECT requester_email FROM people WHERE id = $1', [id]);
+    expect(rows[0].requester_email).toBe('noextend@test.com');
+  });
+
+  it('expired + can_extend: false → audit log written as ACCESS_REQUEST_RESUBMIT', async () => {
+    await insertExpiredPerson();
+
+    await request(app)
+      .post('/access-requests')
+      .set('Authorization', `Bearer ${canExtendFalseToken}`)
+      .send(VALID_PAYLOAD);
+
+    const { rows } = await db.query("SELECT * FROM audit_logs WHERE action = 'ACCESS_REQUEST_RESUBMIT'");
+    expect(rows).toHaveLength(1);
+    expect(rows[0].identifier_value).toBe('000000018');
+  });
+
+  it('expired + can_extend: true → still returns 409', async () => {
+    await insertExpiredPerson();
+
+    const res = await request(app)
+      .post('/access-requests')
+      .set('Authorization', `Bearer ${namedRequestorToken}`)
+      .send({ ...VALID_PAYLOAD, requesterName: undefined });
+
+    expect(res.status).toBe(409);
+  });
+
+  it('NOT_APPROVED record + can_extend: false → still returns 409', async () => {
+    await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict, status) VALUES ('IL_ID', '000000018', 'NOT_APPROVED', 'NOT_APPROVED')"
+    );
+
+    const res = await request(app)
+      .post('/access-requests')
+      .set('Authorization', `Bearer ${canExtendFalseToken}`)
+      .send(VALID_PAYLOAD);
+
+    expect(res.status).toBe(409);
+  });
+
+  it('PENDING record + can_extend: false → still returns 409', async () => {
+    await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict, status) VALUES ('IL_ID', '000000018', 'NOT_APPROVED', 'PENDING')"
+    );
+
+    const res = await request(app)
+      .post('/access-requests')
+      .set('Authorization', `Bearer ${canExtendFalseToken}`)
+      .send(VALID_PAYLOAD);
+
+    expect(res.status).toBe(409);
+  });
+
+  it('active (non-expired) APPROVED record + can_extend: false → still returns 409', async () => {
+    await db.query(
+      `INSERT INTO people (identifier_type, identifier_value, verdict, status, approval_expiration)
+       VALUES ('IL_ID', '000000018', 'APPROVED', 'APPROVED', '2099-12-31')`
+    );
+
+    const res = await request(app)
+      .post('/access-requests')
+      .set('Authorization', `Bearer ${canExtendFalseToken}`)
+      .send(VALID_PAYLOAD);
+
+    expect(res.status).toBe(409);
+  });
+
+  it('BLOCKED record + can_extend: false → 409 with blocked: true (BLOCKED wins)', async () => {
+    await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict, status, approval_expiration) VALUES ('IL_ID', '000000018', 'NOT_APPROVED', 'BLOCKED', '2020-01-01')"
+    );
+
+    const res = await request(app)
+      .post('/access-requests')
+      .set('Authorization', `Bearer ${canExtendFalseToken}`)
+      .send(VALID_PAYLOAD);
+
+    // BLOCKED wins — backend returns 409 with blocked: true
+    expect(res.status).toBe(409);
+    expect(res.body.existing.status).toBe('BLOCKED');
+  });
+
+  it('expired ADMIN_APPROVED + can_extend: false → 201', async () => {
+    await insertExpiredPerson({ verdict: 'ADMIN_APPROVED' });
+
+    const res = await request(app)
+      .post('/access-requests')
+      .set('Authorization', `Bearer ${canExtendFalseToken}`)
+      .send(VALID_PAYLOAD);
+
+    expect(res.status).toBe(201);
+  });
+
+  it('expired APPROVED_WITH_ESCORT + can_extend: false → 201', async () => {
+    await insertExpiredPerson({ verdict: 'APPROVED_WITH_ESCORT' });
+
+    const res = await request(app)
+      .post('/access-requests')
+      .set('Authorization', `Bearer ${canExtendFalseToken}`)
+      .send(VALID_PAYLOAD);
+
+    expect(res.status).toBe(201);
+  });
+
+  it('expired + can_extend: false + CIVILIAN population → escort fields saved', async () => {
+    const id = await insertExpiredPerson();
+
+    await request(app)
+      .post('/access-requests')
+      .set('Authorization', `Bearer ${canExtendFalseToken}`)
+      .send({
+        ilId: '000000018',
+        population: 'CIVILIAN',
+        escortFullName: 'Guard One',
+        escortPhone: '+972501234567',
+        approvalExpiration: TOMORROW,
+        reason: 'Contractor',
+        requesterName: 'No Extend',
+      });
+
+    const { rows } = await db.query('SELECT escort_full_name, escort_phone FROM people WHERE id = $1', [id]);
+    expect(rows[0].escort_full_name).toBe('Guard One');
+    expect(rows[0].escort_phone).toBe('+972501234567');
+  });
+
+  it('POST /access-requests/:id/resubmit with can_extend: false user → still 200 (endpoint unrestricted)', async () => {
+    const id = await insertExpiredPerson();
+    // Manually set to NOT_APPROVED so resubmit is allowed
+    await db.query("UPDATE people SET status = 'NOT_APPROVED', verdict = 'NOT_APPROVED' WHERE id = $1", [id]);
+
+    const res = await request(app)
+      .post(`/access-requests/${id}/resubmit`)
+      .set('Authorization', `Bearer ${canExtendFalseToken}`)
+      .send({ population: 'IL_MILITARY', approvalExpiration: TOMORROW, reason: 'Visit', requesterName: 'No Extend' });
+
+    expect(res.status).toBe(200);
   });
 });
 
