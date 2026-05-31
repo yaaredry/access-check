@@ -63,15 +63,17 @@ export default function UserForm({ initial, onSubmit, onCancel, loading }) {
         </p>
       </div>
       <div>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+        <label style={{ display: 'block', marginBottom: 6, fontSize: 13, fontWeight: 600 }}>Extension Permission</label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
           <input
             type="checkbox"
             checked={form.canExtend}
             onChange={e => set('canExtend', e.target.checked)}
+            style={{ width: 'auto', flexShrink: 0 }}
           />
-          <span style={{ fontSize: 13, fontWeight: 600 }}>Can request extension of expired entries</span>
+          <span style={{ fontSize: 13 }}>Can request extension of expired entries</span>
         </label>
-        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 0 24px' }}>
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 0' }}>
           When unchecked, the user must submit a full new request instead of using the one-click extension shortcut.
         </p>
       </div>
