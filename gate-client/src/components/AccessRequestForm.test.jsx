@@ -281,29 +281,38 @@ describe('AccessRequestForm', () => {
     expect(screen.getByDisplayValue('Drivers & Transport')).toBeInTheDocument();
   });
 
-  it('Add Another Person clears expiration date', async () => {
+  it('Add Another Person retains expiration date', async () => {
     api.submitAccessRequest.mockResolvedValue({});
     render(<AccessRequestForm onLogout={vi.fn()} />);
     await fillRequiredFields(); // sets FUTURE_DATE on expiration
     submitForm();
     await waitFor(() => screen.getByText('Add Another Person (Same Details)'));
     fireEvent.click(screen.getByText('Add Another Person (Same Details)'));
-    expect(getExpirationInput()).toHaveValue('');
+    expect(getExpirationInput()).toHaveValue(FUTURE_DATE);
   });
 
-  it('Add Another Person clears start date when it was set', async () => {
+  it('Add Another Person retains start date when it was set', async () => {
     api.submitAccessRequest.mockResolvedValue({});
     render(<AccessRequestForm onLogout={vi.fn()} />);
     await fillRequiredFields();
-    // Also set the start date (index 0)
-    const startInput = document.querySelectorAll('input[type="date"]')[0];
-    fireEvent.change(startInput, { target: { value: FUTURE_DATE } });
-    // Adjust expiration to same day so start <= end
+    fireEvent.change(document.querySelectorAll('input[type="date"]')[0], { target: { value: FUTURE_DATE } });
     fireEvent.change(getExpirationInput(), { target: { value: FUTURE_DATE } });
     submitForm();
     await waitFor(() => screen.getByText('Add Another Person (Same Details)'));
     fireEvent.click(screen.getByText('Add Another Person (Same Details)'));
-    expect(document.querySelectorAll('input[type="date"]')[0]).toHaveValue('');
+    expect(document.querySelectorAll('input[type="date"]')[0]).toHaveValue(FUTURE_DATE);
+  });
+
+  it('Add Another Person retains the active duration chip', async () => {
+    api.submitAccessRequest.mockResolvedValue({});
+    render(<AccessRequestForm onLogout={vi.fn()} requestorName="Dana" />);
+    await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), VALID_ID);
+    fireEvent.click(screen.getByRole('button', { name: '3 days' }));
+    await userEvent.selectOptions(screen.getByDisplayValue('Select a reason…'), 'Drivers & Transport');
+    submitForm();
+    await waitFor(() => screen.getByText('Add Another Person (Same Details)'));
+    fireEvent.click(screen.getByText('Add Another Person (Same Details)'));
+    expect(screen.getByRole('button', { name: '3 days' })).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('Add Another Person keeps CIVILIAN population and escort details', async () => {

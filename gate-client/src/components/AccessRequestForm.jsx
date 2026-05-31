@@ -294,11 +294,10 @@ export default function AccessRequestForm({ onLogout, requestorName, hideLogout,
 
   function resetKeepDetails() {
     setSubmitted(false);
-    setForm(prev => ({ ...prev, ilId: '', approvalStartDate: '', approvalExpiration: '' }));
+    setForm(prev => ({ ...prev, ilId: '' }));
     setFieldErrors({});
     setGeneralError('');
     setExistingRecord(null);
-    setActiveDurationChip(null);
     setShowSuggestions(false);
   }
 
