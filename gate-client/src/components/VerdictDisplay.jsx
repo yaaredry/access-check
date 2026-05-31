@@ -55,7 +55,7 @@ const CONFIG = {
     color: '#991b1b',
     icon: '🚫',
     label: 'BLOCKED',
-    sub: 'Entry denied — this person is blocked',
+    sub: 'This person is blocked',
     bg: 'rgba(153,27,27,.15)',
   },
 };

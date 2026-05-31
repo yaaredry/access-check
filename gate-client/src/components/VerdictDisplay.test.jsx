@@ -151,7 +151,7 @@ describe('VerdictDisplay', () => {
 
   it('shows sub-message for BLOCKED verdict', () => {
     render(<VerdictDisplay verdict="BLOCKED" onBack={vi.fn()} autoResetMs={0} />);
-    expect(screen.getByText('Entry denied — this person is blocked')).toBeInTheDocument();
+    expect(screen.getByText('This person is blocked')).toBeInTheDocument();
   });
 
   it('auto-resets after autoResetMs for BLOCKED verdict', () => {
