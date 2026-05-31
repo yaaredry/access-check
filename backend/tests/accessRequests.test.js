@@ -815,6 +815,168 @@ describe('GET /access-requests/mine/config', () => {
   });
 });
 
+describe('GET /access-requests/mine/suggestions', () => {
+  async function insertForRequestor(email, { identifier_value, population, division, escort_full_name, escort_phone, reason, created_at } = {}) {
+    await db.query(
+      `INSERT INTO people
+         (identifier_type, identifier_value, verdict, status, requester_email,
+          population, division, escort_full_name, escort_phone, reason, created_at)
+       VALUES ('IL_ID', $1, 'NOT_APPROVED', 'PENDING', $2, $3, $4, $5, $6, $7,
+               COALESCE($8::timestamptz, NOW()))`,
+      [
+        identifier_value ?? '000000018',
+        email,
+        population ?? 'IL_MILITARY',
+        division ?? null,
+        escort_full_name ?? null,
+        escort_phone ?? null,
+        reason ?? 'Visit',
+        created_at ?? null,
+      ]
+    );
+  }
+
+  it('returns 200 with an empty suggestions array when the requestor has no prior submissions', async () => {
+    const res = await request(app)
+      .get('/access-requests/mine/suggestions')
+      .set('Authorization', `Bearer ${namedRequestorToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.suggestions).toEqual([]);
+  });
+
+  it('returns suggestions only for the calling requestor, not others', async () => {
+    await insertForRequestor('jane@example.com', { identifier_value: '000000018' });
+    await insertForRequestor('other@example.com', { identifier_value: '000000026' });
+
+    const res = await request(app)
+      .get('/access-requests/mine/suggestions')
+      .set('Authorization', `Bearer ${namedRequestorToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.suggestions).toHaveLength(1);
+    expect(res.body.suggestions[0].identifier_value).toBe('000000018');
+  });
+
+  it('returns all distinct IDs when the requestor has multiple different submissions', async () => {
+    await insertForRequestor('jane@example.com', { identifier_value: '000000018' });
+    await insertForRequestor('jane@example.com', { identifier_value: '000000026' });
+
+    const res = await request(app)
+      .get('/access-requests/mine/suggestions')
+      .set('Authorization', `Bearer ${namedRequestorToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.suggestions).toHaveLength(2);
+    const ids = res.body.suggestions.map(s => s.identifier_value);
+    expect(ids).toContain('000000018');
+    expect(ids).toContain('000000026');
+  });
+
+  it('returns suggestions regardless of record status (pending, approved, expired)', async () => {
+    await insertForRequestor('jane@example.com', { identifier_value: '000000018', division: 'Alpha' });
+    await db.query("UPDATE people SET status = 'APPROVED', verdict = 'APPROVED', approval_expiration = '2020-01-01' WHERE identifier_value = '000000018'");
+    await insertForRequestor('jane@example.com', { identifier_value: '000000026', division: 'Beta' });
+    await db.query("UPDATE people SET status = 'NOT_APPROVED', verdict = 'NOT_APPROVED' WHERE identifier_value = '000000026'");
+
+    const res = await request(app)
+      .get('/access-requests/mine/suggestions')
+      .set('Authorization', `Bearer ${namedRequestorToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.suggestions).toHaveLength(2);
+    const divisions = res.body.suggestions.map(s => s.division);
+    expect(divisions).toContain('Alpha');
+    expect(divisions).toContain('Beta');
+  });
+
+  it('includes all autocomplete fields: identifier_value, population, division, escort_full_name, escort_phone, reason', async () => {
+    await insertForRequestor('jane@example.com', {
+      identifier_value: '000000018',
+      population: 'CIVILIAN',
+      division: 'Logistics',
+      escort_full_name: 'Guard One',
+      escort_phone: '+972501234567',
+      reason: 'Delivery',
+    });
+
+    const res = await request(app)
+      .get('/access-requests/mine/suggestions')
+      .set('Authorization', `Bearer ${namedRequestorToken}`);
+
+    expect(res.status).toBe(200);
+    const s = res.body.suggestions[0];
+    expect(s.identifier_value).toBe('000000018');
+    expect(s.population).toBe('CIVILIAN');
+    expect(s.division).toBe('Logistics');
+    expect(s.escort_full_name).toBe('Guard One');
+    expect(s.escort_phone).toBe('+972501234567');
+    expect(s.reason).toBe('Delivery');
+  });
+
+  it('does not expose sensitive fields like requester_email or status', async () => {
+    await insertForRequestor('jane@example.com', { identifier_value: '000000018' });
+
+    const res = await request(app)
+      .get('/access-requests/mine/suggestions')
+      .set('Authorization', `Bearer ${namedRequestorToken}`);
+
+    expect(res.status).toBe(200);
+    const s = res.body.suggestions[0];
+    expect(s).not.toHaveProperty('requester_email');
+    expect(s).not.toHaveProperty('status');
+    expect(s).not.toHaveProperty('verdict');
+    expect(s).not.toHaveProperty('id');
+  });
+
+  it('handles null optional fields gracefully', async () => {
+    await insertForRequestor('jane@example.com', {
+      identifier_value: '000000018',
+      division: null,
+      escort_full_name: null,
+      escort_phone: null,
+    });
+
+    const res = await request(app)
+      .get('/access-requests/mine/suggestions')
+      .set('Authorization', `Bearer ${namedRequestorToken}`);
+
+    expect(res.status).toBe(200);
+    const s = res.body.suggestions[0];
+    expect(s.division).toBeNull();
+    expect(s.escort_full_name).toBeNull();
+    expect(s.escort_phone).toBeNull();
+  });
+
+  it('works for anonymous requestor (username-based requester_email)', async () => {
+    // requestorToken has username 'requestor', not a named requestor
+    await db.query(
+      `INSERT INTO people (identifier_type, identifier_value, verdict, status, requester_email, population, reason)
+       VALUES ('IL_ID', '000000018', 'NOT_APPROVED', 'PENDING', 'requestor', 'IL_MILITARY', 'Visit')`
+    );
+
+    const res = await request(app)
+      .get('/access-requests/mine/suggestions')
+      .set('Authorization', `Bearer ${requestorToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.suggestions).toHaveLength(1);
+    expect(res.body.suggestions[0].identifier_value).toBe('000000018');
+  });
+
+  it('returns 401 without a token', async () => {
+    const res = await request(app).get('/access-requests/mine/suggestions');
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 403 for admin role', async () => {
+    const res = await request(app)
+      .get('/access-requests/mine/suggestions')
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(res.status).toBe(403);
+  });
+});
+
 describe('per-user max_request_days validation', () => {
   afterEach(async () => {
     // Reset to default instead of deleting so id=98 stays intact for auth checks
