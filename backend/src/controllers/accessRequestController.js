@@ -239,6 +239,15 @@ async function mine(req, res, next) {
   }
 }
 
+async function mySuggestions(req, res, next) {
+  try {
+    const rows = await peopleRepo.findPreviousSubmissionsByRequesterEmail(req.user.username);
+    return res.json({ suggestions: rows });
+  } catch (err) {
+    return next(err);
+  }
+}
+
 async function myConfig(req, res, next) {
   try {
     const maxRequestDays = await userRepo.getMaxRequestDays(req.user.username);
@@ -248,4 +257,4 @@ async function myConfig(req, res, next) {
   }
 }
 
-module.exports = { create, resubmit, mine, myConfig, requestBodyValidation, resubmitBodyValidation };
+module.exports = { create, resubmit, mine, myConfig, mySuggestions, requestBodyValidation, resubmitBodyValidation };

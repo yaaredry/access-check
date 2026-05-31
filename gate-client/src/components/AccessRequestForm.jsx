@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { api } from '../api/client';
 
 const VISIT_REASONS = [
@@ -111,6 +111,16 @@ export default function AccessRequestForm({ onLogout, requestorName, hideLogout,
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [activeDurationChip, setActiveDurationChip] = useState(null);
+  const [previousSubmissions, setPreviousSubmissions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const blurTimerRef = useRef(null);
+
+  useEffect(() => {
+    if (extendRecord) return;
+    api.getMySuggestions()
+      .then(({ suggestions }) => setPreviousSubmissions(suggestions))
+      .catch(() => {});
+  }, [extendRecord]);
 
   function set(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -121,6 +131,33 @@ export default function AccessRequestForm({ onLogout, requestorName, hideLogout,
     if (field === 'reasonCategory') {
       setFieldErrors(prev => ({ ...prev, reasonOther: '' }));
     }
+  }
+
+  const idSuggestions = form.ilId.length >= 3 && !extendRecord
+    ? previousSubmissions.filter(s => s.identifier_value.startsWith(form.ilId))
+    : [];
+
+  function applySuggestion(s) {
+    const { reasonCategory, reasonOther } = parseReason(s.reason || '');
+    const toDateStr = (iso) => iso ? iso.split('T')[0] : '';
+    const expirationDate = toDateStr(s.approval_expiration);
+    const startDate = toDateStr(s.approval_start_date);
+    const isFutureOrToday = (d) => !!d && d >= todayStr;
+    setForm(prev => ({
+      ...prev,
+      ilId: s.identifier_value,
+      population: s.population || 'IL_MILITARY',
+      division: s.division || '',
+      escortFullName: s.escort_full_name || '',
+      escortPhone: s.escort_phone || '',
+      reasonCategory,
+      reasonOther,
+      approvalExpiration: expirationDate > todayStr ? expirationDate : '',
+      approvalStartDate: isFutureOrToday(startDate) ? startDate : '',
+    }));
+    setActiveDurationChip(null);
+    setFieldErrors({});
+    setShowSuggestions(false);
   }
 
   function selectDuration(chip, days) {
@@ -251,16 +288,17 @@ export default function AccessRequestForm({ onLogout, requestorName, hideLogout,
     setGeneralError('');
     setExistingRecord(null);
     setActiveDurationChip(null);
+    setShowSuggestions(false);
     if (onExtendDone) onExtendDone();
   }
 
   function resetKeepDetails() {
     setSubmitted(false);
-    setForm(prev => ({ ...prev, ilId: '', approvalStartDate: '', approvalExpiration: '' }));
+    setForm(prev => ({ ...prev, ilId: '' }));
     setFieldErrors({});
     setGeneralError('');
     setExistingRecord(null);
-    setActiveDurationChip(null);
+    setShowSuggestions(false);
   }
 
   if (submitted) {
@@ -305,16 +343,38 @@ export default function AccessRequestForm({ onLogout, requestorName, hideLogout,
         </Field>
 
         <Field label="IL ID Number" error={fieldErrors.ilId}>
-          <input
-            type="text"
-            placeholder="9-digit Israeli ID"
-            value={form.ilId}
-            onChange={e => set('ilId', e.target.value.trim())}
-            required
-            inputMode="numeric"
-            disabled={!!extendRecord}
-            style={{ ...inputStyle, ...(fieldErrors.ilId ? errorInputStyle : {}), ...(extendRecord ? lockedInputStyle : {}) }}
-          />
+          <div style={{ position: 'relative' }}>
+            <input
+              type="text"
+              placeholder="9-digit Israeli ID"
+              value={form.ilId}
+              onChange={e => { set('ilId', e.target.value.trim()); setShowSuggestions(true); }}
+              onFocus={() => setShowSuggestions(true)}
+              onBlur={() => { blurTimerRef.current = setTimeout(() => setShowSuggestions(false), 150); }}
+              required
+              inputMode="numeric"
+              disabled={!!extendRecord}
+              style={{ ...inputStyle, ...(fieldErrors.ilId ? errorInputStyle : {}), ...(extendRecord ? lockedInputStyle : {}) }}
+            />
+            {showSuggestions && idSuggestions.length > 0 && (
+              <ul style={suggestionsListStyle}>
+                {idSuggestions.map(s => (
+                  <li
+                    key={s.identifier_value}
+                    onMouseDown={e => { e.preventDefault(); clearTimeout(blurTimerRef.current); applySuggestion(s); }}
+                    style={suggestionItemStyle}
+                  >
+                    <span style={{ fontWeight: 700 }}>{s.identifier_value}</span>
+                    {(s.division || s.population) && (
+                      <span style={{ color: 'var(--text-muted)', fontSize: 13, marginLeft: 10 }}>
+                        {[s.population === 'CIVILIAN' ? 'Civilian' : 'Military', s.division].filter(Boolean).join(' · ')}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </Field>
 
         <Field label="Population">
@@ -563,6 +623,33 @@ const lockedInputStyle = {
   background: 'var(--bg-muted, #f3f4f6)',
   color: 'var(--text-muted)',
   cursor: 'not-allowed',
+};
+
+const suggestionsListStyle = {
+  position: 'absolute',
+  top: '100%',
+  left: 0,
+  right: 0,
+  zIndex: 100,
+  background: 'var(--bg, #fff)',
+  border: '1.5px solid var(--border)',
+  borderTop: 'none',
+  borderRadius: '0 0 10px 10px',
+  margin: 0,
+  padding: 0,
+  listStyle: 'none',
+  boxShadow: '0 4px 16px rgba(0,0,0,0.10)',
+  maxHeight: 220,
+  overflowY: 'auto',
+};
+
+const suggestionItemStyle = {
+  padding: '12px 16px',
+  cursor: 'pointer',
+  fontSize: 17,
+  borderBottom: '1px solid var(--border)',
+  display: 'flex',
+  alignItems: 'baseline',
 };
 
 function durationChipStyle(active) {

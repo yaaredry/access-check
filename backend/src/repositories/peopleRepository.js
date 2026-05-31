@@ -153,6 +153,20 @@ async function findByRequesterEmail(email, { includeStale = false } = {}) {
   return { rows, hiddenCount };
 }
 
+async function findPreviousSubmissionsByRequesterEmail(email) {
+  // Return the most recent submission per identifier_value for autocomplete suggestions
+  const { rows } = await db.query(
+    `SELECT DISTINCT ON (identifier_value)
+            identifier_value, population, division, escort_full_name, escort_phone, reason,
+            approval_start_date, approval_expiration
+     FROM people
+     WHERE requester_email = $1
+     ORDER BY identifier_value, created_at DESC`,
+    [email]
+  );
+  return rows;
+}
+
 async function resubmitById(id, { approvalExpiration, approvalStartDate, population, division, escortFullName, escortPhone, reason, requesterName, requesterEmail }) {
   const { rows } = await db.query(
     `UPDATE people
@@ -223,6 +237,7 @@ module.exports = {
   findByIdentifier,
   findByIdentifierValue,
   findByRequesterEmail,
+  findPreviousSubmissionsByRequesterEmail,
   create,
   update,
   updateStatus,
