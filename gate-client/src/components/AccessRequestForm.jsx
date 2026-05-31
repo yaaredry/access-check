@@ -139,6 +139,10 @@ export default function AccessRequestForm({ onLogout, requestorName, hideLogout,
 
   function applySuggestion(s) {
     const { reasonCategory, reasonOther } = parseReason(s.reason || '');
+    const toDateStr = (iso) => iso ? iso.split('T')[0] : '';
+    const expirationDate = toDateStr(s.approval_expiration);
+    const startDate = toDateStr(s.approval_start_date);
+    const isFutureOrToday = (d) => !!d && d >= todayStr;
     setForm(prev => ({
       ...prev,
       ilId: s.identifier_value,
@@ -148,7 +152,10 @@ export default function AccessRequestForm({ onLogout, requestorName, hideLogout,
       escortPhone: s.escort_phone || '',
       reasonCategory,
       reasonOther,
+      approvalExpiration: expirationDate > todayStr ? expirationDate : '',
+      approvalStartDate: isFutureOrToday(startDate) ? startDate : '',
     }));
+    setActiveDurationChip(null);
     setFieldErrors({});
     setShowSuggestions(false);
   }

@@ -890,15 +890,16 @@ describe('GET /access-requests/mine/suggestions', () => {
     expect(divisions).toContain('Beta');
   });
 
-  it('includes all autocomplete fields: identifier_value, population, division, escort_full_name, escort_phone, reason', async () => {
-    await insertForRequestor('jane@example.com', {
-      identifier_value: '000000018',
-      population: 'CIVILIAN',
-      division: 'Logistics',
-      escort_full_name: 'Guard One',
-      escort_phone: '+972501234567',
-      reason: 'Delivery',
-    });
+  it('includes all autocomplete fields including dates', async () => {
+    await db.query(
+      `INSERT INTO people
+         (identifier_type, identifier_value, verdict, status, requester_email,
+          population, division, escort_full_name, escort_phone, reason,
+          approval_start_date, approval_expiration)
+       VALUES ('IL_ID', '000000018', 'NOT_APPROVED', 'PENDING', 'jane@example.com',
+               'CIVILIAN', 'Logistics', 'Guard One', '+972501234567', 'Delivery',
+               CURRENT_DATE + 1, CURRENT_DATE + 3)`
+    );
 
     const res = await request(app)
       .get('/access-requests/mine/suggestions')
@@ -912,6 +913,8 @@ describe('GET /access-requests/mine/suggestions', () => {
     expect(s.escort_full_name).toBe('Guard One');
     expect(s.escort_phone).toBe('+972501234567');
     expect(s.reason).toBe('Delivery');
+    expect(s.approval_start_date).not.toBeNull();
+    expect(s.approval_expiration).not.toBeNull();
   });
 
   it('does not expose sensitive fields like requester_email or status', async () => {

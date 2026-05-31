@@ -961,6 +961,96 @@ describe('AccessRequestForm — ID autocomplete', () => {
     expect(screen.queryByRole('list')).not.toBeInTheDocument();
   });
 
+  // ── Date pre-filling ─────────────────────────────────────────────────────
+
+  it('pre-fills future expiration date from suggestion', async () => {
+    api.getMySuggestions.mockResolvedValue({ suggestions: [{ ...SUGGESTION, approval_expiration: IN_3_DAYS + 'T00:00:00.000Z', approval_start_date: null }] });
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    await waitFor(() => expect(api.getMySuggestions).toHaveBeenCalled());
+
+    await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), '000');
+    await waitFor(() => expect(screen.getByText('000000018')).toBeInTheDocument());
+    fireEvent.mouseDown(screen.getByText('000000018'));
+
+    expect(document.querySelectorAll('input[type="date"]')[1]).toHaveValue(IN_3_DAYS);
+  });
+
+  it('pre-fills future start date from suggestion', async () => {
+    api.getMySuggestions.mockResolvedValue({ suggestions: [{ ...SUGGESTION, approval_start_date: FUTURE_DATE + 'T00:00:00.000Z', approval_expiration: IN_3_DAYS + 'T00:00:00.000Z' }] });
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    await waitFor(() => expect(api.getMySuggestions).toHaveBeenCalled());
+
+    await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), '000');
+    await waitFor(() => expect(screen.getByText('000000018')).toBeInTheDocument());
+    fireEvent.mouseDown(screen.getByText('000000018'));
+
+    expect(document.querySelectorAll('input[type="date"]')[0]).toHaveValue(FUTURE_DATE);
+  });
+
+  it('pre-fills today as start date from suggestion', async () => {
+    api.getMySuggestions.mockResolvedValue({ suggestions: [{ ...SUGGESTION, approval_start_date: TODAY + 'T00:00:00.000Z', approval_expiration: IN_3_DAYS + 'T00:00:00.000Z' }] });
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    await waitFor(() => expect(api.getMySuggestions).toHaveBeenCalled());
+
+    await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), '000');
+    await waitFor(() => expect(screen.getByText('000000018')).toBeInTheDocument());
+    fireEvent.mouseDown(screen.getByText('000000018'));
+
+    expect(document.querySelectorAll('input[type="date"]')[0]).toHaveValue(TODAY);
+  });
+
+  it('does not pre-fill past expiration date', async () => {
+    api.getMySuggestions.mockResolvedValue({ suggestions: [{ ...SUGGESTION, approval_expiration: PAST_DATE_RECENT + 'T00:00:00.000Z', approval_start_date: null }] });
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    await waitFor(() => expect(api.getMySuggestions).toHaveBeenCalled());
+
+    await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), '000');
+    await waitFor(() => expect(screen.getByText('000000018')).toBeInTheDocument());
+    fireEvent.mouseDown(screen.getByText('000000018'));
+
+    expect(document.querySelectorAll('input[type="date"]')[1]).toHaveValue('');
+  });
+
+  it('does not pre-fill past start date', async () => {
+    api.getMySuggestions.mockResolvedValue({ suggestions: [{ ...SUGGESTION, approval_start_date: PAST_DATE_RECENT + 'T00:00:00.000Z', approval_expiration: IN_3_DAYS + 'T00:00:00.000Z' }] });
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    await waitFor(() => expect(api.getMySuggestions).toHaveBeenCalled());
+
+    await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), '000');
+    await waitFor(() => expect(screen.getByText('000000018')).toBeInTheDocument());
+    fireEvent.mouseDown(screen.getByText('000000018'));
+
+    expect(document.querySelectorAll('input[type="date"]')[0]).toHaveValue('');
+  });
+
+  it('leaves date fields empty when suggestion has no dates', async () => {
+    api.getMySuggestions.mockResolvedValue({ suggestions: [{ ...SUGGESTION, approval_expiration: null, approval_start_date: null }] });
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    await waitFor(() => expect(api.getMySuggestions).toHaveBeenCalled());
+
+    await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), '000');
+    await waitFor(() => expect(screen.getByText('000000018')).toBeInTheDocument());
+    fireEvent.mouseDown(screen.getByText('000000018'));
+
+    expect(document.querySelectorAll('input[type="date"]')[0]).toHaveValue('');
+    expect(document.querySelectorAll('input[type="date"]')[1]).toHaveValue('');
+  });
+
+  it('clears active duration chip when selecting a suggestion with a date', async () => {
+    api.getMySuggestions.mockResolvedValue({ suggestions: [{ ...SUGGESTION, approval_expiration: IN_3_DAYS + 'T00:00:00.000Z', approval_start_date: null }] });
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    await waitFor(() => expect(api.getMySuggestions).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByRole('button', { name: '7 days' }));
+    expect(screen.getByRole('button', { name: '7 days' })).toHaveAttribute('aria-pressed', 'true');
+
+    await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), '000');
+    await waitFor(() => expect(screen.getByText('000000018')).toBeInTheDocument());
+    fireEvent.mouseDown(screen.getByText('000000018'));
+
+    expect(screen.getByRole('button', { name: '7 days' })).toHaveAttribute('aria-pressed', 'false');
+  });
+
   it('silently ignores getMySuggestions API errors (no crash)', async () => {
     api.getMySuggestions.mockRejectedValue(new Error('Network error'));
     expect(() => render(<AccessRequestForm onLogout={vi.fn()} />)).not.toThrow();
