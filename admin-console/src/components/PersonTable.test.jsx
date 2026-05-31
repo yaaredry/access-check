@@ -284,7 +284,7 @@ describe('PersonTable — BLOCKED person', () => {
     expect(screen.getByText('Unblock')).toBeInTheDocument();
     expect(screen.queryByText('Approve')).not.toBeInTheDocument();
     expect(screen.queryByText('Reject')).not.toBeInTheDocument();
-    expect(screen.queryByText(/Block/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /🚫 Block/ })).not.toBeInTheDocument();
   });
 
   it('calls onUnblock when Unblock is clicked', () => {

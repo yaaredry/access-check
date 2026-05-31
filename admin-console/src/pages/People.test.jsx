@@ -294,7 +294,7 @@ describe('People — block modal', () => {
     fireEvent.click(screen.getByText('BlockRow'));
     const textarea = screen.getByPlaceholderText(/Reason for blocking/i);
     fireEvent.change(textarea, { target: { value: 'Repeated violations' } });
-    fireEvent.click(screen.getByRole('button', { name: /🚫 Block/i }));
+    fireEvent.click(screen.getByRole('button', { name: '🚫 Block' }));
     await waitFor(() => expect(api.blockPerson).toHaveBeenCalledWith(PERSON.id, 'Repeated violations'));
     expect(screen.queryByText(/Block Person/i)).not.toBeInTheDocument();
   });
@@ -303,7 +303,7 @@ describe('People — block modal', () => {
     setup();
     await waitFor(() => screen.getByText('000000018'));
     fireEvent.click(screen.getByText('BlockRow'));
-    expect(screen.getByRole('button', { name: /🚫 Block/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: '🚫 Block' })).toBeDisabled();
   });
 
   it('closes block modal when Cancel is clicked', async () => {
@@ -320,7 +320,7 @@ describe('People — block modal', () => {
     await waitFor(() => screen.getByText('000000018'));
     fireEvent.click(screen.getByText('BlockRow'));
     fireEvent.change(screen.getByPlaceholderText(/Reason for blocking/i), { target: { value: 'Test' } });
-    fireEvent.click(screen.getByRole('button', { name: /🚫 Block/i }));
+    fireEvent.click(screen.getByRole('button', { name: '🚫 Block' }));
     await waitFor(() => screen.getByText('Server error'));
     expect(screen.getByText(/Block Person/i)).toBeInTheDocument();
   });
