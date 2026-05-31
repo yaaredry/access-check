@@ -14,10 +14,14 @@ const VERDICTS = {
   EXPIRED: 'EXPIRED',
   NOT_FOUND: 'NOT_FOUND',
   NOT_YET_ACTIVE: 'NOT_YET_ACTIVE',
+  BLOCKED: 'BLOCKED',
 };
 
 function resolveVerdict(person) {
   if (!person) return VERDICTS.NOT_FOUND;
+
+  // BLOCKED is the strongest status — overrides all other verdicts including active approvals.
+  if (person.status === 'BLOCKED') return VERDICTS.BLOCKED;
 
   if (person.status === 'PENDING') return VERDICTS.PENDING;
 

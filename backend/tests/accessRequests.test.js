@@ -1043,3 +1043,31 @@ describe('per-user max_request_days validation', () => {
     expect(res.status).toBe(400);
   });
 });
+
+describe('BLOCKED person — access request rejection', () => {
+  it('POST /access-requests returns 409 with blocked:true when person is blocked', async () => {
+    await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict, status, block_reason) VALUES ('IL_ID', '000000018', 'BLOCKED', 'BLOCKED', 'Bad actor')"
+    );
+    const res = await request(app)
+      .post('/access-requests')
+      .set('Authorization', `Bearer ${requestorToken}`)
+      .send(VALID_PAYLOAD);
+    expect(res.status).toBe(409);
+    expect(res.body.blocked).toBe(true);
+    expect(res.body.error).toMatch(/blocked/i);
+  });
+
+  it('POST /access-requests/:id/resubmit returns 409 with blocked:true when record is blocked', async () => {
+    const { rows } = await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict, status, block_reason) VALUES ('IL_ID', '000000018', 'BLOCKED', 'BLOCKED', 'Repeat offender') RETURNING id"
+    );
+    const id = rows[0].id;
+    const res = await request(app)
+      .post(`/access-requests/${id}/resubmit`)
+      .set('Authorization', `Bearer ${namedRequestorToken}`)
+      .send({ population: 'IL_MILITARY', reason: 'Try again', approvalExpiration: TOMORROW });
+    expect(res.status).toBe(409);
+    expect(res.body.blocked).toBe(true);
+  });
+});

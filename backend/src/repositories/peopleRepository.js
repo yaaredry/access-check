@@ -195,6 +195,36 @@ async function resubmitById(id, { approvalExpiration, approvalStartDate, populat
   return rows[0] || null;
 }
 
+async function blockPerson(id, blockReason) {
+  const { rows } = await db.query(
+    `UPDATE people
+     SET status = 'BLOCKED',
+         verdict = 'BLOCKED',
+         block_reason = $2,
+         status_changed_at = NOW()
+     WHERE id = $1
+     RETURNING *`,
+    [id, blockReason]
+  );
+  return rows[0] || null;
+}
+
+async function unblockPerson(id, { status, verdict, rejectionReason }) {
+  const statusChangedAt = (status === 'APPROVED' || status === 'NOT_APPROVED') ? new Date() : null;
+  const { rows } = await db.query(
+    `UPDATE people
+     SET status = $2,
+         verdict = $3,
+         block_reason = NULL,
+         rejection_reason = $4,
+         status_changed_at = COALESCE($5, status_changed_at)
+     WHERE id = $1
+     RETURNING *`,
+    [id, status, verdict, rejectionReason || null, statusChangedAt]
+  );
+  return rows[0] || null;
+}
+
 async function upsertMany(records) {
   const client = await db.connect();
   let inserted = 0;
@@ -241,6 +271,8 @@ module.exports = {
   create,
   update,
   updateStatus,
+  blockPerson,
+  unblockPerson,
   resubmitById,
   remove,
   upsertMany,

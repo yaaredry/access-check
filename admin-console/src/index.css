@@ -76,6 +76,7 @@ input:focus, select:focus { border-color: var(--primary); }
 .badge.not-approved { background: #fee2e2; color: #991b1b; }
 .badge.expired { background: #fef3c7; color: #92400e; }
 .badge.pending { background: #dbeafe; color: #1e40af; }
+.badge.blocked { background: #fce7e7; color: #7f1d1d; font-weight: 700; }
 
 table { width: 100%; border-collapse: collapse; }
 th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }

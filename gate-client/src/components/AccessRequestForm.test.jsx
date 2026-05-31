@@ -1110,3 +1110,35 @@ describe('AccessRequestForm — ID autocomplete', () => {
     expect(screen.queryByText('000000018')).not.toBeInTheDocument();
   });
 });
+
+describe('AccessRequestForm — blocked person', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  function makeBlockedError() {
+    return Object.assign(new Error('This person is blocked — contact system admin.'), {
+      status: 409,
+      data: { blocked: true, error: 'This person is blocked — contact system admin.' },
+    });
+  }
+
+  it('shows blocked message when submitting for a blocked ID', async () => {
+    api.submitAccessRequest.mockRejectedValue(makeBlockedError());
+    render(<AccessRequestForm requestorName="Test User" />);
+    await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), VALID_ID);
+    fireEvent.change(document.querySelectorAll('input[type="date"]')[1], { target: { value: FUTURE_DATE } });
+    await userEvent.selectOptions(screen.getByDisplayValue('Select a reason…'), 'Drivers & Transport');
+    fireEvent.submit(document.querySelector('form'));
+    await waitFor(() => expect(screen.getByText(/blocked.*contact system admin/i)).toBeInTheDocument());
+  });
+
+  it('does NOT show the existing record panel when person is blocked', async () => {
+    api.submitAccessRequest.mockRejectedValue(makeBlockedError());
+    render(<AccessRequestForm requestorName="Test User" />);
+    await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), VALID_ID);
+    fireEvent.change(document.querySelectorAll('input[type="date"]')[1], { target: { value: FUTURE_DATE } });
+    await userEvent.selectOptions(screen.getByDisplayValue('Select a reason…'), 'Drivers & Transport');
+    fireEvent.submit(document.querySelector('form'));
+    await waitFor(() => expect(screen.getByText(/blocked/i)).toBeInTheDocument());
+    expect(screen.queryByText(/A record for this ID already exists/i)).not.toBeInTheDocument();
+  });
+});

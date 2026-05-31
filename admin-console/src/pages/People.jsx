@@ -14,9 +14,11 @@ const STATUS_FILTERS = [
   { key: 'APPROVED_WITH_ESCORT', label: 'Approved w/ Escort' },
   { key: 'EXPIRED',              label: 'Expired' },
   { key: 'NOT_APPROVED',         label: 'Not Approved' },
+  { key: 'BLOCKED',              label: '🚫 Blocked' },
 ];
 
 function getDisplayStatus(person) {
+  if (person.status === 'BLOCKED') return 'BLOCKED';
   if (person.status === 'PENDING') return 'PENDING';
   if (person.status === 'NOT_APPROVED' || person.verdict === 'NOT_APPROVED') return 'NOT_APPROVED';
   const wasApproved = ['APPROVED', 'ADMIN_APPROVED', 'APPROVED_WITH_ESCORT'].includes(person.verdict);
@@ -36,6 +38,8 @@ const MODAL_GSHEET = 'gsheet';
 const MODAL_CONFIRM = 'confirm';
 const MODAL_APPROVE = 'approve';
 const MODAL_REJECT = 'reject';
+const MODAL_BLOCK = 'block';
+const MODAL_UNBLOCK = 'unblock';
 
 export default function People() {
   const [data, setData] = useState({ rows: [], total: 0 });
@@ -49,6 +53,8 @@ export default function People() {
   const [confirm, setConfirm] = useState(null); // { title, message, onConfirm, variant }
   const [rejectTarget, setRejectTarget] = useState(null);
   const [approveTarget, setApproveTarget] = useState(null);
+  const [blockTarget, setBlockTarget] = useState(null);
+  const [unblockTarget, setUnblockTarget] = useState(null);
   const LIMIT = 50;
 
   const load = useCallback(async () => {
@@ -154,6 +160,32 @@ export default function People() {
     load();
   }
 
+  function handleBlock(person) {
+    setBlockTarget(person);
+    setModal(MODAL_BLOCK);
+  }
+
+  async function handleBlockConfirm(blockReason) {
+    await api.blockPerson(blockTarget.id, blockReason);
+    setModal(MODAL_NONE);
+    setBlockTarget(null);
+    setOffset(0);
+    load();
+  }
+
+  function handleUnblock(person) {
+    setUnblockTarget(person);
+    setModal(MODAL_UNBLOCK);
+  }
+
+  async function handleUnblockConfirm(status, verdict, rejectionReason) {
+    await api.unblockPerson(unblockTarget.id, status, verdict, rejectionReason);
+    setModal(MODAL_NONE);
+    setUnblockTarget(null);
+    setOffset(0);
+    load();
+  }
+
   function closeConfirm() {
     setModal(MODAL_NONE);
     setConfirm(null);
@@ -241,7 +273,7 @@ export default function People() {
             </button>
           </div>
         ) : (
-          <PersonTable rows={filteredRows} onEdit={openEdit} onDelete={handleDelete} onApprove={handleApprove} onReject={handleReject} />
+          <PersonTable rows={filteredRows} onEdit={openEdit} onDelete={handleDelete} onApprove={handleApprove} onReject={handleReject} onBlock={handleBlock} onUnblock={handleUnblock} />
         )}
 
         {totalPages > 1 && (
@@ -325,6 +357,22 @@ export default function People() {
             </div>
           </div>
         </div>
+      )}
+
+      {modal === MODAL_BLOCK && blockTarget && (
+        <BlockModal
+          person={blockTarget}
+          onConfirm={handleBlockConfirm}
+          onCancel={() => { setModal(MODAL_NONE); setBlockTarget(null); }}
+        />
+      )}
+
+      {modal === MODAL_UNBLOCK && unblockTarget && (
+        <UnblockModal
+          person={unblockTarget}
+          onConfirm={handleUnblockConfirm}
+          onCancel={() => { setModal(MODAL_NONE); setUnblockTarget(null); }}
+        />
       )}
     </div>
   );
@@ -432,6 +480,141 @@ function RejectModal({ person, onConfirm, onCancel }) {
             <button type="button" className="secondary" onClick={onCancel}>Cancel</button>
             <button type="submit" className="danger" disabled={loading || !reason.trim()}>
               {loading ? 'Rejecting…' : 'Reject'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function BlockModal({ person, onConfirm, onCancel }) {
+  const [reason, setReason] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const textareaRef = useRef(null);
+
+  useEffect(() => { textareaRef.current?.focus(); }, []);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!reason.trim()) return;
+    setLoading(true);
+    setError(null);
+    try {
+      await onConfirm(reason.trim());
+    } catch (err) {
+      setError(err.message || 'Failed to block. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div style={overlayStyle}>
+      <div className="card" style={{ width: 440, maxWidth: '95vw' }}>
+        <h3 style={{ fontWeight: 700, marginBottom: 8, color: '#991b1b' }}>🚫 Block Person</h3>
+        <p style={{ color: 'var(--text-muted)', marginBottom: 20, fontSize: 14, lineHeight: 1.5 }}>
+          Blocking ID <strong>{person.identifier_value}</strong>. This will deny all gate access immediately and
+          prevent any new requests. A reason is required.
+        </p>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <textarea
+            ref={textareaRef}
+            value={reason}
+            onChange={e => setReason(e.target.value)}
+            placeholder="Reason for blocking (visible to admins only)…"
+            rows={3}
+            required
+            style={{ resize: 'vertical', fontSize: 14, padding: '10px 12px', width: '100%', boxSizing: 'border-box' }}
+          />
+          {error && <div style={{ color: '#991b1b', fontWeight: 600 }}>{error}</div>}
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <button type="button" className="secondary" onClick={onCancel}>Cancel</button>
+            <button type="submit" className="danger" disabled={loading || !reason.trim()}
+              style={{ background: '#7f1d1d', borderColor: '#7f1d1d' }}>
+              {loading ? 'Blocking…' : '🚫 Block'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function UnblockModal({ person, onConfirm, onCancel }) {
+  const [status, setStatus] = useState('PENDING');
+  const [verdict, setVerdict] = useState('ADMIN_APPROVED');
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (status === 'NOT_APPROVED' && !rejectionReason.trim()) return;
+    setLoading(true);
+    setError(null);
+    try {
+      await onConfirm(status, status === 'APPROVED' ? verdict : undefined, status === 'NOT_APPROVED' ? rejectionReason.trim() : undefined);
+    } catch (err) {
+      setError(err.message || 'Failed to unblock. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div style={overlayStyle}>
+      <div className="card" style={{ width: 460, maxWidth: '95vw' }}>
+        <h3 style={{ fontWeight: 700, marginBottom: 8 }}>Unblock Person</h3>
+        <p style={{ color: 'var(--text-muted)', marginBottom: 20, fontSize: 14, lineHeight: 1.5 }}>
+          Unblocking ID <strong>{person.identifier_value}</strong>. Choose the new status to assign.
+        </p>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {[
+              { value: 'PENDING', label: 'Set to Pending', desc: 'Return to the review queue' },
+              { value: 'APPROVED', label: 'Approve', desc: 'Grant access immediately' },
+              { value: 'NOT_APPROVED', label: 'Reject', desc: 'Deny access' },
+            ].map(opt => (
+              <label key={opt.value} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', padding: '10px 12px', border: `1px solid ${status === opt.value ? 'var(--primary)' : 'var(--border)'}`, borderRadius: 8 }}>
+                <input type="radio" name="status" value={opt.value} checked={status === opt.value} onChange={() => setStatus(opt.value)} style={{ marginTop: 3 }} />
+                <div>
+                  <div style={{ fontWeight: 600 }}>{opt.label}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{opt.desc}</div>
+                </div>
+              </label>
+            ))}
+          </div>
+
+          {status === 'APPROVED' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label style={{ fontSize: 13, fontWeight: 600 }}>Approval type</label>
+              <select value={verdict} onChange={e => setVerdict(e.target.value)} style={{ padding: '8px 10px', fontSize: 14 }}>
+                <option value="APPROVED">Standard Approval</option>
+                <option value="ADMIN_APPROVED">Administrative Approval</option>
+                <option value="APPROVED_WITH_ESCORT">Approved with Escort</option>
+              </select>
+            </div>
+          )}
+
+          {status === 'NOT_APPROVED' && (
+            <textarea
+              value={rejectionReason}
+              onChange={e => setRejectionReason(e.target.value)}
+              placeholder="Reason for rejection…"
+              rows={3}
+              required
+              style={{ resize: 'vertical', fontSize: 14, padding: '10px 12px', width: '100%', boxSizing: 'border-box' }}
+            />
+          )}
+
+          {error && <div style={{ color: 'var(--not-approved)', fontWeight: 600 }}>{error}</div>}
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <button type="button" className="secondary" onClick={onCancel}>Cancel</button>
+            <button type="submit" className="primary"
+              disabled={loading || (status === 'NOT_APPROVED' && !rejectionReason.trim())}>
+              {loading ? 'Saving…' : 'Unblock'}
             </button>
           </div>
         </form>

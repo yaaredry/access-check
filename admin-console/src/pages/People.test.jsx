@@ -10,11 +10,13 @@ vi.mock('../api/client', () => ({
     deletePerson: vi.fn(),
     createPerson: vi.fn(),
     updatePerson: vi.fn(),
+    blockPerson: vi.fn(),
+    unblockPerson: vi.fn(),
   },
 }));
 
 vi.mock('../components/PersonTable', () => ({
-  default: ({ rows, onApprove, onReject, onEdit, onDelete }) => (
+  default: ({ rows, onApprove, onReject, onEdit, onDelete, onBlock, onUnblock }) => (
     <div>
       {rows.map((r) => (
         <div key={r.id}>
@@ -23,6 +25,8 @@ vi.mock('../components/PersonTable', () => ({
           <button onClick={() => onReject(r)}>Reject</button>
           <button onClick={() => onEdit(r)}>Edit</button>
           <button onClick={() => onDelete(r)}>Delete</button>
+          <button onClick={() => onBlock(r)}>BlockRow</button>
+          <button onClick={() => onUnblock(r)}>UnblockRow</button>
         </div>
       ))}
     </div>
@@ -44,7 +48,7 @@ const PERSON = {
   created_at: '2024-01-01T00:00:00Z',
 };
 
-// A diverse set of people covering all five display statuses
+// A diverse set of people covering all display statuses
 const PEOPLE_ALL_STATUSES = [
   { id: 1, identifier_type: 'IL_ID', identifier_value: 'pending-001',            verdict: null,                  status: 'PENDING',       approval_expiration: null,         last_seen_at: null, created_at: '2024-01-01T00:00:00Z' },
   { id: 2, identifier_type: 'IL_ID', identifier_value: 'approved-001',           verdict: 'APPROVED',            status: 'APPROVED',      approval_expiration: '2099-12-31', last_seen_at: null, created_at: '2024-01-01T00:00:00Z' },
@@ -52,6 +56,7 @@ const PEOPLE_ALL_STATUSES = [
   { id: 4, identifier_type: 'IL_ID', identifier_value: 'approved-with-escort-001', verdict: 'APPROVED_WITH_ESCORT', status: 'APPROVED',   approval_expiration: '2099-12-31', last_seen_at: null, created_at: '2024-01-01T00:00:00Z' },
   { id: 5, identifier_type: 'IL_ID', identifier_value: 'expired-001',            verdict: 'APPROVED',            status: 'APPROVED',      approval_expiration: '2000-01-01', last_seen_at: null, created_at: '2024-01-01T00:00:00Z' },
   { id: 6, identifier_type: 'IL_ID', identifier_value: 'not-approved-001',       verdict: 'NOT_APPROVED',        status: 'NOT_APPROVED',  approval_expiration: null,         last_seen_at: null, created_at: '2024-01-01T00:00:00Z' },
+  { id: 7, identifier_type: 'IL_ID', identifier_value: 'blocked-001',            verdict: 'BLOCKED',             status: 'BLOCKED',       approval_expiration: null,         last_seen_at: null, created_at: '2024-01-01T00:00:00Z', block_reason: 'Bad actor' },
 ];
 
 function setup() {
@@ -248,5 +253,114 @@ describe('People — approve modal', () => {
     fireEvent.click(screen.getByText('ApproveRow'));
     fireEvent.click(screen.getByText('Approve'));
     await waitFor(() => expect(api.listPeople).toHaveBeenCalledTimes(2));
+  });
+});
+
+describe('People — block filter chip', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('renders a Blocked filter chip', async () => {
+    setupMulti();
+    await waitFor(() => screen.getByText('blocked-001'));
+    expect(screen.getByRole('button', { name: /Blocked/i })).toBeInTheDocument();
+  });
+
+  it('clicking Blocked filter shows only blocked rows', async () => {
+    setupMulti();
+    await waitFor(() => screen.getByText('blocked-001'));
+    fireEvent.click(screen.getByRole('button', { name: /Blocked/i }));
+    expect(screen.getByText('blocked-001')).toBeInTheDocument();
+    expect(screen.queryByText('pending-001')).not.toBeInTheDocument();
+    expect(screen.queryByText('approved-001')).not.toBeInTheDocument();
+  });
+});
+
+describe('People — block modal', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('opens block modal when BlockRow is clicked', async () => {
+    api.blockPerson.mockResolvedValue({});
+    setup();
+    await waitFor(() => screen.getByText('000000018'));
+    fireEvent.click(screen.getByText('BlockRow'));
+    expect(screen.getByText(/Block Person/i)).toBeInTheDocument();
+  });
+
+  it('calls blockPerson with blockReason and closes modal on confirm', async () => {
+    api.blockPerson.mockResolvedValue({});
+    api.listPeople.mockResolvedValue({ rows: [PERSON], total: 1 });
+    setup();
+    await waitFor(() => screen.getByText('000000018'));
+    fireEvent.click(screen.getByText('BlockRow'));
+    const textarea = screen.getByPlaceholderText(/Reason for blocking/i);
+    fireEvent.change(textarea, { target: { value: 'Repeated violations' } });
+    fireEvent.click(screen.getByRole('button', { name: /🚫 Block/i }));
+    await waitFor(() => expect(api.blockPerson).toHaveBeenCalledWith(PERSON.id, 'Repeated violations'));
+    expect(screen.queryByText(/Block Person/i)).not.toBeInTheDocument();
+  });
+
+  it('block confirm button is disabled when reason is empty', async () => {
+    setup();
+    await waitFor(() => screen.getByText('000000018'));
+    fireEvent.click(screen.getByText('BlockRow'));
+    expect(screen.getByRole('button', { name: /🚫 Block/i })).toBeDisabled();
+  });
+
+  it('closes block modal when Cancel is clicked', async () => {
+    setup();
+    await waitFor(() => screen.getByText('000000018'));
+    fireEvent.click(screen.getByText('BlockRow'));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByText(/Block Person/i)).not.toBeInTheDocument();
+  });
+
+  it('shows error when blockPerson API call fails', async () => {
+    api.blockPerson.mockRejectedValue(new Error('Server error'));
+    setup();
+    await waitFor(() => screen.getByText('000000018'));
+    fireEvent.click(screen.getByText('BlockRow'));
+    fireEvent.change(screen.getByPlaceholderText(/Reason for blocking/i), { target: { value: 'Test' } });
+    fireEvent.click(screen.getByRole('button', { name: /🚫 Block/i }));
+    await waitFor(() => screen.getByText('Server error'));
+    expect(screen.getByText(/Block Person/i)).toBeInTheDocument();
+  });
+});
+
+describe('People — unblock modal', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('opens unblock modal when UnblockRow is clicked', async () => {
+    setup();
+    await waitFor(() => screen.getByText('000000018'));
+    fireEvent.click(screen.getByText('UnblockRow'));
+    expect(screen.getByText('Unblock Person')).toBeInTheDocument();
+  });
+
+  it('calls unblockPerson with PENDING status and closes modal', async () => {
+    api.unblockPerson.mockResolvedValue({});
+    api.listPeople.mockResolvedValue({ rows: [PERSON], total: 1 });
+    setup();
+    await waitFor(() => screen.getByText('000000018'));
+    fireEvent.click(screen.getByText('UnblockRow'));
+    fireEvent.click(screen.getByRole('button', { name: 'Unblock' }));
+    await waitFor(() => expect(api.unblockPerson).toHaveBeenCalledWith(PERSON.id, 'PENDING', undefined, undefined));
+    expect(screen.queryByText('Unblock Person')).not.toBeInTheDocument();
+  });
+
+  it('closes unblock modal when Cancel is clicked', async () => {
+    setup();
+    await waitFor(() => screen.getByText('000000018'));
+    fireEvent.click(screen.getByText('UnblockRow'));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByText('Unblock Person')).not.toBeInTheDocument();
+  });
+
+  it('shows rejection reason textarea when NOT_APPROVED is selected', async () => {
+    setup();
+    await waitFor(() => screen.getByText('000000018'));
+    fireEvent.click(screen.getByText('UnblockRow'));
+    fireEvent.click(screen.getByDisplayValue('PENDING'));
+    fireEvent.click(screen.getByDisplayValue('NOT_APPROVED'));
+    expect(screen.getByPlaceholderText(/Reason for rejection/i)).toBeInTheDocument();
   });
 });
