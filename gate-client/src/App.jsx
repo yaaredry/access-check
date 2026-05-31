@@ -83,9 +83,10 @@ function RequestorView({ onLogout, requestorName }) {
   const [tab, setTab] = useState('form');
   const [extendRecord, setExtendRecord] = useState(null);
   const [maxRequestDays, setMaxRequestDays] = useState(7);
+  const [canExtend, setCanExtend] = useState(true);
 
   useEffect(() => {
-    api.getMyConfig().then(cfg => setMaxRequestDays(cfg.maxRequestDays)).catch(() => {});
+    api.getMyConfig().then(cfg => { setMaxRequestDays(cfg.maxRequestDays); setCanExtend(cfg.canExtend ?? true); }).catch(() => {});
   }, []);
 
   function handleExtend(row) {
@@ -139,8 +140,8 @@ function RequestorView({ onLogout, requestorName }) {
       {/* Content */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {tab === 'form'
-          ? <AccessRequestForm onLogout={onLogout} requestorName={requestorName} hideLogout extendRecord={extendRecord} onExtendDone={handleExtendDone} maxRequestDays={maxRequestDays} />
-          : <MySubmissions requestorName={requestorName} onExtend={handleExtend} />
+          ? <AccessRequestForm onLogout={onLogout} requestorName={requestorName} hideLogout extendRecord={extendRecord} onExtendDone={handleExtendDone} maxRequestDays={maxRequestDays} canExtend={canExtend} />
+          : <MySubmissions requestorName={requestorName} onExtend={handleExtend} canExtend={canExtend} />
         }
       </div>
     </div>

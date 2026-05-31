@@ -565,6 +565,71 @@ describe('MySubmissions — expiry language and "Expired X days ago" pill', () =
   });
 });
 
+// ── canExtend prop ────────────────────────────────────────────────────────────
+
+describe('MySubmissions — canExtend', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('canExtend: true (default) → expired card has onClick handler', async () => {
+    const onExtend = vi.fn();
+    api.getMySubmissions.mockResolvedValue({ rows: [EXPIRED_ROW] });
+    render(<MySubmissions onExtend={onExtend} canExtend={true} />);
+    await waitFor(() => screen.getByText('000000075'));
+    fireEvent.click(screen.getByText('000000075'));
+    expect(onExtend).toHaveBeenCalledWith(EXPIRED_ROW);
+  });
+
+  it('canExtend: true → "Tap to request extension" hint shown', async () => {
+    api.getMySubmissions.mockResolvedValue({ rows: [EXPIRED_ROW] });
+    render(<MySubmissions onExtend={vi.fn()} canExtend={true} />);
+    await waitFor(() => screen.getByText('000000075'));
+    expect(screen.getByText(/Tap to request extension/)).toBeInTheDocument();
+  });
+
+  it('canExtend: false → expired card has no onClick (click does not call onExtend)', async () => {
+    const onExtend = vi.fn();
+    api.getMySubmissions.mockResolvedValue({ rows: [EXPIRED_ROW] });
+    render(<MySubmissions onExtend={onExtend} canExtend={false} />);
+    await waitFor(() => screen.getByText('000000075'));
+    fireEvent.click(screen.getByText('000000075'));
+    expect(onExtend).not.toHaveBeenCalled();
+  });
+
+  it('canExtend: false → hint NOT shown', async () => {
+    api.getMySubmissions.mockResolvedValue({ rows: [EXPIRED_ROW] });
+    render(<MySubmissions onExtend={vi.fn()} canExtend={false} />);
+    await waitFor(() => screen.getByText('000000075'));
+    expect(screen.queryByText(/Tap to request extension/)).not.toBeInTheDocument();
+  });
+
+  it('canExtend: false → non-expired cards are unaffected (no extend behaviour regardless)', async () => {
+    const onExtend = vi.fn();
+    api.getMySubmissions.mockResolvedValue({ rows: [ADMIN_APPROVED_ROW] });
+    render(<MySubmissions onExtend={onExtend} canExtend={false} />);
+    await waitFor(() => screen.getByText('000000026'));
+    fireEvent.click(screen.getByText('000000026'));
+    expect(onExtend).not.toHaveBeenCalled();
+  });
+
+  it('canExtend: false → NOT_APPROVED cards unaffected (no extend behaviour)', async () => {
+    const onExtend = vi.fn();
+    api.getMySubmissions.mockResolvedValue({ rows: [REJECTED_ROW] });
+    render(<MySubmissions onExtend={onExtend} canExtend={false} />);
+    await waitFor(() => screen.getByText('000000059'));
+    fireEvent.click(screen.getByText('000000059'));
+    expect(onExtend).not.toHaveBeenCalled();
+  });
+
+  it('canExtend: false → PENDING cards unaffected', async () => {
+    const onExtend = vi.fn();
+    api.getMySubmissions.mockResolvedValue({ rows: [PENDING_ROW] });
+    render(<MySubmissions onExtend={onExtend} canExtend={false} />);
+    await waitFor(() => screen.getByText('000000018'));
+    fireEvent.click(screen.getByText('000000018'));
+    expect(onExtend).not.toHaveBeenCalled();
+  });
+});
+
 // ── Hidden records banner ─────────────────────────────────────────────────────
 
 describe('MySubmissions — hidden records banner', () => {

@@ -5,6 +5,7 @@ const COLUMNS = [
   { key: 'username',         label: 'Email' },
   { key: 'request_count',    label: '# Submissions' },
   { key: 'max_request_days', label: 'Max Days' },
+  { key: 'can_extend',       label: 'Can Extend' },
   { key: 'created_at',       label: 'Created' },
   { key: 'updated_at',       label: 'Updated' },
 ];
@@ -83,6 +84,12 @@ export default function UserTable({ users, onEdit, onDelete, onRegenerate }) {
               </td>
               <td style={{ fontSize: 13, textAlign: 'center' }}>
                 {u.max_request_days ?? 7}
+              </td>
+              <td style={{ fontSize: 13, textAlign: 'center' }}>
+                {u.can_extend !== false
+                  ? <span style={{ color: 'var(--approved)', fontWeight: 700 }}>✓</span>
+                  : <span style={{ color: 'var(--not-approved)', fontWeight: 700 }}>✗</span>
+                }
               </td>
               <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>
                 {new Date(u.created_at).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })}

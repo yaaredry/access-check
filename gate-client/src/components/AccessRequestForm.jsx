@@ -97,7 +97,7 @@ function extendRecordToForm(extendRecord, requestorName) {
   };
 }
 
-export default function AccessRequestForm({ onLogout, requestorName, hideLogout, extendRecord, onExtendDone, maxRequestDays = 7 }) {
+export default function AccessRequestForm({ onLogout, requestorName, hideLogout, extendRecord, onExtendDone, maxRequestDays = 7, canExtend = true }) {
   const [form, setForm] = useState(
     extendRecord
       ? extendRecordToForm(extendRecord, requestorName)
@@ -494,8 +494,14 @@ export default function AccessRequestForm({ onLogout, requestorName, hideLogout,
           <ExistingRecordCard
             record={existingRecord}
             approvalExpiration={form.approvalExpiration}
-            onResubmit={isResubmittable(existingRecord) ? () => handleResubmit(existingRecord.id) : null}
+            onResubmit={isResubmittable(existingRecord) ? (() => {
+              const isRejected = existingRecord.status === 'NOT_APPROVED';
+              const isExpiredRecord = !isRejected && existingRecord.approval_expiration && new Date(existingRecord.approval_expiration) < new Date();
+              if (isExpiredRecord && !canExtend) return null;
+              return () => handleResubmit(existingRecord.id);
+            })() : null}
             loading={loading}
+            canExtend={canExtend}
           />
         )}
 

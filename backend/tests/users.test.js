@@ -359,3 +359,118 @@ describe('max_request_days on users', () => {
     expect(res.status).toBe(400);
   });
 });
+
+// ── can_extend ────────────────────────────────────────────────────────────────
+
+describe('can_extend on users', () => {
+  it('POST /users with canExtend: false stores can_extend = false in DB', async () => {
+    const res = await request(app)
+      .post('/users')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ username: 'noextend@example.com', name: 'No Extend', canExtend: false });
+
+    expect(res.status).toBe(201);
+    const { rows } = await db.query('SELECT can_extend FROM users WHERE username = $1', ['noextend@example.com']);
+    expect(rows[0].can_extend).toBe(false);
+  });
+
+  it('POST /users without canExtend defaults to can_extend = true', async () => {
+    const res = await request(app)
+      .post('/users')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ username: 'defaultextend@example.com', name: 'Default Extend' });
+
+    expect(res.status).toBe(201);
+    const { rows } = await db.query('SELECT can_extend FROM users WHERE username = $1', ['defaultextend@example.com']);
+    expect(rows[0].can_extend).toBe(true);
+  });
+
+  it('POST /users with canExtend: true explicitly stores can_extend = true', async () => {
+    const res = await request(app)
+      .post('/users')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ username: 'extendtrue@example.com', name: 'Extend True', canExtend: true });
+
+    expect(res.status).toBe(201);
+    const { rows } = await db.query('SELECT can_extend FROM users WHERE username = $1', ['extendtrue@example.com']);
+    expect(rows[0].can_extend).toBe(true);
+  });
+
+  it('PUT /users/:id with canExtend: false updates can_extend and returns it', async () => {
+    const user = await insertUser({ username: 'updatefalse@example.com', name: 'Update False' });
+    const res = await request(app)
+      .put(`/users/${user.id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ username: 'updatefalse@example.com', name: 'Update False', canExtend: false });
+
+    expect(res.status).toBe(200);
+    expect(res.body.can_extend).toBe(false);
+
+    const { rows } = await db.query('SELECT can_extend FROM users WHERE id = $1', [user.id]);
+    expect(rows[0].can_extend).toBe(false);
+  });
+
+  it('PUT /users/:id with canExtend: true updates can_extend to true', async () => {
+    const user = await insertUser({ username: 'updatetrue@example.com', name: 'Update True' });
+    // First set to false
+    await db.query('UPDATE users SET can_extend = false WHERE id = $1', [user.id]);
+
+    const res = await request(app)
+      .put(`/users/${user.id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ username: 'updatetrue@example.com', name: 'Update True', canExtend: true });
+
+    expect(res.status).toBe(200);
+    expect(res.body.can_extend).toBe(true);
+  });
+
+  it('GET /users includes can_extend field for every user', async () => {
+    await insertUser({ username: 'canextfield@example.com', name: 'Can Extend Field' });
+    const res = await request(app).get('/users').set('Authorization', `Bearer ${adminToken}`);
+    expect(res.status).toBe(200);
+    const u = res.body.users.find(u => u.username === 'canextfield@example.com');
+    expect(u).toBeDefined();
+    expect(typeof u.can_extend).toBe('boolean');
+  });
+
+  it('GET /access-requests/mine/config returns canExtend: true for user with can_extend = true', async () => {
+    // req-users-test (id=98) is seeded in beforeAll with default can_extend = true
+    const token = jwt.sign({ sub: 98, username: 'req-users-test', role: 'access_requestor' }, process.env.JWT_SECRET || 'dev-secret');
+    await db.query('UPDATE users SET can_extend = true WHERE id = 98');
+
+    const res = await request(app)
+      .get('/access-requests/mine/config')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.canExtend).toBe(true);
+    expect(typeof res.body.maxRequestDays).toBe('number');
+  });
+
+  it('GET /access-requests/mine/config returns canExtend: false for user with can_extend = false', async () => {
+    const token = jwt.sign({ sub: 98, username: 'req-users-test', role: 'access_requestor' }, process.env.JWT_SECRET || 'dev-secret');
+    await db.query('UPDATE users SET can_extend = false WHERE id = 98');
+
+    const res = await request(app)
+      .get('/access-requests/mine/config')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.canExtend).toBe(false);
+  });
+
+  it('GET /access-requests/mine/config with no explicit setting defaults canExtend to true', async () => {
+    // Insert a fresh user with default can_extend
+    const { rows } = await db.query(
+      `INSERT INTO users (username, password, role, name) VALUES ('configdefault@example.com', 'hash', 'access_requestor', 'Config Default') RETURNING id`
+    );
+    const token = jwt.sign({ sub: rows[0].id, username: 'configdefault@example.com', role: 'access_requestor' }, process.env.JWT_SECRET || 'dev-secret');
+
+    const res = await request(app)
+      .get('/access-requests/mine/config')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.canExtend).toBe(true);
+  });
+});

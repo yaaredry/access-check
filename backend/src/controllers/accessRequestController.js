@@ -86,6 +86,31 @@ async function create(req, res, next) {
       if (existing.status === 'BLOCKED') {
         return res.status(409).json({ blocked: true, error: 'This person is blocked — contact system admin.' });
       }
+      const isExpired = ['APPROVED', 'ADMIN_APPROVED', 'APPROVED_WITH_ESCORT'].includes(existing.verdict)
+        && existing.approval_expiration
+        && new Date(existing.approval_expiration) < new Date();
+      const { canExtend } = await userRepo.getConfig(req.user.username);
+      if (isExpired && !canExtend) {
+        const updated = await peopleRepo.resubmitById(existing.id, {
+          approvalExpiration,
+          approvalStartDate: approvalStartDate || null,
+          population,
+          division: division || null,
+          escortFullName: population === 'CIVILIAN' ? escortFullName : null,
+          escortPhone: population === 'CIVILIAN' ? escortPhone : null,
+          reason,
+          requesterName,
+          requesterEmail,
+        });
+        await auditRepo.log({
+          action: 'ACCESS_REQUEST_RESUBMIT',
+          identifierType: updated.identifier_type,
+          identifierValue: updated.identifier_value,
+          verdict: 'PENDING',
+          source: 'request_form',
+        });
+        return res.status(201).json({ id: updated.id, status: updated.status });
+      }
       return res.status(409).json({
         error: 'A record for this ID already exists.',
         existing: {
@@ -257,8 +282,8 @@ async function mySuggestions(req, res, next) {
 
 async function myConfig(req, res, next) {
   try {
-    const maxRequestDays = await userRepo.getMaxRequestDays(req.user.username);
-    return res.json({ maxRequestDays });
+    const { maxRequestDays, canExtend } = await userRepo.getConfig(req.user.username);
+    return res.json({ maxRequestDays, canExtend });
   } catch (err) {
     return next(err);
   }

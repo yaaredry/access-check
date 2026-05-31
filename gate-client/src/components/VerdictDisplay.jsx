@@ -111,7 +111,7 @@ export default function VerdictDisplay({ verdict, identifierValue, escortName, e
         )}
       </div>
 
-      {(escortName || escortPhone) && (
+      {verdict === 'APPROVED_WITH_ESCORT' && (escortName || escortPhone) && (
         <div style={{ textAlign: 'center', color: cfg.color }}>
           {escortName && <div style={{ fontSize: 22, fontWeight: 700 }}>Escort: {escortName}</div>}
           {escortPhone && <div style={{ fontSize: 18, fontWeight: 600, marginTop: 4 }}>{escortPhone}</div>}

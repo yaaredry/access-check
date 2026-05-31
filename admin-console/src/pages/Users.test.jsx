@@ -103,7 +103,7 @@ describe('Users page', () => {
     fireEvent.change(screen.getByDisplayValue('Alice'), { target: { value: 'Alice 2' } });
     fireEvent.click(screen.getByText('Save Changes'));
 
-    await waitFor(() => expect(api.updateUser).toHaveBeenCalledWith(1, { username: 'alice@example.com', name: 'Alice 2', maxRequestDays: 7 }));
+    await waitFor(() => expect(api.updateUser).toHaveBeenCalledWith(1, expect.objectContaining({ username: 'alice@example.com', name: 'Alice 2', maxRequestDays: 7 })));
     expect(screen.queryByText('Edit User')).not.toBeInTheDocument();
   });
 
@@ -180,10 +180,53 @@ describe('Users page', () => {
     fireEvent.change(screen.getByDisplayValue('7'), { target: { value: '3' } });
     fireEvent.click(screen.getByText('Save Changes'));
 
-    await waitFor(() => expect(api.updateUser).toHaveBeenCalledWith(1, {
+    await waitFor(() => expect(api.updateUser).toHaveBeenCalledWith(1, expect.objectContaining({
       username: 'alice@example.com',
       name: 'Alice',
       maxRequestDays: 3,
-    }));
+    })));
+  });
+});
+
+describe('Users — canExtend', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    api.listUsers.mockResolvedValue({ users: USERS });
+  });
+
+  it('edit user, uncheck canExtend → api.updateUser called with canExtend: false', async () => {
+    api.updateUser.mockResolvedValue({ id: 1, username: 'alice@example.com', name: 'Alice', max_request_days: 7, can_extend: false });
+
+    render(<Users />);
+    await waitFor(() => screen.getByText('Alice'));
+    fireEvent.click(screen.getAllByText('Edit')[0]); // Alice
+
+    // Uncheck canExtend
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByText('Save Changes'));
+
+    await waitFor(() => expect(api.updateUser).toHaveBeenCalledWith(1,
+      expect.objectContaining({ canExtend: false })
+    ));
+  });
+
+  it('create user without touching checkbox → api.createUser called with canExtend: true', async () => {
+    api.createUser.mockResolvedValue({
+      id: 3, username: 'new@example.com', name: 'New', role: 'access_requestor',
+      created_at: '2024-03-01T00:00:00Z', plainPassword: 'ab3c9',
+    });
+    api.listUsers.mockResolvedValue({ users: USERS });
+
+    render(<Users />);
+    await waitFor(() => screen.getByText('Alice'));
+    fireEvent.click(screen.getByText('+ Add User'));
+
+    fireEvent.change(screen.getByPlaceholderText('user@example.com'), { target: { value: 'new@example.com' } });
+    fireEvent.change(screen.getByPlaceholderText('Display name'), { target: { value: 'New' } });
+    fireEvent.click(screen.getByText('Create User'));
+
+    await waitFor(() => expect(api.createUser).toHaveBeenCalledWith(
+      expect.objectContaining({ canExtend: true })
+    ));
   });
 });
