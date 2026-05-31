@@ -975,6 +975,14 @@ describe('GET /access-requests/mine/suggestions', () => {
       .set('Authorization', `Bearer ${adminToken}`);
     expect(res.status).toBe(403);
   });
+
+  it('idx_people_requester_email_id_date index exists in the database', async () => {
+    const { rows } = await db.query(
+      `SELECT indexname FROM pg_indexes
+       WHERE tablename = 'people' AND indexname = 'idx_people_requester_email_id_date'`
+    );
+    expect(rows).toHaveLength(1);
+  });
 });
 
 describe('per-user max_request_days validation', () => {

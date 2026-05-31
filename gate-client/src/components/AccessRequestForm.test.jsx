@@ -967,4 +967,47 @@ describe('AccessRequestForm — ID autocomplete', () => {
     // Form still renders normally
     await waitFor(() => expect(screen.getByPlaceholderText('9-digit Israeli ID')).toBeInTheDocument());
   });
+
+  // ── 3-char threshold ──────────────────────────────────────────────────────
+
+  it('does not show suggestions with 1 character typed', async () => {
+    api.getMySuggestions.mockResolvedValue({ suggestions: [SUGGESTION] });
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    await waitFor(() => expect(api.getMySuggestions).toHaveBeenCalled());
+
+    await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), '0');
+    expect(screen.queryByText('000000018')).not.toBeInTheDocument();
+  });
+
+  it('does not show suggestions with 2 characters typed', async () => {
+    api.getMySuggestions.mockResolvedValue({ suggestions: [SUGGESTION] });
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    await waitFor(() => expect(api.getMySuggestions).toHaveBeenCalled());
+
+    await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), '00');
+    expect(screen.queryByText('000000018')).not.toBeInTheDocument();
+  });
+
+  it('shows suggestions at exactly 3 characters', async () => {
+    api.getMySuggestions.mockResolvedValue({ suggestions: [SUGGESTION] });
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    await waitFor(() => expect(api.getMySuggestions).toHaveBeenCalled());
+
+    await userEvent.type(screen.getByPlaceholderText('9-digit Israeli ID'), '000');
+    await waitFor(() => expect(screen.getByText('000000018')).toBeInTheDocument());
+  });
+
+  it('hides suggestions again when input is trimmed back below 3 characters', async () => {
+    api.getMySuggestions.mockResolvedValue({ suggestions: [SUGGESTION] });
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    await waitFor(() => expect(api.getMySuggestions).toHaveBeenCalled());
+
+    const idInput = screen.getByPlaceholderText('9-digit Israeli ID');
+    await userEvent.type(idInput, '000');
+    await waitFor(() => expect(screen.getByText('000000018')).toBeInTheDocument());
+
+    await userEvent.clear(idInput);
+    await userEvent.type(idInput, '00'); // only 2 chars now
+    expect(screen.queryByText('000000018')).not.toBeInTheDocument();
+  });
 });

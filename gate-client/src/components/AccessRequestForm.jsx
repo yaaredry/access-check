@@ -133,7 +133,7 @@ export default function AccessRequestForm({ onLogout, requestorName, hideLogout,
     }
   }
 
-  const idSuggestions = form.ilId && !extendRecord
+  const idSuggestions = form.ilId.length >= 3 && !extendRecord
     ? previousSubmissions.filter(s => s.identifier_value.startsWith(form.ilId))
     : [];
 
