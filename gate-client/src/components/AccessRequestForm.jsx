@@ -551,7 +551,7 @@ function existingStatusConfig(record) {
   return { label: 'Unknown', color: 'var(--text-muted)', bg: 'rgba(100,116,139,.1)', icon: '⚪' };
 }
 
-function ExistingRecordCard({ record, onResubmit, approvalExpiration, loading, canExtend = true }) {
+function ExistingRecordCard({ record, onResubmit, approvalExpiration, loading }) {
   const cfg = existingStatusConfig(record);
   const isRejected = record.status === 'NOT_APPROVED';
   const dateLabel = approvalExpiration

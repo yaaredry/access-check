@@ -1167,7 +1167,7 @@ describe('can_extend — expired entry renewal restriction', () => {
 
     // BLOCKED wins — backend returns 409 with blocked: true
     expect(res.status).toBe(409);
-    expect(res.body.existing.status).toBe('BLOCKED');
+    expect(res.body.blocked).toBe(true);
   });
 
   it('expired ADMIN_APPROVED + can_extend: false → 201', async () => {
