@@ -363,4 +363,52 @@ describe('People — unblock modal', () => {
     fireEvent.click(screen.getByDisplayValue('NOT_APPROVED'));
     expect(screen.getByPlaceholderText(/Reason for rejection/i)).toBeInTheDocument();
   });
+
+  it('calls unblockPerson with APPROVED status and verdict on confirm', async () => {
+    api.unblockPerson.mockResolvedValue({});
+    api.listPeople.mockResolvedValue({ rows: [PERSON], total: 1 });
+    setup();
+    await waitFor(() => screen.getByText('000000018'));
+    fireEvent.click(screen.getByText('UnblockRow'));
+    fireEvent.click(screen.getByDisplayValue('PENDING'));
+    fireEvent.click(screen.getByDisplayValue('APPROVED'));
+    fireEvent.click(screen.getByRole('button', { name: 'Unblock' }));
+    await waitFor(() => expect(api.unblockPerson).toHaveBeenCalledWith(PERSON.id, 'APPROVED', expect.any(String), undefined));
+    expect(screen.queryByText('Unblock Person')).not.toBeInTheDocument();
+  });
+
+  it('calls unblockPerson with NOT_APPROVED status and rejectionReason on confirm', async () => {
+    api.unblockPerson.mockResolvedValue({});
+    api.listPeople.mockResolvedValue({ rows: [PERSON], total: 1 });
+    setup();
+    await waitFor(() => screen.getByText('000000018'));
+    fireEvent.click(screen.getByText('UnblockRow'));
+    fireEvent.click(screen.getByDisplayValue('PENDING'));
+    fireEvent.click(screen.getByDisplayValue('NOT_APPROVED'));
+    fireEvent.change(screen.getByPlaceholderText(/Reason for rejection/i), { target: { value: 'Policy violation' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Unblock' }));
+    await waitFor(() => expect(api.unblockPerson).toHaveBeenCalledWith(PERSON.id, 'NOT_APPROVED', undefined, 'Policy violation'));
+    expect(screen.queryByText('Unblock Person')).not.toBeInTheDocument();
+  });
+
+  it('shows error when unblockPerson API call fails', async () => {
+    api.unblockPerson.mockRejectedValue(new Error('Network error'));
+    setup();
+    await waitFor(() => screen.getByText('000000018'));
+    fireEvent.click(screen.getByText('UnblockRow'));
+    fireEvent.click(screen.getByRole('button', { name: 'Unblock' }));
+    await waitFor(() => screen.getByText('Network error'));
+    expect(screen.getByText('Unblock Person')).toBeInTheDocument();
+  });
+
+  it('reloads the list after a successful unblock', async () => {
+    api.unblockPerson.mockResolvedValue({});
+    api.listPeople.mockResolvedValue({ rows: [PERSON], total: 1 });
+    setup();
+    await waitFor(() => screen.getByText('000000018'));
+    const callsBefore = api.listPeople.mock.calls.length;
+    fireEvent.click(screen.getByText('UnblockRow'));
+    fireEvent.click(screen.getByRole('button', { name: 'Unblock' }));
+    await waitFor(() => expect(api.listPeople.mock.calls.length).toBeGreaterThan(callsBefore));
+  });
 });

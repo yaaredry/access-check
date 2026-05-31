@@ -307,4 +307,30 @@ describe('PersonTable — BLOCKED person', () => {
     fireEvent.click(screen.getByText(/🚫 Block/));
     expect(onBlock).toHaveBeenCalledWith(approved);
   });
+
+  it('clicking Unblock button does not open the visit history modal', async () => {
+    render(<PersonTable rows={[BLOCKED_PERSON]} onEdit={vi.fn()} onDelete={vi.fn()} onBlock={vi.fn()} onUnblock={vi.fn()} />);
+    fireEvent.click(screen.getByText('Unblock'));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(api.getPersonVisits).not.toHaveBeenCalled();
+  });
+
+  it('clicking Block button does not open the visit history modal', async () => {
+    const approved = { ...BLOCKED_PERSON, status: 'APPROVED', verdict: 'APPROVED', block_reason: null };
+    render(<PersonTable rows={[approved]} onEdit={vi.fn()} onDelete={vi.fn()} onBlock={vi.fn()} onUnblock={vi.fn()} />);
+    fireEvent.click(screen.getByText(/🚫 Block/));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(api.getPersonVisits).not.toHaveBeenCalled();
+  });
+
+  it('Reject button is absent for blocked rows', () => {
+    render(<PersonTable rows={[BLOCKED_PERSON]} onEdit={vi.fn()} onDelete={vi.fn()} onBlock={vi.fn()} onUnblock={vi.fn()} />);
+    expect(screen.queryByText('Reject')).not.toBeInTheDocument();
+  });
+
+  it('does not show block_reason text for non-blocked rows', () => {
+    const approved = { ...BLOCKED_PERSON, status: 'APPROVED', verdict: 'APPROVED', block_reason: null };
+    render(<PersonTable rows={[approved]} onEdit={vi.fn()} onDelete={vi.fn()} onBlock={vi.fn()} onUnblock={vi.fn()} />);
+    expect(screen.queryByText('Caught tailgating')).not.toBeInTheDocument();
+  });
 });

@@ -1070,4 +1070,30 @@ describe('BLOCKED person — access request rejection', () => {
     expect(res.status).toBe(409);
     expect(res.body.blocked).toBe(true);
   });
+
+  it('does NOT expose block_reason to the requestor in the 409 response', async () => {
+    await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict, status, block_reason) VALUES ('IL_ID', '000000018', 'BLOCKED', 'BLOCKED', 'Classified security reason')"
+    );
+    const res = await request(app)
+      .post('/access-requests')
+      .set('Authorization', `Bearer ${namedRequestorToken}`)
+      .send(VALID_PAYLOAD);
+    expect(res.status).toBe(409);
+    expect(res.body.block_reason).toBeUndefined();
+    expect(JSON.stringify(res.body)).not.toContain('Classified security reason');
+  });
+
+  it('POST /access-requests/:id/resubmit does NOT expose block_reason in the 409 response', async () => {
+    const { rows } = await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict, status, block_reason) VALUES ('IL_ID', '000000018', 'BLOCKED', 'BLOCKED', 'Classified security reason') RETURNING id"
+    );
+    const res = await request(app)
+      .post(`/access-requests/${rows[0].id}/resubmit`)
+      .set('Authorization', `Bearer ${namedRequestorToken}`)
+      .send({ population: 'IL_MILITARY', reason: 'Try again', approvalExpiration: TOMORROW });
+    expect(res.status).toBe(409);
+    expect(res.body.block_reason).toBeUndefined();
+    expect(JSON.stringify(res.body)).not.toContain('Classified security reason');
+  });
 });

@@ -1141,4 +1141,32 @@ describe('AccessRequestForm — blocked person', () => {
     await waitFor(() => expect(screen.getByText(/blocked/i)).toBeInTheDocument());
     expect(screen.queryByText(/A record for this ID already exists/i)).not.toBeInTheDocument();
   });
+
+  it('shows blocked message when resubmitAccessRequest returns a blocked 409', async () => {
+    api.submitAccessRequest.mockRejectedValue(
+      make409Error({ id: 42, status: 'NOT_APPROVED', verdict: 'NOT_APPROVED', rejection_reason: null, approval_expiration: null })
+    );
+    api.resubmitAccessRequest.mockRejectedValue(makeBlockedError());
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    await fillRequiredFields();
+    submitForm();
+    await waitFor(() => screen.getByRole('button', { name: /Resubmit Request/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Resubmit Request/i }));
+    await waitFor(() => expect(screen.getByText(/blocked.*contact system admin/i)).toBeInTheDocument());
+  });
+
+  it('hides Resubmit/Extension buttons when resubmit returns a blocked 409', async () => {
+    api.submitAccessRequest.mockRejectedValue(
+      make409Error({ id: 42, status: 'NOT_APPROVED', verdict: 'NOT_APPROVED', rejection_reason: null, approval_expiration: null })
+    );
+    api.resubmitAccessRequest.mockRejectedValue(makeBlockedError());
+    render(<AccessRequestForm onLogout={vi.fn()} />);
+    await fillRequiredFields();
+    submitForm();
+    await waitFor(() => screen.getByRole('button', { name: /Resubmit Request/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Resubmit Request/i }));
+    await waitFor(() => expect(screen.getByText(/blocked/i)).toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: /Resubmit Request/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Request Extension/i })).not.toBeInTheDocument();
+  });
 });

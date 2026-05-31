@@ -271,6 +271,32 @@ describe('GET /people', () => {
     expect(res.status).toBe(200);
     expect(res.body.rows).toHaveLength(1);
   });
+
+  it('includes block_reason in list response for blocked rows', async () => {
+    await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict, status, block_reason) VALUES ('IL_ID', '000000018', 'BLOCKED', 'BLOCKED', 'Caught tailgating')"
+    );
+
+    const res = await request(app)
+      .get('/people')
+      .set('Authorization', `Bearer ${authToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.rows[0].block_reason).toBe('Caught tailgating');
+  });
+
+  it('returns null block_reason for non-blocked rows', async () => {
+    await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict, status) VALUES ('IL_ID', '000000018', 'APPROVED', 'APPROVED')"
+    );
+
+    const res = await request(app)
+      .get('/people')
+      .set('Authorization', `Bearer ${authToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.rows[0].block_reason).toBeNull();
+  });
 });
 
 describe('GET /people/:id', () => {
@@ -286,6 +312,19 @@ describe('GET /people/:id', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.identifier_value).toBe('000000018');
+  });
+
+  it('returns block_reason for a blocked person', async () => {
+    const { rows } = await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict, status, block_reason) VALUES ('IL_ID', '000000018', 'BLOCKED', 'BLOCKED', 'Security violation') RETURNING id"
+    );
+
+    const res = await request(app)
+      .get(`/people/${rows[0].id}`)
+      .set('Authorization', `Bearer ${authToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.block_reason).toBe('Security violation');
   });
 
   it('returns 404 for non-existent id', async () => {
@@ -1132,6 +1171,19 @@ describe('POST /people/:id/block', () => {
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('BLOCKED');
   });
+
+  it('blocking an already-BLOCKED person overwrites the block_reason', async () => {
+    const { rows } = await db.query(
+      "INSERT INTO people (identifier_type, identifier_value, verdict, status, block_reason) VALUES ('IL_ID', '000000018', 'BLOCKED', 'BLOCKED', 'Old reason') RETURNING id"
+    );
+    const res = await request(app)
+      .post(`/people/${rows[0].id}/block`)
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({ blockReason: 'New reason' });
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('BLOCKED');
+    expect(res.body.block_reason).toBe('New reason');
+  });
 });
 
 describe('POST /people/:id/unblock', () => {
@@ -1212,5 +1264,25 @@ describe('POST /people/:id/unblock', () => {
       .send({ status: 'PENDING' });
     const { rows: logs } = await db.query("SELECT * FROM audit_logs WHERE action = 'UNBLOCK'");
     expect(logs).toHaveLength(1);
+  });
+
+  it('returns 401 without auth token', async () => {
+    const id = await insertBlocked();
+    const res = await request(app)
+      .post(`/people/${id}/unblock`)
+      .send({ status: 'PENDING' });
+    expect(res.status).toBe(401);
+  });
+
+  it('unblocks to APPROVED using default ADMIN_APPROVED verdict when no verdict is sent', async () => {
+    const id = await insertBlocked();
+    const res = await request(app)
+      .post(`/people/${id}/unblock`)
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({ status: 'APPROVED' });
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('APPROVED');
+    expect(res.body.verdict).toBe('ADMIN_APPROVED');
+    expect(res.body.block_reason).toBeNull();
   });
 });

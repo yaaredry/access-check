@@ -7,7 +7,7 @@ async function findAll({ search, limit = 50, offset = 0 }) {
     SELECT p.id, p.identifier_type, p.identifier_value, p.verdict,
            p.approval_expiration, p.created_at, p.updated_at, p.last_seen_at,
            p.population, p.division, p.escort_full_name, p.escort_phone, p.reason, p.status,
-           p.rejection_reason, p.requester_name, p.requester_email,
+           p.rejection_reason, p.block_reason, p.requester_name, p.requester_email,
            u.name AS requestor_user_name
     FROM people p
     LEFT JOIN users u ON u.username = p.requester_email

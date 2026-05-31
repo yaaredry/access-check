@@ -153,4 +153,12 @@ describe('VerdictDisplay', () => {
     render(<VerdictDisplay verdict="BLOCKED" onBack={vi.fn()} autoResetMs={0} />);
     expect(screen.getByText('Entry denied — this person is blocked')).toBeInTheDocument();
   });
+
+  it('auto-resets after autoResetMs for BLOCKED verdict', () => {
+    const onBack = vi.fn();
+    render(<VerdictDisplay verdict="BLOCKED" onBack={onBack} autoResetMs={5000} />);
+    expect(onBack).not.toHaveBeenCalled();
+    act(() => { vi.advanceTimersByTime(5000); });
+    expect(onBack).toHaveBeenCalledOnce();
+  });
 });
