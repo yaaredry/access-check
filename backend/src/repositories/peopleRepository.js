@@ -229,6 +229,7 @@ async function upsertMany(records) {
   const client = await db.connect();
   let inserted = 0;
   let updated = 0;
+  const insertedRecords = [];
 
   try {
     await client.query('BEGIN');
@@ -244,11 +245,15 @@ async function upsertMany(records) {
                        reason = COALESCE(EXCLUDED.reason, people.reason),
                        escort_full_name = COALESCE(EXCLUDED.escort_full_name, people.escort_full_name),
                        requester_email = COALESCE(EXCLUDED.requester_email, people.requester_email)
-         RETURNING (xmax = 0) AS inserted`,
+         RETURNING *, (xmax = 0) AS inserted`,
         [r.identifierType, r.identifierValue, r.verdict, r.approvalExpiration || null, r.population || null, r.reason || null, r.escortName || null, r.requesterEmail || null]
       );
-      if (rows[0].inserted) inserted++;
-      else updated++;
+      if (rows[0].inserted) {
+        inserted++;
+        insertedRecords.push(rows[0]);
+      } else {
+        updated++;
+      }
     }
     await client.query('COMMIT');
   } catch (err) {
@@ -258,7 +263,7 @@ async function upsertMany(records) {
     client.release();
   }
 
-  return { inserted, updated };
+  return { inserted, updated, insertedRecords };
 }
 
 module.exports = {

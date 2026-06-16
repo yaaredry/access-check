@@ -44,6 +44,7 @@ export const api = {
   },
   getPerson: (id) => request('GET', `/people/${id}`),
   getPersonVisits: (id) => request('GET', `/people/${id}/visits`),
+  getPersonAuditLog: (id) => request('GET', `/people/${id}/audit-log`),
   createPerson: (data) => request('POST', '/people', data),
   updatePerson: (id, data) => request('PUT', `/people/${id}`, data),
   deletePerson: (id) => request('DELETE', `/people/${id}`),

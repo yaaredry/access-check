@@ -4,6 +4,7 @@ const { body, param, query } = require('express-validator');
 const { validate } = require('../middlewares/validate');
 const peopleService = require('../services/peopleService');
 const auditRepo = require('../repositories/auditRepository');
+const personAuditLogRepo = require('../repositories/personAuditLogRepository');
 
 const IDENTIFIER_TYPES = ['IL_ID', 'IDF_ID'];
 const VERDICTS = ['APPROVED', 'ADMIN_APPROVED', 'APPROVED_WITH_ESCORT', 'NOT_APPROVED'];
@@ -65,7 +66,7 @@ async function getOne(req, res, next) {
 
 async function create(req, res, next) {
   try {
-    const person = await peopleService.createPerson(req.body);
+    const person = await peopleService.createPerson(req.body, req.user);
     return res.status(201).json(person);
   } catch (err) {
     return next(err);
@@ -74,7 +75,7 @@ async function create(req, res, next) {
 
 async function update(req, res, next) {
   try {
-    const person = await peopleService.updatePerson(parseInt(req.params.id, 10), req.body);
+    const person = await peopleService.updatePerson(parseInt(req.params.id, 10), req.body, req.user);
     if (!person) return res.status(404).json({ error: 'Person not found' });
     return res.json(person);
   } catch (err) {
@@ -99,7 +100,7 @@ async function updateStatus(req, res, next) {
       verdict,
       status,
       rejectionReason: status === 'NOT_APPROVED' ? rejectionReason.trim() : null,
-    });
+    }, req.user);
     if (!person) return res.status(404).json({ error: 'Person not found' });
     return res.json(person);
   } catch (err) {
@@ -155,7 +156,7 @@ async function unblockPerson(req, res, next) {
 
 async function remove(req, res, next) {
   try {
-    const deleted = await peopleService.deletePerson(parseInt(req.params.id, 10));
+    const deleted = await peopleService.deletePerson(parseInt(req.params.id, 10), req.user);
     if (!deleted) return res.status(404).json({ error: 'Person not found' });
     return res.status(204).send();
   } catch (err) {
@@ -180,7 +181,7 @@ async function importGSheet(req, res, next) {
     if (!url || typeof url !== 'string') {
       return res.status(400).json({ error: 'url is required' });
     }
-    const result = await peopleService.importFromGSheet(url);
+    const result = await peopleService.importFromGSheet(url, req.user);
     return res.json(result);
   } catch (err) {
     return next(err);
@@ -192,8 +193,19 @@ async function uploadCSV(req, res, next) {
     if (!req.file) {
       return res.status(400).json({ error: 'No CSV file uploaded' });
     }
-    const result = await peopleService.bulkUploadCSV(req.file.buffer);
+    const result = await peopleService.bulkUploadCSV(req.file.buffer, req.user);
     return res.json(result);
+  } catch (err) {
+    return next(err);
+  }
+}
+
+async function getAuditLog(req, res, next) {
+  try {
+    const person = await peopleService.getPerson(parseInt(req.params.id, 10));
+    if (!person) return res.status(404).json({ error: 'Person not found' });
+    const log = await personAuditLogRepo.findByPersonId(parseInt(req.params.id, 10));
+    return res.json(log);
   } catch (err) {
     return next(err);
   }
@@ -214,6 +226,7 @@ module.exports = {
   list,
   getOne,
   getVisits,
+  getAuditLog,
   create,
   update,
   updateStatus,

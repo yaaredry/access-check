@@ -31,6 +31,7 @@ router.post('/import-gsheet', ctrl.importGSheet);
 
 router.get('/:id', ctrl.idParamValidation, ctrl.getOne);
 router.get('/:id/visits', ctrl.idParamValidation, ctrl.getVisits);
+router.get('/:id/audit-log', ctrl.idParamValidation, ctrl.getAuditLog);
 router.put('/:id', ctrl.idParamValidation, ctrl.personBodyValidation, ctrl.update);
 router.patch('/:id/status', ctrl.idParamValidation, ctrl.updateStatus);
 router.post('/:id/block', ctrl.idParamValidation, ctrl.blockPerson);
