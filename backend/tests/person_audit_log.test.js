@@ -17,11 +17,6 @@ const VALID_PERSON = {
   verdict: 'APPROVED',
 };
 
-const VALID_PERSON_2 = {
-  identifierType: 'IDF_ID',
-  identifierValue: '1234567',
-  verdict: 'NOT_APPROVED',
-};
 
 beforeAll(async () => {
   // Ensure required tables exist (defensive — migrations should have run)
