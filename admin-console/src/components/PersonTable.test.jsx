@@ -5,6 +5,7 @@ import PersonTable from './PersonTable';
 vi.mock('../api/client', () => ({
   api: {
     getPersonVisits: vi.fn(),
+    getPersonAuditLog: vi.fn(),
   },
 }));
 
@@ -24,6 +25,8 @@ describe('PersonTable', () => {
   beforeEach(() => {
     api.getPersonVisits.mockReset();
     api.getPersonVisits.mockResolvedValue([]);
+    api.getPersonAuditLog.mockReset();
+    api.getPersonAuditLog.mockResolvedValue([]);
   });
 
   it('shows empty state when rows is empty', () => {
@@ -245,5 +248,110 @@ describe('PersonTable', () => {
     const rows = screen.getAllByRole('row');
     const dataRow = rows[1]; // first is header
     expect(dataRow).toHaveStyle({ cursor: 'pointer' });
+  });
+});
+
+// ── Audit tab integration ──────────────────────────────────────────────────────
+
+describe('PersonTable – Modification History tab integration', () => {
+  beforeEach(() => {
+    api.getPersonVisits.mockReset();
+    api.getPersonVisits.mockResolvedValue([]);
+    api.getPersonAuditLog.mockReset();
+    api.getPersonAuditLog.mockResolvedValue([]);
+  });
+
+  it('does not call getPersonAuditLog on row click', async () => {
+    render(<PersonTable rows={[BASE]} onEdit={vi.fn()} onDelete={vi.fn()} onReject={vi.fn()} />);
+    fireEvent.click(screen.getAllByRole('row')[1]);
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
+    expect(api.getPersonAuditLog).not.toHaveBeenCalled();
+  });
+
+  it('calls getPersonAuditLog when Modification History tab is clicked', async () => {
+    render(<PersonTable rows={[BASE]} onEdit={vi.fn()} onDelete={vi.fn()} onReject={vi.fn()} />);
+    fireEvent.click(screen.getAllByRole('row')[1]);
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Modification History' }));
+    await waitFor(() => expect(api.getPersonAuditLog).toHaveBeenCalledWith(BASE.id));
+  });
+
+  it('does not call getPersonAuditLog again when switching back and forth', async () => {
+    render(<PersonTable rows={[BASE]} onEdit={vi.fn()} onDelete={vi.fn()} onReject={vi.fn()} />);
+    fireEvent.click(screen.getAllByRole('row')[1]);
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Modification History' }));
+    await waitFor(() => expect(api.getPersonAuditLog).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Visit History' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Modification History' }));
+    // Still only one call — cached
+    expect(api.getPersonAuditLog).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows audit entries returned from the API', async () => {
+    api.getPersonAuditLog.mockResolvedValue([
+      { id: 1, event_type: 'created', changed_by_username: 'admin', changes: { snapshot: {} }, created_at: '2024-06-15T09:00:00Z' },
+    ]);
+
+    render(<PersonTable rows={[BASE]} onEdit={vi.fn()} onDelete={vi.fn()} onReject={vi.fn()} />);
+    fireEvent.click(screen.getAllByRole('row')[1]);
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Modification History' }));
+    await waitFor(() => expect(screen.getByText('Created')).toBeInTheDocument());
+  });
+
+  it('shows empty state when API returns empty audit log', async () => {
+    api.getPersonAuditLog.mockResolvedValue([]);
+
+    render(<PersonTable rows={[BASE]} onEdit={vi.fn()} onDelete={vi.fn()} onReject={vi.fn()} />);
+    fireEvent.click(screen.getAllByRole('row')[1]);
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Modification History' }));
+    await waitFor(() => expect(screen.getByText('No modification history.')).toBeInTheDocument());
+  });
+
+  it('shows error message when getPersonAuditLog rejects', async () => {
+    api.getPersonAuditLog.mockRejectedValue(new Error('Server error'));
+
+    render(<PersonTable rows={[BASE]} onEdit={vi.fn()} onDelete={vi.fn()} onReject={vi.fn()} />);
+    fireEvent.click(screen.getAllByRole('row')[1]);
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Modification History' }));
+    await waitFor(() => expect(screen.getByText('Server error')).toBeInTheDocument());
+  });
+
+  it('resets audit log when a different row is clicked', async () => {
+    const SECOND = { ...BASE, id: 2, identifier_value: '000000026' };
+    api.getPersonAuditLog
+      .mockResolvedValueOnce([
+        { id: 1, event_type: 'created', changed_by_username: 'admin', changes: { snapshot: {} }, created_at: '2024-06-15T09:00:00Z' },
+      ])
+      .mockResolvedValueOnce([]);
+
+    render(<PersonTable rows={[BASE, SECOND]} onEdit={vi.fn()} onDelete={vi.fn()} onReject={vi.fn()} />);
+
+    // Click first row and open audit tab
+    const dataRows = screen.getAllByRole('row').slice(1);
+    fireEvent.click(dataRows[0]);
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('tab', { name: 'Modification History' }));
+    await waitFor(() => expect(screen.getByText('Created')).toBeInTheDocument());
+
+    // Close modal and click second row
+    fireEvent.click(screen.getByTestId('modal-backdrop'));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+    fireEvent.click(dataRows[1]);
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('tab', { name: 'Modification History' }));
+    await waitFor(() => expect(screen.getByText('No modification history.')).toBeInTheDocument());
+    // Second person's audit fetched separately
+    expect(api.getPersonAuditLog).toHaveBeenCalledTimes(2);
   });
 });

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { api } from '../api/client';
 import VisitHistoryModal from './VisitHistoryModal';
 
@@ -68,12 +68,19 @@ export default function PersonTable({ rows, onEdit, onDelete, onApprove, onRejec
   const [visits, setVisits] = useState([]);
   const [visitsLoading, setVisitsLoading] = useState(false);
   const [visitsError, setVisitsError] = useState(null);
+  const [auditLog, setAuditLog] = useState([]);
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [auditError, setAuditError] = useState(null);
+  const auditLoadedRef = useRef(false);
 
   async function handleRowClick(person) {
     setSelectedPerson(person);
     setVisits([]);
     setVisitsError(null);
     setVisitsLoading(true);
+    setAuditLog([]);
+    setAuditError(null);
+    auditLoadedRef.current = false;
     try {
       const data = await api.getPersonVisits(person.id);
       setVisits(data);
@@ -84,10 +91,28 @@ export default function PersonTable({ rows, onEdit, onDelete, onApprove, onRejec
     }
   }
 
+  async function handleAuditTabSelect() {
+    if (auditLoadedRef.current || auditLoading || !selectedPerson) return;
+    setAuditLoading(true);
+    setAuditError(null);
+    try {
+      const data = await api.getPersonAuditLog(selectedPerson.id);
+      setAuditLog(data);
+      auditLoadedRef.current = true;
+    } catch (err) {
+      setAuditError(err.message || 'Failed to load modification history');
+    } finally {
+      setAuditLoading(false);
+    }
+  }
+
   function handleCloseModal() {
     setSelectedPerson(null);
     setVisits([]);
     setVisitsError(null);
+    setAuditLog([]);
+    setAuditError(null);
+    auditLoadedRef.current = false;
   }
 
   if (!rows || rows.length === 0) {
@@ -114,6 +139,10 @@ export default function PersonTable({ rows, onEdit, onDelete, onApprove, onRejec
         loading={visitsLoading}
         error={visitsError}
         onClose={handleCloseModal}
+        auditLog={auditLog}
+        auditLoading={auditLoading}
+        auditError={auditError}
+        onAuditTabSelect={handleAuditTabSelect}
       />
     )}
     <div style={{ overflowX: 'auto' }}>
