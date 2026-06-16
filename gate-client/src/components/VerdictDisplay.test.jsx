@@ -115,10 +115,10 @@ describe('VerdictDisplay', () => {
     expect(screen.getByText('+972501234567')).toBeInTheDocument();
   });
 
-  it('shows escort info for APPROVED verdict when escort fields are present', () => {
+  it('does not show escort info for APPROVED verdict even when escort fields are present', () => {
     render(<VerdictDisplay verdict="APPROVED" escortName="Jane Doe" escortPhone="+972501234567" onBack={vi.fn()} autoResetMs={0} />);
-    expect(screen.getByText('Escort: Jane Doe')).toBeInTheDocument();
-    expect(screen.getByText('+972501234567')).toBeInTheDocument();
+    expect(screen.queryByText('Escort: Jane Doe')).not.toBeInTheDocument();
+    expect(screen.queryByText('+972501234567')).not.toBeInTheDocument();
   });
 
   it('does not show escort block when neither escortName nor escortPhone is provided', () => {
@@ -141,5 +141,24 @@ describe('VerdictDisplay', () => {
     render(<VerdictDisplay verdict="APPROVED" onBack={vi.fn()} autoResetMs={0} />);
     expect(screen.queryByText('All visitor cameras must be covered with blue stickers')).not.toBeInTheDocument();
     expect(screen.queryByText('All visitors must obtain and wear a badge at all times')).not.toBeInTheDocument();
+  });
+
+  it('shows BLOCKED label and 🚫 icon', () => {
+    render(<VerdictDisplay verdict="BLOCKED" onBack={vi.fn()} autoResetMs={0} />);
+    expect(screen.getByText('BLOCKED')).toBeInTheDocument();
+    expect(screen.getByText('🚫')).toBeInTheDocument();
+  });
+
+  it('shows sub-message for BLOCKED verdict', () => {
+    render(<VerdictDisplay verdict="BLOCKED" onBack={vi.fn()} autoResetMs={0} />);
+    expect(screen.getByText('Entry denied — this person is blocked')).toBeInTheDocument();
+  });
+
+  it('auto-resets after autoResetMs for BLOCKED verdict', () => {
+    const onBack = vi.fn();
+    render(<VerdictDisplay verdict="BLOCKED" onBack={onBack} autoResetMs={5000} />);
+    expect(onBack).not.toHaveBeenCalled();
+    act(() => { vi.advanceTimersByTime(5000); });
+    expect(onBack).toHaveBeenCalledOnce();
   });
 });

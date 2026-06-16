@@ -5,6 +5,7 @@ export default function UserForm({ initial, onSubmit, onCancel, loading }) {
     username: initial?.username || '',
     name: initial?.name || '',
     maxRequestDays: initial?.max_request_days ?? 7,
+    canExtend: initial?.can_extend ?? true,
   });
   const [error, setError] = useState('');
 
@@ -16,7 +17,7 @@ export default function UserForm({ initial, onSubmit, onCancel, loading }) {
     e.preventDefault();
     setError('');
     try {
-      await onSubmit({ username: form.username.trim(), name: form.name.trim(), maxRequestDays: Number(form.maxRequestDays) });
+      await onSubmit({ username: form.username.trim(), name: form.name.trim(), maxRequestDays: Number(form.maxRequestDays), canExtend: form.canExtend });
     } catch (err) {
       setError(err.message || 'Something went wrong.');
     }
@@ -59,6 +60,21 @@ export default function UserForm({ initial, onSubmit, onCancel, loading }) {
         />
         <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 0' }}>
           Maximum number of days this user can request access for (1–30, default 7).
+        </p>
+      </div>
+      <div>
+        <label style={{ display: 'block', marginBottom: 6, fontSize: 13, fontWeight: 600 }}>Extension Permission</label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={form.canExtend}
+            onChange={e => set('canExtend', e.target.checked)}
+            style={{ width: 'auto', flexShrink: 0 }}
+          />
+          <span style={{ fontSize: 13 }}>Can request extension of expired entries</span>
+        </label>
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 0' }}>
+          When unchecked, the user must submit a full new request instead of using the one-click extension shortcut.
         </p>
       </div>
       {error && <p style={{ color: 'var(--not-approved)', fontSize: 13, margin: 0 }}>{error}</p>}

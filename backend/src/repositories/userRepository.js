@@ -20,7 +20,7 @@ async function findById(id) {
 
 async function listRequestors() {
   const { rows } = await db.query(
-    `SELECT u.id, u.username, u.name, u.role, u.created_at, u.updated_at, u.max_request_days,
+    `SELECT u.id, u.username, u.name, u.role, u.created_at, u.updated_at, u.max_request_days, u.can_extend,
             COUNT(p.id)::int AS request_count
      FROM users u
      LEFT JOIN people p ON LOWER(p.requester_email) = LOWER(u.username)
@@ -31,23 +31,23 @@ async function listRequestors() {
   return rows;
 }
 
-async function createUser({ username, password, name, maxRequestDays = 7 }) {
+async function createUser({ username, password, name, maxRequestDays = 7, canExtend = true }) {
   const { rows } = await db.query(
-    `INSERT INTO users (username, password, role, name, max_request_days)
-     VALUES ($1, $2, 'access_requestor', $3, $4)
-     RETURNING id, username, name, role, max_request_days, created_at`,
-    [username.toLowerCase(), password, name, maxRequestDays]
+    `INSERT INTO users (username, password, role, name, max_request_days, can_extend)
+     VALUES ($1, $2, 'access_requestor', $3, $4, $5)
+     RETURNING id, username, name, role, max_request_days, can_extend, created_at`,
+    [username.toLowerCase(), password, name, maxRequestDays, canExtend]
   );
   return rows[0];
 }
 
-async function updateUser(id, { username, name, maxRequestDays }) {
+async function updateUser(id, { username, name, maxRequestDays, canExtend }) {
   const { rows } = await db.query(
     `UPDATE users
-     SET username = $2, name = $3, max_request_days = $4, updated_at = NOW()
+     SET username = $2, name = $3, max_request_days = $4, can_extend = $5, updated_at = NOW()
      WHERE id = $1 AND role = 'access_requestor'
-     RETURNING id, username, name, role, max_request_days, created_at`,
-    [id, username.toLowerCase(), name, maxRequestDays]
+     RETURNING id, username, name, role, max_request_days, can_extend, created_at`,
+    [id, username.toLowerCase(), name, maxRequestDays, canExtend]
   );
   return rows[0] || null;
 }
@@ -71,12 +71,20 @@ async function removeUser(id) {
   return rowCount > 0;
 }
 
-async function getMaxRequestDays(username) {
+async function getConfig(username) {
   const { rows } = await db.query(
-    'SELECT max_request_days FROM users WHERE LOWER(username) = LOWER($1)',
+    'SELECT max_request_days, can_extend FROM users WHERE LOWER(username) = LOWER($1)',
     [username]
   );
-  return rows[0]?.max_request_days ?? 7;
+  return {
+    maxRequestDays: rows[0]?.max_request_days ?? 7,
+    canExtend: rows[0]?.can_extend ?? true,
+  };
 }
 
-module.exports = { findByUsername, findById, listRequestors, createUser, updateUser, updatePassword, removeUser, getMaxRequestDays };
+async function getMaxRequestDays(username) {
+  const { maxRequestDays } = await getConfig(username);
+  return maxRequestDays;
+}
+
+module.exports = { findByUsername, findById, listRequestors, createUser, updateUser, updatePassword, removeUser, getMaxRequestDays, getConfig };

@@ -81,7 +81,7 @@ const FILTER_LABEL = {
   rejected: 'rejected',
 };
 
-export default function MySubmissions({ onExtend }) {
+export default function MySubmissions({ onExtend, canExtend = true }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -184,11 +184,11 @@ export default function MySubmissions({ onExtend }) {
               return (
                 <div
                   key={row.id}
-                  onClick={expired && onExtend ? () => onExtend(row) : undefined}
+                  onClick={expired && onExtend && canExtend ? () => onExtend(row) : undefined}
                   style={{
                     ...cardStyle,
                     borderLeft: `4px solid ${cfg.color}`,
-                    ...(expired && onExtend ? expiredClickableStyle : {}),
+                    ...(expired && onExtend && canExtend ? expiredClickableStyle : {}),
                   }}
                 >
                   {/* ID + status badge */}
@@ -263,7 +263,7 @@ export default function MySubmissions({ onExtend }) {
                   )}
 
                   {/* Extend hint */}
-                  {expired && onExtend && (
+                  {expired && onExtend && canExtend && (
                     <div style={{
                       marginTop: 10, fontSize: 12, fontWeight: 600,
                       color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: 4,

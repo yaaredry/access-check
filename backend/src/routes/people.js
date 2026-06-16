@@ -34,6 +34,8 @@ router.get('/:id/visits', ctrl.idParamValidation, ctrl.getVisits);
 router.get('/:id/audit-log', ctrl.idParamValidation, ctrl.getAuditLog);
 router.put('/:id', ctrl.idParamValidation, ctrl.personBodyValidation, ctrl.update);
 router.patch('/:id/status', ctrl.idParamValidation, ctrl.updateStatus);
+router.post('/:id/block', ctrl.idParamValidation, ctrl.blockPerson);
+router.post('/:id/unblock', ctrl.idParamValidation, ctrl.unblockPerson);
 router.delete('/:id', ctrl.idParamValidation, ctrl.remove);
 
 module.exports = router;

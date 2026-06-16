@@ -7,7 +7,7 @@ async function findAll({ search, limit = 50, offset = 0 }) {
     SELECT p.id, p.identifier_type, p.identifier_value, p.verdict,
            p.approval_expiration, p.created_at, p.updated_at, p.last_seen_at,
            p.population, p.division, p.escort_full_name, p.escort_phone, p.reason, p.status,
-           p.rejection_reason, p.requester_name, p.requester_email,
+           p.rejection_reason, p.block_reason, p.requester_name, p.requester_email,
            u.name AS requestor_user_name
     FROM people p
     LEFT JOIN users u ON u.username = p.requester_email
@@ -153,6 +153,20 @@ async function findByRequesterEmail(email, { includeStale = false } = {}) {
   return { rows, hiddenCount };
 }
 
+async function findPreviousSubmissionsByRequesterEmail(email) {
+  // Return the most recent submission per identifier_value for autocomplete suggestions
+  const { rows } = await db.query(
+    `SELECT DISTINCT ON (identifier_value)
+            identifier_value, population, division, escort_full_name, escort_phone, reason,
+            approval_start_date, approval_expiration
+     FROM people
+     WHERE requester_email = $1
+     ORDER BY identifier_value, created_at DESC`,
+    [email]
+  );
+  return rows;
+}
+
 async function resubmitById(id, { approvalExpiration, approvalStartDate, population, division, escortFullName, escortPhone, reason, requesterName, requesterEmail }) {
   const { rows } = await db.query(
     `UPDATE people
@@ -177,6 +191,36 @@ async function resubmitById(id, { approvalExpiration, approvalStartDate, populat
     [id, approvalExpiration || null, approvalStartDate || null, population || null, division || null,
      escortFullName || null, escortPhone || null, reason || null,
      requesterName || null, requesterEmail || null]
+  );
+  return rows[0] || null;
+}
+
+async function blockPerson(id, blockReason) {
+  const { rows } = await db.query(
+    `UPDATE people
+     SET status = 'BLOCKED',
+         verdict = 'BLOCKED',
+         block_reason = $2,
+         status_changed_at = NOW()
+     WHERE id = $1
+     RETURNING *`,
+    [id, blockReason]
+  );
+  return rows[0] || null;
+}
+
+async function unblockPerson(id, { status, verdict, rejectionReason }) {
+  const statusChangedAt = (status === 'APPROVED' || status === 'NOT_APPROVED') ? new Date() : null;
+  const { rows } = await db.query(
+    `UPDATE people
+     SET status = $2,
+         verdict = $3,
+         block_reason = NULL,
+         rejection_reason = $4,
+         status_changed_at = COALESCE($5, status_changed_at)
+     WHERE id = $1
+     RETURNING *`,
+    [id, status, verdict, rejectionReason || null, statusChangedAt]
   );
   return rows[0] || null;
 }
@@ -228,9 +272,12 @@ module.exports = {
   findByIdentifier,
   findByIdentifierValue,
   findByRequesterEmail,
+  findPreviousSubmissionsByRequesterEmail,
   create,
   update,
   updateStatus,
+  blockPerson,
+  unblockPerson,
   resubmitById,
   remove,
   upsertMany,
