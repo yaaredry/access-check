@@ -35,7 +35,12 @@ function fetchCsvBuffer(url) {
   return new Promise((resolve, reject) => {
     function get(u, redirects) {
       if (redirects > 5) return reject(new Error('Too many redirects'));
-      const lib = u.startsWith('https') ? require('https') : require('http');
+      let parsed;
+      try { parsed = new URL(u); } catch { return reject(new Error('Invalid redirect URL')); }
+      if (parsed.hostname !== 'docs.google.com') {
+        return reject(new Error(`Redirect to non-Google host blocked: ${parsed.hostname}`));
+      }
+      const lib = parsed.protocol === 'https:' ? require('https') : require('http');
       lib.get(u, (res) => {
         if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
           return get(res.headers.location, redirects + 1);

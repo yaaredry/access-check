@@ -2,6 +2,7 @@
 
 require('dotenv').config({ path: require('path').resolve(__dirname, '../../.env') });
 
+const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { Pool } = require('pg');
 
@@ -17,7 +18,8 @@ async function run() {
   const client = await pool.connect();
   try {
     const username = process.env.DEFAULT_ADMIN_USERNAME || 'admin';
-    const plainPassword = process.env.DEFAULT_ADMIN_PASSWORD || 'Admin1234!';
+    // If a password is explicitly provided via env, use it; otherwise generate a strong random one.
+    const plainPassword = process.env.DEFAULT_ADMIN_PASSWORD || crypto.randomBytes(16).toString('base64url');
     const hash = await bcrypt.hash(plainPassword, 12);
 
     await client.query(
@@ -27,6 +29,8 @@ async function run() {
       [username, hash]
     );
     console.log(`Admin user '${username}' upserted.`);
+    console.log(`Password: ${plainPassword}`);
+    console.log('Save this password — it will not be shown again.');
   } finally {
     client.release();
     await pool.end();
