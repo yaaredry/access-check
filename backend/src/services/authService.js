@@ -17,8 +17,8 @@ async function login(username, password) {
 
   const token = jwt.sign(
     { sub: user.id, username: user.username, role: user.role, name: user.name || null },
-    process.env.JWT_SECRET || 'dev-secret',
-    { expiresIn: process.env.JWT_EXPIRES_IN || '8h' }
+    process.env.JWT_SECRET,
+    { expiresIn: process.env.JWT_EXPIRES_IN || '8h', algorithm: 'HS256' }
   );
 
   return { token, username: user.username, role: user.role, name: user.name || null };

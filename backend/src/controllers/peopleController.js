@@ -188,18 +188,6 @@ async function importGSheet(req, res, next) {
   }
 }
 
-async function uploadCSV(req, res, next) {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No CSV file uploaded' });
-    }
-    const result = await peopleService.bulkUploadCSV(req.file.buffer, req.user);
-    return res.json(result);
-  } catch (err) {
-    return next(err);
-  }
-}
-
 async function getAuditLog(req, res, next) {
   try {
     const person = await peopleService.getPerson(parseInt(req.params.id, 10));
@@ -219,6 +207,7 @@ const idParamValidation = [
 const listQueryValidation = [
   query('limit').optional().isInt({ min: 1, max: 200 }).withMessage('limit must be 1-200'),
   query('offset').optional().isInt({ min: 0 }).withMessage('offset must be >= 0'),
+  query('search').optional().trim().isLength({ max: 100 }).withMessage('search must be 100 characters or fewer'),
   validate,
 ];
 
@@ -233,7 +222,6 @@ module.exports = {
   blockPerson,
   unblockPerson,
   remove,
-  uploadCSV,
   importGSheet,
   personBodyValidation,
   idParamValidation,

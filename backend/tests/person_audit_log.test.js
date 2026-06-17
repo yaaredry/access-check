@@ -536,81 +536,12 @@ describe('GET /people/:id/audit-log', () => {
   });
 });
 
-// ── CSV bulk upload → created events per inserted row ────────────────────────
-
 describe('POST /people/upload-csv → audit log', () => {
-  it('logs a created event per inserted row', async () => {
-    const csv = Buffer.from(
-      'identifier_type,identifier_value,verdict\nIL_ID,000000018,APPROVED\nIL_ID,000000026,NOT_APPROVED\n'
-    );
-
+  it('returns 410 — endpoint discontinued', async () => {
     const res = await request(app)
       .post('/people/upload-csv')
-      .set('Authorization', `Bearer ${adminToken}`)
-      .attach('file', csv, { filename: 'data.csv', contentType: 'text/csv' });
-
-    expect(res.status).toBe(200);
-    expect(res.body.inserted).toBe(2);
-
-    const { rows: auditRows } = await db.query(
-      "SELECT * FROM person_audit_log WHERE event_type = 'created'"
-    );
-    expect(auditRows).toHaveLength(2);
-  });
-
-  it('logs actor on each inserted CSV row', async () => {
-    const csv = Buffer.from('identifier_type,identifier_value,verdict\nIL_ID,000000018,APPROVED\n');
-
-    await request(app)
-      .post('/people/upload-csv')
-      .set('Authorization', `Bearer ${adminToken}`)
-      .attach('file', csv, { filename: 'data.csv', contentType: 'text/csv' });
-
-    const { rows } = await db.query("SELECT * FROM person_audit_log WHERE event_type = 'created'");
-    expect(rows[0].changed_by_username).toBe('admin');
-  });
-
-  it('does not log audit entries for rows with validation errors', async () => {
-    const csv = Buffer.from('identifier_type,identifier_value,verdict\nBAD_TYPE,000000018,APPROVED\n');
-
-    await request(app)
-      .post('/people/upload-csv')
-      .set('Authorization', `Bearer ${adminToken}`)
-      .attach('file', csv, { filename: 'data.csv', contentType: 'text/csv' });
-
-    const { rows } = await db.query('SELECT * FROM person_audit_log');
-    expect(rows).toHaveLength(0);
-  });
-
-  it('does not log audit entries for rows that are updates (already exist)', async () => {
-    // Insert person first
-    await request(app)
-      .post('/people')
-      .set('Authorization', `Bearer ${adminToken}`)
-      .send(VALID_PERSON);
-    await db.query('DELETE FROM person_audit_log');
-
-    // Re-upload same person — it's an upsert/update, not a new insert
-    const csv = Buffer.from('identifier_type,identifier_value,verdict\nIL_ID,000000018,NOT_APPROVED\n');
-    await request(app)
-      .post('/people/upload-csv')
-      .set('Authorization', `Bearer ${adminToken}`)
-      .attach('file', csv, { filename: 'data.csv', contentType: 'text/csv' });
-
-    const { rows } = await db.query("SELECT * FROM person_audit_log WHERE event_type = 'created'");
-    expect(rows).toHaveLength(0);
-  });
-
-  it('snapshot source field is csv_import for CSV uploads', async () => {
-    const csv = Buffer.from('identifier_type,identifier_value,verdict\nIL_ID,000000018,APPROVED\n');
-
-    await request(app)
-      .post('/people/upload-csv')
-      .set('Authorization', `Bearer ${adminToken}`)
-      .attach('file', csv, { filename: 'data.csv', contentType: 'text/csv' });
-
-    const { rows } = await db.query("SELECT * FROM person_audit_log WHERE event_type = 'created'");
-    expect(rows[0].changes.source).toBe('csv_import');
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(res.status).toBe(410);
   });
 });
 
