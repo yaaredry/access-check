@@ -78,22 +78,21 @@ async function verifyById(identifierType, identifierValue) {
 }
 
 async function verifyByImage(imageBuffer) {
-  const { ilIds, idfIds, raw } = await ocrService.processImage(imageBuffer);
+  const { ilIds, idfIds } = await ocrService.processImage(imageBuffer);
 
   logger.info({
     message: 'OCR scan result',
-    rawText: raw,
-    extractedIlIds: ilIds,
-    extractedIdfIds: idfIds,
+    ilIdCount: ilIds.length,
+    idfIdCount: idfIds.length,
   });
 
   // Try IL_ID matches first
   for (const val of ilIds) {
-    logger.info({ message: 'OCR DB lookup', identifierType: 'IL_ID', identifierValue: val });
+    logger.info({ message: 'OCR DB lookup', identifierType: 'IL_ID' });
     const person = await peopleRepo.findByIdentifier('IL_ID', val);
     if (person) {
       const verdict = resolveVerdict(person);
-      logger.info({ message: 'OCR match found', identifierType: 'IL_ID', identifierValue: val, verdict });
+      logger.info({ message: 'OCR match found', identifierType: 'IL_ID', verdict });
       await peopleRepo.touchLastSeen(person.id);
       await auditRepo.log({
         action: 'VERIFY',
@@ -109,11 +108,11 @@ async function verifyByImage(imageBuffer) {
 
   // Try IDF_ID matches
   for (const val of idfIds) {
-    logger.info({ message: 'OCR DB lookup', identifierType: 'IDF_ID', identifierValue: val });
+    logger.info({ message: 'OCR DB lookup', identifierType: 'IDF_ID' });
     const person = await peopleRepo.findByIdentifier('IDF_ID', val);
     if (person) {
       const verdict = resolveVerdict(person);
-      logger.info({ message: 'OCR match found', identifierType: 'IDF_ID', identifierValue: val, verdict });
+      logger.info({ message: 'OCR match found', identifierType: 'IDF_ID', verdict });
       await peopleRepo.touchLastSeen(person.id);
       await auditRepo.log({
         action: 'VERIFY',
