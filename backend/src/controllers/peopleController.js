@@ -188,18 +188,6 @@ async function importGSheet(req, res, next) {
   }
 }
 
-async function uploadCSV(req, res, next) {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No CSV file uploaded' });
-    }
-    const result = await peopleService.bulkUploadCSV(req.file.buffer, req.user);
-    return res.json(result);
-  } catch (err) {
-    return next(err);
-  }
-}
-
 async function getAuditLog(req, res, next) {
   try {
     const person = await peopleService.getPerson(parseInt(req.params.id, 10));
@@ -234,7 +222,6 @@ module.exports = {
   blockPerson,
   unblockPerson,
   remove,
-  uploadCSV,
   importGSheet,
   personBodyValidation,
   idParamValidation,
