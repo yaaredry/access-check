@@ -392,79 +392,12 @@ describe('DELETE /people/:id', () => {
 });
 
 describe('POST /people/upload-csv', () => {
-  it('inserts valid records from a CSV upload', async () => {
-    const csv = [
-      'identifier_type,identifier_value,verdict,expiration_date',
-      'IL_ID,000000018,APPROVED,',
-      'IDF_ID,1234567,NOT_APPROVED,',
-    ].join('\n');
-
-    const res = await request(app)
-      .post('/people/upload-csv')
-      .set('Authorization', `Bearer ${authToken}`)
-      .attach('file', Buffer.from(csv), { filename: 'test.csv', contentType: 'text/csv' });
-
-    expect(res.status).toBe(200);
-    expect(res.body.inserted).toBe(2);
-    expect(res.body.errors).toHaveLength(0);
-  });
-
-  it('reports errors for invalid rows and still inserts valid ones', async () => {
-    const csv = [
-      'identifier_type,identifier_value,verdict,expiration_date',
-      'IL_ID,000000018,APPROVED,',
-      'UNKNOWN,000000018,APPROVED,',
-    ].join('\n');
-
-    const res = await request(app)
-      .post('/people/upload-csv')
-      .set('Authorization', `Bearer ${authToken}`)
-      .attach('file', Buffer.from(csv), { filename: 'test.csv', contentType: 'text/csv' });
-
-    expect(res.status).toBe(200);
-    expect(res.body.inserted).toBe(1);
-    expect(res.body.errors).toHaveLength(1);
-  });
-
-  it('accepts APPROVED_WITH_ESCORT verdict in CSV upload', async () => {
-    const csv = [
-      'identifier_type,identifier_value,verdict,expiration_date',
-      'IL_ID,000000018,APPROVED_WITH_ESCORT,',
-    ].join('\n');
-
-    const res = await request(app)
-      .post('/people/upload-csv')
-      .set('Authorization', `Bearer ${authToken}`)
-      .attach('file', Buffer.from(csv), { filename: 'test.csv', contentType: 'text/csv' });
-
-    expect(res.status).toBe(200);
-    expect(res.body.inserted).toBe(1);
-    expect(res.body.errors).toHaveLength(0);
-  });
-
-  it('rejects rows with unrecognised verdict in CSV upload', async () => {
-    const csv = [
-      'identifier_type,identifier_value,verdict,expiration_date',
-      'IL_ID,000000018,SUPER_APPROVED,',
-    ].join('\n');
-
-    const res = await request(app)
-      .post('/people/upload-csv')
-      .set('Authorization', `Bearer ${authToken}`)
-      .attach('file', Buffer.from(csv), { filename: 'test.csv', contentType: 'text/csv' });
-
-    expect(res.status).toBe(200);
-    expect(res.body.inserted).toBe(0);
-    expect(res.body.errors).toHaveLength(1);
-    expect(res.body.errors[0].error).toMatch(/Invalid verdict/);
-  });
-
-  it('returns 400 when no file is attached', async () => {
+  it('returns 410 — endpoint has been discontinued', async () => {
     const res = await request(app)
       .post('/people/upload-csv')
       .set('Authorization', `Bearer ${authToken}`);
 
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(410);
   });
 });
 
